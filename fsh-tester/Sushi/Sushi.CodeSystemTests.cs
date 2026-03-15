@@ -328,8 +328,8 @@ public class CodeSystemTests
         Assert.AreEqual(0.45m, ((NumberValue)r1.Value!).Value);
         var r2 = (CsCaretValueRule)cs.Rules[2];
         Assert.AreEqual("^extension[1].valueBoolean", r2.CaretPath);
-        // fsh-processor stores boolean literals as StringValue, not BooleanValue.
-        Assert.Inconclusive("Parser does not yet produce BooleanValue for boolean literals; returns StringValue instead");
+        Assert.IsInstanceOfType<BooleanValue>(r2.Value);
+        Assert.IsTrue(((BooleanValue)r2.Value!).Value);
     }
 
     // ─── #insertRule ─────────────────────────────────────────────────────────

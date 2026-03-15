@@ -10,7 +10,6 @@
 //  - SUSHI splits contains+cardinality into ContainsRule + CardRule (parser does not yet).
 //  - fsh-processor stores CaretPath with "^" prefix; SUSHI strips it (normalized in SushiTestHelper).
 //  - fsh-processor stores Strength with "()" wrapping; SUSHI strips them (normalized in SushiTestHelper).
-//  - fsh-processor stores boolean literals as StringValue, not BooleanValue.
 //  - fsh-processor retains "#" prefix on code values in FixedValueRule.
 
 using fsh_processor.Models;
@@ -204,7 +203,7 @@ public class SDRulesTests
         SushiTestHelper.AssertBindingRule(profile.Rules[0], "status", "MyValueSet");
     }
 
-    // ─── #assignmentRule / fixedValueRule ─────────────────────────────────────
+    // ─── #assignmentRule / fixedValueRule ────────────────────────────────────
 
     [TestMethod]
     public void ShouldParseAssignedValueStringRule()
@@ -266,8 +265,17 @@ public class SDRulesTests
     [TestMethod]
     public void ShouldParseAssignedValueBooleanRule()
     {
-        // fsh-processor stores boolean literals as StringValue, not BooleanValue.
-        Assert.Inconclusive("Parser does not yet produce BooleanValue for boolean literals; returns StringValue instead");
+        var doc = SushiTestHelper.ParseDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * component.valueBoolean = true
+        ");
+        var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
+        Assert.AreEqual(1, profile.Rules.Count);
+        var rule = SushiTestHelper.AssertFixedValueRule(profile.Rules[0], "component.valueBoolean");
+        Assert.IsInstanceOfType<BooleanValue>(rule.Value);
+        Assert.IsTrue(((BooleanValue)rule.Value!).Value);
+        Assert.IsFalse(rule.Exactly);
     }
 
     [TestMethod]

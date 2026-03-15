@@ -174,17 +174,31 @@ public class ExtensionTests
     [TestMethod]
     public void ShouldParseAssignedValueBooleanRule()
     {
-        // SUSHI produces a BooleanValue for "true"/"false" literals.
-        // fsh-processor stores boolean literals as StringValue (not yet typed as BooleanValue).
-        Assert.Inconclusive("Parser does not yet produce BooleanValue for boolean literals; returns StringValue instead");
+        var doc = SushiTestHelper.ParseDoc(@"
+        Extension: SomeExtension
+        * value[x] = true
+        ");
+        var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
+        Assert.AreEqual(1, ext.Rules.Count);
+        var rule = SushiTestHelper.AssertFixedValueRule(ext.Rules[0], "value[x]");
+        Assert.IsInstanceOfType<BooleanValue>(rule.Value);
+        Assert.IsTrue(((BooleanValue)rule.Value!).Value);
+        Assert.IsFalse(rule.Exactly);
     }
 
     [TestMethod]
     public void ShouldParseAssignedValueBooleanRuleWithExactlyModifier()
     {
-        // SUSHI produces a BooleanValue for "true"/"false" literals.
-        // fsh-processor stores boolean literals as StringValue (not yet typed as BooleanValue).
-        Assert.Inconclusive("Parser does not yet produce BooleanValue for boolean literals; returns StringValue instead");
+        var doc = SushiTestHelper.ParseDoc(@"
+        Extension: SomeExtension
+        * value[x] = false (exactly)
+        ");
+        var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
+        Assert.AreEqual(1, ext.Rules.Count);
+        var rule = SushiTestHelper.AssertFixedValueRule(ext.Rules[0], "value[x]");
+        Assert.IsInstanceOfType<BooleanValue>(rule.Value);
+        Assert.IsFalse(((BooleanValue)rule.Value!).Value);
+        Assert.IsTrue(rule.Exactly);
     }
 
     // ─── #onlyRule ───────────────────────────────────────────────────────────
