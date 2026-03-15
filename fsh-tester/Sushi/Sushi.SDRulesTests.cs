@@ -64,8 +64,17 @@ public class SDRulesTests
     [TestMethod]
     public void ShouldParseCardRuleWithCombinedFlags()
     {
-        // SUSHI splits "* status 1..1 MS" into CardRule + FlagRule; parser combines them.
-        Assert.Inconclusive("Parser does not yet split combined cardinality+flag rules into separate CardRule and FlagRule");
+        // SUSHI splits "* status 1..1 MS" into a CardRule + a separate FlagRule.
+        // fsh-processor combines cardinality and flags into a single CardRule.
+        var doc = SushiTestHelper.ParseDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * status 1..1 MS
+        ");
+        var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
+        Assert.AreEqual(1, profile.Rules.Count);
+        var rule = SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
+        CollectionAssert.Contains(rule.Flags, "MS");
     }
 
     [TestMethod]
@@ -323,9 +332,17 @@ public class SDRulesTests
     [TestMethod]
     public void ShouldParseContainsRuleWithOneItem()
     {
-        // SUSHI splits "* component contains bpSystolic 1..1" into ContainsRule + CardRule.
-        // fsh-processor combines them.
-        Assert.Inconclusive("Parser does not yet split contains+cardinality into separate ContainsRule and CardRule");
+        // SUSHI splits "* component contains bpSystolic 1..1" into a ContainsRule + a CardRule.
+        // fsh-processor combines them into a single ContainsRule with cardinality on the item.
+        var doc = SushiTestHelper.ParseDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * component contains bpSystolic 1..1
+        ");
+        var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
+        Assert.AreEqual(1, profile.Rules.Count);
+        var rule = SushiTestHelper.AssertContainsRule(profile.Rules[0], "component", "bpSystolic");
+        Assert.AreEqual("1..1", rule.Items[0].Cardinality);
     }
 
     // ─── #caretValueRule ─────────────────────────────────────────────────────
@@ -404,8 +421,17 @@ public class SDRulesTests
     [TestMethod]
     public void ShouldParseObeysRuleWithMultipleInvariants()
     {
-        // SUSHI splits "* obeys obs-1 and obs-2" into two ObeysRules; parser keeps them combined.
-        Assert.Inconclusive("Parser does not yet split multi-invariant obeys rule into separate ObeysRules per invariant");
+        // SUSHI splits "* obeys obs-1 and obs-2" into two separate ObeysRules.
+        // fsh-processor keeps both invariants in a single ObeysRule.
+        var doc = SushiTestHelper.ParseDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * obeys obs-1 and obs-2
+        ");
+        var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
+        Assert.AreEqual(1, profile.Rules.Count);
+        var rule = SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1", "obs-2");
+        Assert.AreEqual(2, rule.InvariantNames.Count);
     }
 
     // ─── #pathRule ───────────────────────────────────────────────────────────

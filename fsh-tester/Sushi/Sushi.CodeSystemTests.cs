@@ -80,9 +80,15 @@ public class CodeSystemTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI ignores duplicate metadata occurrences (first-wins semantics).
-        // fsh-processor applies the last occurrence (last-wins) instead.
-        Assert.Inconclusive("Parser applies last duplicate metadata value rather than first; first-wins not yet implemented");
+        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        var doc = SushiTestHelper.ParseDoc(@"
+        CodeSystem: ZOO
+        Id: first-id
+        Id: second-id
+        ");
+        var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
+        // fsh-processor last-wins: the second declaration overwrites the first.
+        Assert.AreEqual("second-id", cs.Id);
     }
 
     [TestMethod]
