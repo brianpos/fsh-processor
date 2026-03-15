@@ -14,19 +14,11 @@ public class FshFeatureAnalyticsTests
     [TestMethod]
     public void AnalyzeSDCIgFeatureUsage()
     {
-        // Path to SDC IG FSH files
-        var fshDirectory = @"C:\git\hl7\sdc\input\fsh";
+        // Get all FSH files from the TestData/SDC folder shipped with the test assembly
+        var sdcPath = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC");
+        var fshFiles = Directory.GetFiles(sdcPath, "*.fsh", SearchOption.AllDirectories);
         
-        if (!Directory.Exists(fshDirectory))
-        {
-            Assert.Inconclusive($"Directory not found: {fshDirectory}. This test requires the SDC IG repository.");
-            return;
-        }
-
-        var fshFiles = Directory.GetFiles(fshDirectory, "*.fsh", SearchOption.AllDirectories);
-        
-        Assert.IsTrue(fshFiles.Length > 0, 
-            $"No FSH files found in {fshDirectory}");
+        Assert.IsTrue(fshFiles.Length > 0, $"No FSH files found in {sdcPath}");
 
         // Initialize counters
         var analytics = new FshFeatureAnalytics();

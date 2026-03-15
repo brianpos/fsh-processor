@@ -13,7 +13,9 @@ public class DebugQuoteTests
     [TestMethod]
     public void TestDefinitionExtractExtension()
     {
-        var fshPath = @"C:\git\hl7\sdc\input\fsh\extensions\DefinitionExtractExtension.fsh";
+        // Get all FSH files from the TestData/SDC folder shipped with the test assembly
+        var sdcPath = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC");
+        var fshPath = Path.Combine(sdcPath, "DefinitionExtractExtension.fsh");
         var originalFsh = File.ReadAllText(fshPath);
         
         Console.WriteLine("=== ORIGINAL FSH ===");
@@ -63,7 +65,9 @@ public class DebugQuoteTests
     [TestMethod]
     public void TestEntryMode()
     {
-        var fshPath = @"C:\git\hl7\sdc\input\fsh\extensions\EntryMode.fsh";
+        // Get all FSH files from the TestData/SDC folder shipped with the test assembly
+        var sdcPath = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC");
+        var fshPath = Path.Combine(sdcPath, "EntryMode.fsh");
         var originalFsh = File.ReadAllText(fshPath);
         
         Console.WriteLine("=== ORIGINAL FSH ===");
