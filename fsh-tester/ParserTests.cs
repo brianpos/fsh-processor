@@ -31,8 +31,9 @@ Usage: #definition
         [TestMethod]
         public void ParseSDCIgSourceFiles()
         {
-            string testDataDir = Path.Combine("C:\\git\\hl7\\sdc", "input", "fsh");
-            string[] fshFiles = Directory.GetFiles(testDataDir, "*.fsh", SearchOption.AllDirectories);
+            // Get all FSH files from the TestData/SDC folder shipped with the test assembly
+            var sdcPath = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC");
+            string[] fshFiles = Directory.GetFiles(sdcPath, "*.fsh", SearchOption.AllDirectories);
             
             int totalFiles = 0;
             int totalEntities = 0;
@@ -113,7 +114,7 @@ Usage: #definition
         [TestMethod]
         public void ParseSingleFile_SDCTaskQuestionnaire()
         {
-            string fshFile = Path.Combine("C:\\git\\hl7\\sdc", "input", "fsh", "profiles", "SDCTaskQuestionnaire.fsh");
+            string fshFile = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC", "SDCTaskQuestionnaire.fsh");
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
             
             string fshContent = File.ReadAllText(fshFile);
@@ -160,7 +161,7 @@ Usage: #definition
         [TestMethod]
         public void ParseSingleFile_shared()
         {
-            string fshFile = Path.Combine("C:\\git\\hl7\\sdc", "input", "fsh", "shared.fsh");
+            string fshFile = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC", "shared.fsh");
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
 
             string fshContent = File.ReadAllText(fshFile);
@@ -221,7 +222,7 @@ Usage: #definition
         [TestMethod]
         public void ParseSingleFile_SDCLibrary()
         {
-            string fshFile = Path.Combine("C:\\git\\hl7\\sdc", "input", "fsh", "profiles", "SDCLibrary.fsh");
+            string fshFile = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC", "SDCLibrary.fsh");
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
 
             string fshContent = File.ReadAllText(fshFile);
@@ -282,7 +283,7 @@ Usage: #definition
         [TestMethod]
         public void ParseSingleFile_populatelink()
         {
-            string fshFile = Path.Combine("C:\\git\\hl7\\sdc", "input", "fsh", "operations", "Questionnaire-populatelink.fsh");
+            string fshFile = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC", "Questionnaire-populatelink.fsh");
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
 
             string fshContent = File.ReadAllText(fshFile);
@@ -329,7 +330,7 @@ Usage: #definition
         [TestMethod]
         public void ParseSingleFile_demographics()
         {
-            string fshFile = Path.Combine("C:\\git\\hl7\\sdc", "input", "fsh", "examples", "demographics.fsh");
+            string fshFile = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC", "demographics.fsh");
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
 
             string fshContent = File.ReadAllText(fshFile);
@@ -382,7 +383,7 @@ Usage: #definition
         [TestMethod]
         public void ParseSingleFile_phq9_start()
         {
-            string fshFile = Path.Combine("C:\\git\\hl7\\sdc", "input", "fsh", "examples", "adaptive-questionnaireresponse-sdc-example-phq9-start.fsh");
+            string fshFile = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC", "adaptive-questionnaireresponse-sdc-example-phq9-start.fsh");
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
 
             string fshContent = File.ReadAllText(fshFile);
@@ -430,7 +431,7 @@ Usage: #definition
         public void ParseSingleFile_SDCExample_WithStandaloneComments()
         {
             // This file previously failed due to standalone comment lines
-            string fshFile = Path.Combine("C:\\git\\hl7\\sdc", "input", "fsh", "logicals", "SDCExample.fsh");
+            string fshFile = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC", "SDCExample.fsh");
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
             
             string fshContent = File.ReadAllText(fshFile);
@@ -596,7 +597,7 @@ RuleSet: item([[linkId]], [[text]], [[type]])
         public void ParseRealParameterizedRuleSets_FromSDCIG()
         {
             // Test parsing of real parameterized rule sets from the SDC IG shared.fsh file
-            string fshFile = Path.Combine("C:\\git\\hl7\\sdc", "input", "fsh", "shared.fsh");
+            string fshFile = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC", "shared.fsh");
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
             
             string fshContent = File.ReadAllText(fshFile);
