@@ -527,15 +527,8 @@ Id: my-observation
     [TestMethod]
     public void TestRoundTripAllSDCFiles()
     {
-        // Get all FSH files from SDC IG
-        var sdcPath = @"C:\git\hl7\sdc\input\fsh";
-        
-        if (!Directory.Exists(sdcPath))
-        {
-            Assert.Inconclusive($"SDC IG directory not found at {sdcPath}. Skipping batch test.");
-            return;
-        }
-
+        // Get all FSH files from the TestData/SDC folder shipped with the test assembly
+        var sdcPath = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC");
         var fshFiles = Directory.GetFiles(sdcPath, "*.fsh", SearchOption.AllDirectories);
         Assert.IsTrue(fshFiles.Length > 0, "No FSH files found in SDC IG");
 
