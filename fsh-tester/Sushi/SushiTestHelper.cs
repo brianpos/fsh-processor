@@ -201,7 +201,8 @@ public static class SushiTestHelper
     {
         Assert.IsInstanceOfType<ObeysRule>(rule, $"Expected ObeysRule at '{path}'");
         var r = (ObeysRule)rule;
-        Assert.AreEqual(path, r.Path, "ObeysRule.Path");
+        // fsh-processor stores Path as null when there is no path; treat null as equivalent to "".
+        Assert.AreEqual(path ?? string.Empty, r.Path ?? string.Empty, "ObeysRule.Path");
         CollectionAssert.AreEqual(invariants, r.InvariantNames.ToArray(), "ObeysRule.InvariantNames");
         return r;
     }
@@ -219,7 +220,8 @@ public static class SushiTestHelper
     {
         Assert.IsInstanceOfType<CaretValueRule>(rule, $"Expected CaretValueRule at '{path}' ^{caretPath}");
         var r = (CaretValueRule)rule;
-        Assert.AreEqual(path, r.Path, "CaretValueRule.Path");
+        // fsh-processor stores Path as null when there is no path; treat null as equivalent to "".
+        Assert.AreEqual(path ?? string.Empty, r.Path ?? string.Empty, "CaretValueRule.Path");
         // fsh-processor stores CaretPath with leading "^" (e.g. "^short"); SUSHI strips it.
         Assert.AreEqual(caretPath, r.CaretPath?.TrimStart('^'), "CaretValueRule.CaretPath");
         return r;
