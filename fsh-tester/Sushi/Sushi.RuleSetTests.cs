@@ -30,13 +30,12 @@ public class RuleSetTests
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "OneRuleSet");
         Assert.AreEqual("OneRuleSet", ruleSet.Name);
         // Verify the single rule is a FixedValueRule assigning active = true.
-        // Note: 'true' is parsed as StringValue in our parser (no implicit bool coercion).
         Assert.AreEqual(1, ruleSet.Rules.Count);
         Assert.IsInstanceOfType<FixedValueRule>(ruleSet.Rules[0]);
         var rule = (FixedValueRule)ruleSet.Rules[0];
         Assert.AreEqual("active", rule.Path);
-        Assert.IsInstanceOfType<StringValue>(rule.Value);
-        Assert.AreEqual("true", ((StringValue)rule.Value!).Value);
+        Assert.IsInstanceOfType<BooleanValue>(rule.Value);
+        Assert.IsTrue(((BooleanValue)rule.Value!).Value);
     }
 
     [TestMethod]
@@ -69,12 +68,11 @@ public class RuleSetTests
         SushiTestHelper.AssertBindingRule(ruleSet.Rules[0], "gender",
             "https://www.hl7.org/fhir/valueset-administrative-gender.html");
 
-        // 'true' is parsed as StringValue in our parser
         Assert.IsInstanceOfType<FixedValueRule>(ruleSet.Rules[1]);
         var activeRule = (FixedValueRule)ruleSet.Rules[1];
         Assert.AreEqual("active", activeRule.Path);
-        Assert.IsInstanceOfType<StringValue>(activeRule.Value);
-        Assert.AreEqual("true", ((StringValue)activeRule.Value!).Value);
+        Assert.IsInstanceOfType<BooleanValue>(activeRule.Value);
+        Assert.IsTrue(((BooleanValue)activeRule.Value!).Value);
         Assert.IsTrue(activeRule.Exactly);
 
         SushiTestHelper.AssertCardRule(ruleSet.Rules[2], "contact", "1..1");

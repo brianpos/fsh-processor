@@ -8,7 +8,6 @@
 //  - SUSHI splits multi-invariant obeys into separate ObeysRules; fsh-processor keeps them in one.
 //  - fsh-processor stores CaretPath with "^" prefix; SUSHI strips it (normalized in SushiTestHelper).
 //  - fsh-processor stores Strength with "()" wrapping; SUSHI strips them (normalized in SushiTestHelper).
-//  - fsh-processor stores boolean literals as StringValue, not BooleanValue.
 //  - Columns in SourcePosition are 0-based (ANTLR); SUSHI uses 1-based.
 
 using fsh_processor.Models;
@@ -236,8 +235,17 @@ public class ProfileTests
     [TestMethod]
     public void ShouldParseAssignedValueBooleanRule()
     {
-        // fsh-processor stores boolean literals as StringValue, not BooleanValue.
-        Assert.Inconclusive("Parser does not yet produce BooleanValue for boolean literals; returns StringValue instead");
+        var doc = SushiTestHelper.ParseDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * component.valueBoolean = true
+        ");
+        var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
+        Assert.AreEqual(1, profile.Rules.Count);
+        var rule = SushiTestHelper.AssertFixedValueRule(profile.Rules[0], "component.valueBoolean");
+        Assert.IsInstanceOfType<BooleanValue>(rule.Value);
+        Assert.IsTrue(((BooleanValue)rule.Value!).Value);
+        Assert.IsFalse(rule.Exactly);
     }
 
     [TestMethod]

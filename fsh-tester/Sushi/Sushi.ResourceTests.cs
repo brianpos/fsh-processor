@@ -7,7 +7,6 @@
 //  - SUSHI splits multi-invariant obeys into separate ObeysRules; fsh-processor keeps them in one.
 //  - fsh-processor stores CaretPath with "^" prefix; SUSHI strips it (normalized in SushiTestHelper).
 //  - fsh-processor stores Strength with "()" wrapping; SUSHI strips them (normalized in SushiTestHelper).
-//  - fsh-processor stores boolean literals as StringValue, not BooleanValue.
 //  - Resource uses string? properties (not Metadata?) for Parent, Id, Title, Description.
 
 using fsh_processor.Models;

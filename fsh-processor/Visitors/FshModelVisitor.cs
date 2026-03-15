@@ -1867,23 +1867,20 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         {
             return Visit(context.canonical());
         }
+        if (context.@bool() != null)
+        {
+            return new BooleanValue
+            {
+                Position = GetPosition(context),
+                Value = context.@bool().KW_TRUE() != null
+            };
+        }
         if (context.name() != null)
         {
-            var nameText = context.name().GetText();
-            // Check if this is true/false boolean value
-            if (nameText.Equals("true", StringComparison.OrdinalIgnoreCase) || nameText.Equals("false", StringComparison.OrdinalIgnoreCase))
-            {
-                return new BooleanValue
-                {
-                    Position = GetPosition(context),
-                    Value = nameText.Equals("true", StringComparison.OrdinalIgnoreCase)
-                };
-            }
-            
             return new NameValue
             {
                 Position = GetPosition(context),
-                Value = nameText
+                Value = context.name().GetText()
             };
         }
 
