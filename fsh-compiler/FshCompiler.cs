@@ -503,64 +503,29 @@ public static class FshCompiler
     private static void ApplySdCaretPath(CaretValueRule rule, StructureDefinition sd)
     {
         var path = rule.CaretPath.TrimStart('^');
-        switch (path)
+        if (FhirCaretValueWriter.TrySet(sd, path, rule.Value)) return;
+
+        // Fall back to an extension for paths not in the StructureDefinition model
+        sd.Extension ??= new List<FhirExtension>();
+        sd.Extension.Add(new FhirExtension
         {
-            case "title" when rule.Value is StringValue sv1:
-                sd.Title = sv1.Value; break;
-            case "description" when rule.Value is StringValue sv2:
-                sd.Description = sv2.Value; break;
-            case "publisher" when rule.Value is StringValue sv3:
-                sd.Publisher = sv3.Value; break;
-            case "purpose" when rule.Value is StringValue sv4:
-                sd.Purpose = sv4.Value; break;
-            case "copyright" when rule.Value is StringValue sv5:
-                sd.Copyright = sv5.Value; break;
-            case "status" when rule.Value is StringValue sv6:
-                if (Enum.TryParse<PublicationStatus>(sv6.Value, true, out var status))
-                    sd.Status = status;
-                break;
-            default:
-                // Store unmapped paths as extensions
-                sd.Extension ??= new List<FhirExtension>();
-                sd.Extension.Add(new FhirExtension
-                {
-                    Url = path,
-                    Value = FhirValueMapper.ToDataType(rule.Value)
-                });
-                break;
-        }
+            Url = path,
+            Value = FhirValueMapper.ToDataType(rule.Value)
+        });
     }
 
     private static void ApplyEdCaretPath(CaretValueRule rule, ElementDefinition ed)
     {
         var path = rule.CaretPath.TrimStart('^');
-        switch (path)
+        if (FhirCaretValueWriter.TrySet(ed, path, rule.Value)) return;
+
+        // Fall back to an extension for paths not in the ElementDefinition model
+        ed.Extension ??= new List<FhirExtension>();
+        ed.Extension.Add(new FhirExtension
         {
-            case "short" when rule.Value is StringValue sv1:
-                ed.Short = sv1.Value; break;
-            case "definition" when rule.Value is StringValue sv2:
-                ed.Definition = sv2.Value; break;
-            case "comment" when rule.Value is StringValue sv3:
-                ed.Comment = sv3.Value; break;
-            case "requirements" when rule.Value is StringValue sv4:
-                ed.Requirements = sv4.Value; break;
-            case "label" when rule.Value is StringValue sv5:
-                ed.Label = sv5.Value; break;
-            case "mustSupport" when rule.Value is BooleanValue bv:
-                ed.MustSupport = bv.Value; break;
-            case "isModifier" when rule.Value is BooleanValue bv2:
-                ed.IsModifier = bv2.Value; break;
-            case "isSummary" when rule.Value is BooleanValue bv3:
-                ed.IsSummary = bv3.Value; break;
-            default:
-                ed.Extension ??= new List<FhirExtension>();
-                ed.Extension.Add(new FhirExtension
-                {
-                    Url = path,
-                    Value = FhirValueMapper.ToDataType(rule.Value)
-                });
-                break;
-        }
+            Url = path,
+            Value = FhirValueMapper.ToDataType(rule.Value)
+        });
     }
 
     private static void ApplyAddElementRule(AddElementRule addEl, StructureDefinition sd)
@@ -643,19 +608,8 @@ public static class FshCompiler
     private static void ApplyVsCaretValueRule(VsCaretValueRule rule, FhirValueSet fvs)
     {
         var path = rule.CaretPath.TrimStart('^');
-        switch (path)
-        {
-            case "title" when rule.Value is StringValue sv1:
-                fvs.Title = sv1.Value; break;
-            case "description" when rule.Value is StringValue sv2:
-                fvs.Description = sv2.Value; break;
-            case "publisher" when rule.Value is StringValue sv3:
-                fvs.Publisher = sv3.Value; break;
-            case "purpose" when rule.Value is StringValue sv4:
-                fvs.Purpose = sv4.Value; break;
-            case "copyright" when rule.Value is StringValue sv5:
-                fvs.Copyright = sv5.Value; break;
-        }
+        FhirCaretValueWriter.TrySet(fvs, path, rule.Value);
+        // Silently ignore if the path is not in the ValueSet model.
     }
 
     // ─── CodeSystem rule processors ───────────────────────────────────────────
@@ -700,23 +654,8 @@ public static class FshCompiler
     private static void ApplyCsCaretValueRule(CsCaretValueRule rule, FhirCodeSystem fcs)
     {
         var path = rule.CaretPath.TrimStart('^');
-        switch (path)
-        {
-            case "title" when rule.Value is StringValue sv1:
-                fcs.Title = sv1.Value; break;
-            case "description" when rule.Value is StringValue sv2:
-                fcs.Description = sv2.Value; break;
-            case "publisher" when rule.Value is StringValue sv3:
-                fcs.Publisher = sv3.Value; break;
-            case "copyright" when rule.Value is StringValue sv4:
-                fcs.Copyright = sv4.Value; break;
-            case "caseSensitive" when rule.Value is BooleanValue bv:
-                fcs.CaseSensitive = bv.Value; break;
-            case "hierarchyMeaning" when rule.Value is StringValue sv5:
-                if (Enum.TryParse<FhirCodeSystem.CodeSystemHierarchyMeaning>(sv5.Value, true, out var hm))
-                    fcs.HierarchyMeaning = hm;
-                break;
-        }
+        FhirCaretValueWriter.TrySet(fcs, path, rule.Value);
+        // Silently ignore if the path is not in the CodeSystem model.
     }
 
     // ─── Shared helpers ───────────────────────────────────────────────────────

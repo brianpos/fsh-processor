@@ -66,4 +66,37 @@ public class R4CodeSystemCompilerTests
         var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
         Assert.IsTrue(cs.CaseSensitive);
     }
+
+    [TestMethod]
+    public void ShouldCompileCodeSystemWithHierarchyMeaning()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: MyCS
+            * ^hierarchyMeaning = ""is-a""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
+        Assert.AreEqual(FhirCodeSystem.CodeSystemHierarchyMeaning.IsA, cs.HierarchyMeaning);
+    }
+
+    [TestMethod]
+    public void ShouldCompileCodeSystemWithPublisher()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: MyCS
+            * ^publisher = ""HL7 International""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
+        Assert.AreEqual("HL7 International", cs.Publisher);
+    }
+
+    [TestMethod]
+    public void ShouldCompileCodeSystemWithStatus()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: MyCS
+            * ^status = ""retired""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
+        Assert.AreEqual(PublicationStatus.Retired, cs.Status);
+    }
 }

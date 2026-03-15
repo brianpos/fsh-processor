@@ -383,6 +383,124 @@ public class R4ProfileCompilerTests
         Assert.AreEqual("Observation", obs.Type);
     }
 
+    // ─── CaretValueRule — ModelInspector dynamic dispatch ────────────────────
+    // These properties were NOT in the original switch statements; they verify that
+    // the ModelInspector-based FhirCaretValueWriter handles any FHIR property.
+
+    [TestMethod]
+    public void ShouldApplyCaretValueVersion()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * ^version = ""1.2.3""
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.AreEqual("1.2.3", sd.Version);
+    }
+
+    [TestMethod]
+    public void ShouldApplyCaretValueExperimental()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * ^experimental = true
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.IsTrue(sd.Experimental);
+    }
+
+    [TestMethod]
+    public void ShouldApplyCaretValueStatus()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * ^status = ""draft""
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.AreEqual(PublicationStatus.Draft, sd.Status);
+    }
+
+    [TestMethod]
+    public void ShouldApplyCaretValuePurposeOnSD()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * ^purpose = ""For testing purposes""
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.AreEqual("For testing purposes", sd.Purpose);
+    }
+
+    [TestMethod]
+    public void ShouldApplyCaretValueCommentOnElement()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * status ^comment = ""See binding for allowed values""
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "status");
+        Assert.AreEqual("See binding for allowed values", ed.Comment);
+    }
+
+    [TestMethod]
+    public void ShouldApplyCaretValueRequirementsOnElement()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * status ^requirements = ""Must always be set""
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "status");
+        Assert.AreEqual("Must always be set", ed.Requirements);
+    }
+
+    [TestMethod]
+    public void ShouldApplyCaretValueLabelOnElement()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * status ^label = ""Status""
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "status");
+        Assert.AreEqual("Status", ed.Label);
+    }
+
+    [TestMethod]
+    public void ShouldApplyCaretValueIsModifierOnElement()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * modifierExtension ^isModifier = true
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "modifierExtension");
+        Assert.IsTrue(ed.IsModifier);
+    }
+
+    [TestMethod]
+    public void ShouldFallBackToExtensionForUnknownCaretPath()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * ^x-custom-property = ""some value""
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        // Unknown caret path should be stored as an extension
+        var ext = sd.Extension?.FirstOrDefault(e => e.Url == "x-custom-property");
+        Assert.IsNotNull(ext, "Unknown caret path should produce an extension");
+    }
+
     // ─── Root element ─────────────────────────────────────────────────────────
 
     [TestMethod]
