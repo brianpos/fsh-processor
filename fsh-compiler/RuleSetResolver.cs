@@ -59,16 +59,20 @@ public static class RuleSetResolver
         IReadOnlyList<string> paramNames,
         IReadOnlyList<string> paramValues)
     {
-        // Build substitution pairs: {%name%} → value
-        var substitutions = paramNames
-            .Zip(paramValues, (name, value) => (pattern: $"{{%{name}%}}", value))
-            .ToList();
+        // TODO: Implement parameter substitution for parameterized rule sets.
+        // The RuleSet.UnparsedContent field holds the raw text with {paramName} placeholders.
+        // Substitute each placeholder with the corresponding value from paramValues,
+        // then re-parse via a synthetic Profile wrapper to produce concrete FshRule instances.
+        //
+        // For the initial implementation this returns an empty string, causing parameterized
+        // InsertRule references to fall back to the unsubstituted rules in ruleSet.Rules.
+        if (ruleSet.UnparsedContent is null) return string.Empty;
 
-        // Collect rule source text via leading hidden tokens on each rule's first token.
-        // Since FshRule nodes carry their indent but not their full text, we reconstruct
-        // a minimal rule string using the serializer output on a synthetic doc with just that rule.
-        // For the initial implementation we fall back to the unsubstituted rules when the
-        // raw text cannot be reconstructed.
-        return string.Empty;
+        var content = ruleSet.UnparsedContent;
+        for (int i = 0; i < paramNames.Count && i < paramValues.Count; i++)
+        {
+            content = content.Replace($"{{{paramNames[i]}}}", paramValues[i]);
+        }
+        return content;
     }
 }
