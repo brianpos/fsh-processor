@@ -215,9 +215,7 @@ public class FshValidationTests
 
                 // Now convert this to a StructureDefintion
                 var sd = ConvertToProfile.Convert(p, aliasDict);
-                // TODO: sd.ToJson() requires Hl7.Fhir.Serialization compatible with this Firely v5 setup.
-                // In Firely v5, use: new PocoSerializationEngine(ModelInspector).SerializeToJson(sd)
-                // Console.WriteLine(sd.ToJson(new FhirJsonSerializationSettings() { Pretty = true }));
+                Console.WriteLine(sd.ToJson(new FhirJsonSerializationSettings() { Pretty = true }));
                 Console.WriteLine();
             }
         }
