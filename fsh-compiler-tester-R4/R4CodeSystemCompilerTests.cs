@@ -1,0 +1,69 @@
+using Hl7.Fhir.Model;
+using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
+
+namespace fsh_compiler_tester_r4;
+
+/// <summary>
+/// Tests compiling FSH CodeSystem entities to FHIR R4 CodeSystem resources.
+/// </summary>
+[TestClass]
+public class R4CodeSystemCompilerTests
+{
+    [TestMethod]
+    public void ShouldCompileSimpleCodeSystem()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: MyCodeSystem
+            Title: ""My Code System""
+            Description: ""A simple code system""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCodeSystem");
+        Assert.AreEqual("MyCodeSystem", cs.Name);
+        Assert.AreEqual("My Code System", cs.Title);
+        Assert.AreEqual("A simple code system", cs.Description);
+        Assert.AreEqual(PublicationStatus.Active, cs.Status);
+        Assert.AreEqual(CodeSystemContentMode.Complete, cs.Content);
+    }
+
+    [TestMethod]
+    public void ShouldCompileCodeSystemWithConcepts()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: MyCS
+            * #active ""Active"" ""An active status""
+            * #inactive ""Inactive""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
+        Assert.IsNotNull(cs.Concept);
+        Assert.AreEqual(2, cs.Concept.Count);
+
+        var active = cs.Concept.First(c => c.Code == "active");
+        Assert.AreEqual("Active", active.Display);
+        Assert.AreEqual("An active status", active.Definition);
+
+        var inactive = cs.Concept.First(c => c.Code == "inactive");
+        Assert.AreEqual("Inactive", inactive.Display);
+    }
+
+    [TestMethod]
+    public void ShouldCompileCodeSystemWithCaretValueDescription()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: MyCS
+            * ^description = ""Override description""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
+        Assert.AreEqual("Override description", cs.Description);
+    }
+
+    [TestMethod]
+    public void ShouldCompileCodeSystemWithCaseSensitive()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: MyCS
+            * ^caseSensitive = true
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
+        Assert.IsTrue(cs.CaseSensitive);
+    }
+}

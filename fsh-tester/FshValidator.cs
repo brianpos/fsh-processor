@@ -1,13 +1,10 @@
+using fsh_compiler;
 using fsh_processor;
-using fsh_processor.Engine;
 using fsh_processor.Models;
 using Hl7.Fhir.Serialization;
 using Hl7.Fhir.Utility;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System.Data;
-using System.Security.Cryptography;
 using static fsh_processor.Models.ParseResult;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace fsh_tester;
 
@@ -207,7 +204,9 @@ public class FshValidationTests
                 }
 
                 // Now convert this to a StructureDefintion
-                var sd = ConvertToProfile.Convert(p, aliasDict);
+                var compilerContext = new CompilerContext();
+                foreach (var kvp in aliasDict) compilerContext.Aliases[kvp.Key] = kvp.Value;
+                var sd = FshCompiler.BuildProfile(p, compilerContext);
                 Console.WriteLine(sd.ToJson(new FhirJsonSerializationSettings() { Pretty = true }));
                 Console.WriteLine();
             }
