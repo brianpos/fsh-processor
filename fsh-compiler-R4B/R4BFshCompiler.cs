@@ -1,12 +1,15 @@
 using fsh_compiler;
 using fsh_processor.Models;
+using Hl7.Fhir.Model;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
 namespace fsh_compiler_r4b;
 
 /// <summary>
 /// FSH compiler targeting FHIR R4B (version 4.3.0).
-/// Wraps <see cref="FshCompiler"/> with R4B-appropriate defaults.
+/// Wraps <see cref="FshCompiler"/> with R4B-appropriate defaults, supplying the R4B
+/// <see cref="ModelInfo.ModelInspector"/> so the base compiler works entirely against
+/// the R4B model.
 /// </summary>
 public static class R4BFshCompiler
 {
@@ -19,12 +22,14 @@ public static class R4BFshCompiler
     /// <param name="doc">Parsed FSH document.</param>
     /// <param name="options">
     /// Optional options. <see cref="CompilerOptions.FhirVersion"/> defaults to <c>"4.3.0"</c>
-    /// when not specified.
+    /// and <see cref="CompilerOptions.Inspector"/> defaults to the R4B
+    /// <see cref="ModelInfo.ModelInspector"/> when not specified.
     /// </param>
     public static CompileResult<List<FhirResource>> Compile(FshDoc doc, CompilerOptions? options = null)
     {
         var opts = options ?? new CompilerOptions();
         opts.FhirVersion ??= FhirVersion;
+        opts.Inspector ??= ModelInfo.ModelInspector;
         return FshCompiler.Compile(doc, opts);
     }
 }

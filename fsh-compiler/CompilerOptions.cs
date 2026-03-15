@@ -1,3 +1,5 @@
+using Hl7.Fhir.Introspection;
+
 namespace fsh_compiler;
 
 /// <summary>
@@ -22,4 +24,18 @@ public class CompilerOptions
     /// Keys are alias names; values are the canonical URLs they resolve to.
     /// </summary>
     public Dictionary<string, string>? AliasOverrides { get; set; }
+
+    /// <summary>
+    /// <see cref="ModelInspector"/> used for caret-value property lookup and dynamic type
+    /// instantiation.  Version-specific compiler wrappers supply their version's
+    /// <c>ModelInfo.ModelInspector</c> here so that the base compiler works entirely
+    /// against the caller's FHIR model without any compile-time dependency on a specific
+    /// version assembly.
+    /// </summary>
+    /// <remarks>
+    /// When <c>null</c> the compiler falls back to an inspector built from the
+    /// <c>Hl7.Fhir.Conformance</c> assembly, which covers conformance types
+    /// (StructureDefinition, ElementDefinition, ValueSet, CodeSystem) for all FHIR versions.
+    /// </remarks>
+    public ModelInspector? Inspector { get; set; }
 }

@@ -1,4 +1,5 @@
 using fsh_processor.Models;
+using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
 using FhirCode = Hl7.Fhir.Model.Code;
 using FhirExtension = Hl7.Fhir.Model.Extension;
@@ -254,7 +255,7 @@ public static class FshCompiler
                     break;
 
                 case VsCaretValueRule caretRule:
-                    ApplyVsCaretValueRule(caretRule, fvs);
+                    ApplyVsCaretValueRule(caretRule, fvs, opts.Inspector);
                     break;
 
                 case VsInsertRule insertRule:
@@ -301,7 +302,7 @@ public static class FshCompiler
                     break;
 
                 case CsCaretValueRule caretRule:
-                    ApplyCsCaretValueRule(caretRule, fcs);
+                    ApplyCsCaretValueRule(caretRule, fcs, opts.Inspector);
                     break;
 
                 case CsInsertRule:
@@ -354,7 +355,7 @@ public static class FshCompiler
                     break;
 
                 case CaretValueRule caretValueRule:
-                    ApplyCaretValueRule(caretValueRule, sd);
+                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector);
                     break;
 
                 case InsertRule insertRule:
@@ -484,26 +485,26 @@ public static class FshCompiler
         }
     }
 
-    private static void ApplyCaretValueRule(CaretValueRule caretValueRule, StructureDefinition sd)
+    private static void ApplyCaretValueRule(CaretValueRule caretValueRule, StructureDefinition sd, ModelInspector? inspector)
     {
         if (string.IsNullOrEmpty(caretValueRule.CaretPath)) return;
 
         // Caret rules without a path target the StructureDefinition itself.
         if (string.IsNullOrEmpty(caretValueRule.Path) || caretValueRule.Path == ".")
         {
-            ApplySdCaretPath(caretValueRule, sd);
+            ApplySdCaretPath(caretValueRule, sd, inspector);
         }
         else
         {
             var ed = GetOrCreateElement(caretValueRule.Path, sd);
-            ApplyEdCaretPath(caretValueRule, ed);
+            ApplyEdCaretPath(caretValueRule, ed, inspector);
         }
     }
 
-    private static void ApplySdCaretPath(CaretValueRule rule, StructureDefinition sd)
+    private static void ApplySdCaretPath(CaretValueRule rule, StructureDefinition sd, ModelInspector? inspector)
     {
         var path = rule.CaretPath.TrimStart('^');
-        if (FhirCaretValueWriter.TrySet(sd, path, rule.Value)) return;
+        if (FhirCaretValueWriter.TrySet(sd, path, rule.Value, inspector)) return;
 
         // Fall back to an extension for paths not in the StructureDefinition model
         sd.Extension ??= new List<FhirExtension>();
@@ -514,10 +515,10 @@ public static class FshCompiler
         });
     }
 
-    private static void ApplyEdCaretPath(CaretValueRule rule, ElementDefinition ed)
+    private static void ApplyEdCaretPath(CaretValueRule rule, ElementDefinition ed, ModelInspector? inspector)
     {
         var path = rule.CaretPath.TrimStart('^');
-        if (FhirCaretValueWriter.TrySet(ed, path, rule.Value)) return;
+        if (FhirCaretValueWriter.TrySet(ed, path, rule.Value, inspector)) return;
 
         // Fall back to an extension for paths not in the ElementDefinition model
         ed.Extension ??= new List<FhirExtension>();
@@ -605,10 +606,10 @@ public static class FshCompiler
             _ => FilterOperator.Equal
         };
 
-    private static void ApplyVsCaretValueRule(VsCaretValueRule rule, FhirValueSet fvs)
+    private static void ApplyVsCaretValueRule(VsCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector)
     {
         var path = rule.CaretPath.TrimStart('^');
-        FhirCaretValueWriter.TrySet(fvs, path, rule.Value);
+        FhirCaretValueWriter.TrySet(fvs, path, rule.Value, inspector);
         // Silently ignore if the path is not in the ValueSet model.
     }
 
@@ -651,10 +652,10 @@ public static class FshCompiler
         AddNestedConcept(child, codes, index + 1);
     }
 
-    private static void ApplyCsCaretValueRule(CsCaretValueRule rule, FhirCodeSystem fcs)
+    private static void ApplyCsCaretValueRule(CsCaretValueRule rule, FhirCodeSystem fcs, ModelInspector? inspector)
     {
         var path = rule.CaretPath.TrimStart('^');
-        FhirCaretValueWriter.TrySet(fcs, path, rule.Value);
+        FhirCaretValueWriter.TrySet(fcs, path, rule.Value, inspector);
         // Silently ignore if the path is not in the CodeSystem model.
     }
 
