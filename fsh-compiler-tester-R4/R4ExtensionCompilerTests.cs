@@ -60,4 +60,47 @@ public class R4ExtensionCompilerTests
         Assert.AreEqual(0, ed.Min);
         Assert.AreEqual("1", ed.Max);
     }
+
+    // ─── Collection caret-value properties ───────────────────────────────────
+
+    /// <summary>
+    /// Verifies that a non-indexed <c>^contextInvariant</c> caret rule (which targets a
+    /// <c>List&lt;FhirString&gt;</c> property on <see cref="StructureDefinition"/>) is
+    /// appended to the collection rather than causing an <see cref="InvalidCastException"/>.
+    /// This was the root cause of the FhirString→List&lt;FhirString&gt; cast bug observed
+    /// when compiling SDC IG extensions.
+    /// </summary>
+    [TestMethod]
+    public void ShouldApplyContextInvariantCaretRule()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Extension: MyExtension
+            * ^context[+].type = #element
+            * ^context[=].expression = ""Questionnaire.item""
+            * ^contextInvariant = ""initial.exists().not()""
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyExtension");
+        Assert.IsNotNull(sd.ContextInvariantElement, "ContextInvariantElement should not be null");
+        Assert.AreEqual(1, sd.ContextInvariantElement.Count, "Expected exactly one contextInvariant");
+        Assert.AreEqual("initial.exists().not()", sd.ContextInvariantElement[0].Value);
+    }
+
+    /// <summary>
+    /// Verifies that multiple non-indexed <c>^contextInvariant</c> caret rules each append
+    /// an entry to the list, so the resulting collection has one entry per rule.
+    /// </summary>
+    [TestMethod]
+    public void ShouldAppendMultipleContextInvariantCaretRules()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Extension: MyExtension
+            * ^contextInvariant = ""invariant-one""
+            * ^contextInvariant = ""invariant-two""
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyExtension");
+        Assert.IsNotNull(sd.ContextInvariantElement);
+        Assert.AreEqual(2, sd.ContextInvariantElement.Count, "Expected two contextInvariant entries");
+        Assert.AreEqual("invariant-one", sd.ContextInvariantElement[0].Value);
+        Assert.AreEqual("invariant-two", sd.ContextInvariantElement[1].Value);
+    }
 }
