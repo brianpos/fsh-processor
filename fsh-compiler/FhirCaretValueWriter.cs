@@ -140,7 +140,7 @@ public static class FhirCaretValueWriter
             FshCode c        => CreatePrimitive(targetType, c.Value.TrimStart('#')),
             BooleanValue bv  => targetType == typeof(FhirBoolean) ? new FhirBoolean(bv.Value) : null,
             NumberValue nv   => CreateNumericPrimitive(targetType, nv.Value),
-            _                => FhirValueMapper.ToDataType(fshValue)
+            _                => FhirValueMapper.ToDataType(fshValue, inspector)
         };
     }
 

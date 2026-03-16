@@ -452,7 +452,7 @@ public static class FshCompiler
                     break;
 
                 case FixedValueRule fixedValueRule:
-                    ApplyFixedValueRule(fixedValueRule, sd);
+                    ApplyFixedValueRule(fixedValueRule, sd, opts.Inspector);
                     break;
 
                 case ContainsRule containsRule:
@@ -561,11 +561,11 @@ public static class FshCompiler
         };
     }
 
-    private static void ApplyFixedValueRule(FixedValueRule fixedValueRule, StructureDefinition sd)
+    private static void ApplyFixedValueRule(FixedValueRule fixedValueRule, StructureDefinition sd, ModelInspector? inspector = null)
     {
         if (string.IsNullOrEmpty(fixedValueRule.Path) || fixedValueRule.Value is null) return;
         var ed = GetOrCreateElement(fixedValueRule.Path, sd);
-        var dt = FhirValueMapper.ToDataType(fixedValueRule.Value);
+        var dt = FhirValueMapper.ToDataType(fixedValueRule.Value, inspector);
         if (dt != null)
         {
             // "exactly" modifier → fixed[x]; omitted → pattern[x]
@@ -728,7 +728,7 @@ public static class FshCompiler
         sd.Extension.Add(new FhirExtension
         {
             Url = path,
-            Value = FhirValueMapper.ToDataType(rule.Value)
+            Value = FhirValueMapper.ToDataType(rule.Value, inspector)
         });
     }
 
@@ -742,7 +742,7 @@ public static class FshCompiler
         ed.Extension.Add(new FhirExtension
         {
             Url = path,
-            Value = FhirValueMapper.ToDataType(rule.Value)
+            Value = FhirValueMapper.ToDataType(rule.Value, inspector)
         });
     }
 
