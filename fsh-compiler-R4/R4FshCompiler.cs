@@ -32,4 +32,17 @@ public static class R4FshCompiler
         opts.Inspector ??= ModelInfo.ModelInspector;
         return FshCompiler.Compile(doc, opts);
     }
+
+    /// <summary>
+    /// Compiles all entities across multiple <paramref name="docs"/> to FHIR R4 resources
+    /// using a merged context so that aliases, rule sets, and invariants are shared across files.
+    /// </summary>
+    public static CompileResult<List<FhirResource>> Compile(
+        IEnumerable<FshDoc> docs, CompilerOptions? options = null)
+    {
+        var opts = options ?? new CompilerOptions();
+        opts.FhirVersion ??= FhirVersion;
+        opts.Inspector ??= ModelInfo.ModelInspector;
+        return FshCompiler.Compile(docs, opts);
+    }
 }

@@ -99,4 +99,39 @@ public class R4CodeSystemCompilerTests
         var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
         Assert.AreEqual(PublicationStatus.Retired, cs.Status);
     }
+
+    // ─── Per-concept caret value ──────────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldApplyPerConceptCaretValue()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: MyCS
+            * #active ""Active""
+            * #inactive ""Inactive""
+            * #active ^definition = ""The active status""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
+        var activeConcept = cs.Concept.First(c => c.Code == "active");
+        Assert.AreEqual("The active status", activeConcept.Definition);
+        // Other concepts should be unaffected
+        var inactiveConcept = cs.Concept.First(c => c.Code == "inactive");
+        Assert.IsNull(inactiveConcept.Definition);
+    }
+
+    // ─── InsertRule expansion ─────────────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldExpandInsertRuleInCodeSystem()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            RuleSet: CSMeta
+            * ^description = ""Injected description""
+
+            CodeSystem: MyCS
+            * insert CSMeta
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
+        Assert.AreEqual("Injected description", cs.Description);
+    }
 }

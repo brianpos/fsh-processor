@@ -28,6 +28,8 @@ public static class FhirValueMapper
             TimeValue tv => new Time(tv.Value),
             FshCode c => new FhirCode(c.Value.TrimStart('#')),
             FshQuantity q => ToQuantity(q),
+            // Ratio requires version-specific DataType not available in Hl7.Fhir.Conformance; returns null.
+            RegexValue rv => new FhirString(rv.Pattern),
             Reference r => new ResourceReference(r.Type),
             FshCanonical can => new FhirCanonical(can.Version is null ? can.Url : $"{can.Url}|{can.Version}"),
             _ => null

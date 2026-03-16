@@ -1,4 +1,6 @@
+using fsh_compiler;
 using Hl7.Fhir.Model;
+using FhirResource = Hl7.Fhir.Model.Resource;
 
 namespace fsh_compiler_tester_r4;
 
@@ -190,8 +192,9 @@ public class R4ProfileCompilerTests
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
         var ed = CompilerTestHelper.GetElement(sd, "category.text");
-        Assert.IsInstanceOfType<FhirString>(ed.Fixed);
-        Assert.AreEqual("Vital Signs", ((FhirString)ed.Fixed!).Value);
+        // No '(exactly)' → pattern[x] per FSH spec
+        Assert.IsInstanceOfType<FhirString>(ed.Pattern);
+        Assert.AreEqual("Vital Signs", ((FhirString)ed.Pattern!).Value);
     }
 
     [TestMethod]
@@ -204,8 +207,9 @@ public class R4ProfileCompilerTests
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
         var ed = CompilerTestHelper.GetElement(sd, "component.valueBoolean");
-        Assert.IsInstanceOfType<FhirBoolean>(ed.Fixed);
-        Assert.IsTrue(((FhirBoolean)ed.Fixed!).Value);
+        // No '(exactly)' → pattern[x] per FSH spec
+        Assert.IsInstanceOfType<FhirBoolean>(ed.Pattern);
+        Assert.IsTrue(((FhirBoolean)ed.Pattern!).Value);
     }
 
     [TestMethod]
@@ -218,8 +222,9 @@ public class R4ProfileCompilerTests
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
         var ed = CompilerTestHelper.GetElement(sd, "status");
-        Assert.IsInstanceOfType<Code>(ed.Fixed);
-        Assert.AreEqual("final", ((Code)ed.Fixed!).Value);
+        // No '(exactly)' → pattern[x] per FSH spec
+        Assert.IsInstanceOfType<Code>(ed.Pattern);
+        Assert.AreEqual("final", ((Code)ed.Pattern!).Value);
     }
 
     // ─── OnlyRule ────────────────────────────────────────────────────────────
@@ -514,5 +519,228 @@ public class R4ProfileCompilerTests
         var root = sd.Differential?.Element.First();
         Assert.IsNotNull(root);
         Assert.AreEqual("Patient", root.Path);
+    }
+
+    // ─── pattern[x] vs fixed[x] ──────────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldApplyPatternWhenExactlyOmitted()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * status = #final
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "status");
+        // Without '(exactly)' keyword → pattern[x]
+        Assert.IsInstanceOfType<Code>(ed.Pattern);
+        Assert.IsNull(ed.Fixed, "Fixed should not be set without '(exactly)'");
+        Assert.AreEqual("final", ((Code)ed.Pattern!).Value);
+    }
+
+    [TestMethod]
+    public void ShouldApplyFixedWhenExactlyPresent()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * status = #final (exactly)
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "status");
+        // With '(exactly)' keyword → fixed[x]
+        Assert.IsInstanceOfType<Code>(ed.Fixed);
+        Assert.IsNull(ed.Pattern, "Pattern should not be set with '(exactly)'");
+        Assert.AreEqual("final", ((Code)ed.Fixed!).Value);
+    }
+
+    // ─── ObeysRule + Invariant ────────────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldPopulateConstraintFromInvariant()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Invariant: obs-1
+            Description: ""Value must be present""
+            Expression: ""value.exists()""
+            Severity: #error
+
+            Profile: MyObservation
+            Parent: Observation
+            * value[x] obeys obs-1
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "value[x]");
+        Assert.IsNotNull(ed.Constraint);
+        var constraint = ed.Constraint.FirstOrDefault(c => c.Key == "obs-1");
+        Assert.IsNotNull(constraint, "Constraint 'obs-1' should exist");
+        Assert.AreEqual("Value must be present", constraint.Human);
+        Assert.AreEqual("value.exists()", constraint.Expression);
+        Assert.AreEqual(ConstraintSeverity.Error, constraint.Severity);
+    }
+
+    [TestMethod]
+    public void ShouldMapWarningSeverityFromInvariant()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Invariant: obs-warn
+            Description: ""A warning""
+            Severity: #warning
+
+            Profile: MyObservation
+            Parent: Observation
+            * obeys obs-warn
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var root = sd.Differential?.Element.First();
+        Assert.IsNotNull(root);
+        var constraint = root.Constraint?.FirstOrDefault(c => c.Key == "obs-warn");
+        Assert.IsNotNull(constraint);
+        Assert.AreEqual(ConstraintSeverity.Warning, constraint.Severity);
+    }
+
+    // ─── OnlyRule with Reference / Canonical ─────────────────────────────────
+
+    [TestMethod]
+    public void ShouldApplyOnlyRuleWithReferenceType()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * subject only Reference(Patient)
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "subject");
+        Assert.IsNotNull(ed.Type);
+        Assert.AreEqual(1, ed.Type.Count);
+        Assert.AreEqual("Reference", ed.Type[0].Code);
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "Patient");
+    }
+
+    [TestMethod]
+    public void ShouldApplyOnlyRuleWithMultipleReferenceTargets()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * subject only Reference(Patient or Practitioner)
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "subject");
+        Assert.IsNotNull(ed.Type);
+        Assert.AreEqual(1, ed.Type.Count);
+        Assert.AreEqual("Reference", ed.Type[0].Code);
+        Assert.AreEqual(2, ed.Type[0].TargetProfile.Count());
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "Patient");
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "Practitioner");
+    }
+
+    [TestMethod]
+    public void ShouldApplyOnlyRuleWithCanonicalType()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyQuestionnaire
+            Parent: Questionnaire
+            * item.answerValueSet only Canonical(ValueSet)
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "item.answerValueSet");
+        Assert.IsNotNull(ed.Type);
+        Assert.AreEqual(1, ed.Type.Count);
+        Assert.AreEqual("canonical", ed.Type[0].Code);
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "ValueSet");
+    }
+
+    [TestMethod]
+    public void ShouldResolveAliasInReferenceTarget()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Alias: $Patient = http://hl7.org/fhir/StructureDefinition/Patient
+
+            Profile: MyObservation
+            Parent: Observation
+            * subject only Reference($Patient)
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "subject");
+        CollectionAssert.Contains(
+            ed.Type[0].TargetProfile.ToList(),
+            "http://hl7.org/fhir/StructureDefinition/Patient");
+    }
+
+    // ─── Multi-document compilation ──────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldCompileMultipleDocsWithSharedAliases()
+    {
+        var doc1 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+            Alias: $Patient = http://hl7.org/fhir/StructureDefinition/Patient
+        "));
+        var doc2 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+            Profile: MyObservation
+            Parent: Observation
+            * subject only Reference($Patient)
+        "));
+
+        var fshDoc1 = ((fsh_processor.Models.ParseResult.Success)doc1).Document;
+        var fshDoc2 = ((fsh_processor.Models.ParseResult.Success)doc2).Document;
+
+        var result = fsh_compiler_r4.R4FshCompiler.Compile(new[] { fshDoc1, fshDoc2 });
+        Assert.IsTrue(result.IsSuccess, "Multi-doc compilation should succeed");
+        var resources = ((CompileResult<List<FhirResource>>.SuccessResult)result).Value;
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyObservation");
+        var ed = CompilerTestHelper.GetElement(sd, "subject");
+        CollectionAssert.Contains(
+            ed.Type[0].TargetProfile.ToList(),
+            "http://hl7.org/fhir/StructureDefinition/Patient");
+    }
+
+    [TestMethod]
+    public void ShouldCompileMultipleDocsWithSharedInvariant()
+    {
+        var doc1 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+            Invariant: obs-1
+            Description: ""Must have value""
+            Expression: ""value.exists()""
+            Severity: #error
+        "));
+        var doc2 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+            Profile: MyObservation
+            Parent: Observation
+            * obeys obs-1
+        "));
+
+        var fshDoc1 = ((fsh_processor.Models.ParseResult.Success)doc1).Document;
+        var fshDoc2 = ((fsh_processor.Models.ParseResult.Success)doc2).Document;
+
+        var result = fsh_compiler_r4.R4FshCompiler.Compile(new[] { fshDoc1, fshDoc2 });
+        Assert.IsTrue(result.IsSuccess);
+        var resources = ((CompileResult<List<FhirResource>>.SuccessResult)result).Value;
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var root = sd.Differential?.Element.First();
+        var constraint = root?.Constraint?.FirstOrDefault(c => c.Key == "obs-1");
+        Assert.IsNotNull(constraint, "Cross-document invariant should be resolved");
+        Assert.AreEqual("Must have value", constraint.Human);
+    }
+
+    // ─── InsertRule expansion ─────────────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldExpandInsertRuleFromRuleSet()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            RuleSet: CommonStatus
+            * status 1..1 MS
+
+            Profile: MyObservation
+            Parent: Observation
+            * insert CommonStatus
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "status");
+        Assert.AreEqual(1, ed.Min);
+        Assert.AreEqual("1", ed.Max);
+        Assert.IsTrue(ed.MustSupport);
     }
 }

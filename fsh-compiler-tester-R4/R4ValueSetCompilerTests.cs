@@ -62,4 +62,20 @@ public class R4ValueSetCompilerTests
         var vs = CompilerTestHelper.GetValueSet(resources, "MyValueSet");
         Assert.AreEqual("Override Title", vs.Title);
     }
+
+    // ─── InsertRule expansion ─────────────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldExpandInsertRuleInValueSet()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            RuleSet: VSMeta
+            * ^description = ""Injected VS description""
+
+            ValueSet: MyValueSet
+            * insert VSMeta
+        ");
+        var vs = CompilerTestHelper.GetValueSet(resources, "MyValueSet");
+        Assert.AreEqual("Injected VS description", vs.Description);
+    }
 }

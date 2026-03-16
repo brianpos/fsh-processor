@@ -19,6 +19,13 @@ public class CompilerContext
     public Dictionary<string, RuleSet> RuleSets { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Invariant name → <see cref="Invariant"/> entity, collected from all <c>Invariant</c> entities.
+    /// Used to populate <c>ConstraintComponent.Human</c>, <c>Expression</c>, <c>XPath</c>, and
+    /// <c>Severity</c> when an <c>ObeysRule</c> references an invariant by name.
+    /// </summary>
+    public Dictionary<string, Invariant> Invariants { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Builds a <see cref="CompilerContext"/> by scanning a single <see cref="FshDoc"/> for
     /// <c>Alias</c> and <c>RuleSet</c> entities.
     /// </summary>
@@ -34,6 +41,9 @@ public class CompilerContext
                     break;
                 case RuleSet rs when !string.IsNullOrEmpty(rs.Name):
                     ctx.RuleSets[rs.Name] = rs;
+                    break;
+                case Invariant inv when !string.IsNullOrEmpty(inv.Name):
+                    ctx.Invariants[inv.Name] = inv;
                     break;
             }
         }
@@ -55,6 +65,9 @@ public class CompilerContext
                     break;
                 case RuleSet rs when !string.IsNullOrEmpty(rs.Name):
                     RuleSets.TryAdd(rs.Name, rs);
+                    break;
+                case Invariant inv when !string.IsNullOrEmpty(inv.Name):
+                    Invariants.TryAdd(inv.Name, inv);
                     break;
             }
         }

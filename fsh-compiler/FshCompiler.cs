@@ -1,6 +1,7 @@
 using fsh_processor.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
+using Hl7.Fhir.Utility;
 using FhirCode = Hl7.Fhir.Model.Code;
 using FhirExtension = Hl7.Fhir.Model.Extension;
 using FhirResource = Hl7.Fhir.Model.Resource;
@@ -34,36 +35,75 @@ public static class FshCompiler
             foreach (var kvp in opts.AliasOverrides)
                 context.Aliases[kvp.Key] = kvp.Value;
 
+        return CompileWithContext([doc], context, opts);
+    }
+
+    /// <summary>
+    /// Compiles all entities across multiple <paramref name="docs"/> to FHIR resources using a
+    /// merged context.  Aliases, rule sets, and invariants defined in any document are visible
+    /// to all other documents, enabling multi-file IG compilation.
+    /// </summary>
+    /// <param name="docs">Parsed FSH documents to compile together.</param>
+    /// <param name="options">Optional compilation options.</param>
+    /// <returns>
+    /// A <see cref="CompileResult{T}"/> that is either a <c>SuccessResult</c> containing
+    /// the combined list of compiled resources, or a <c>FailureResult</c> listing per-entity errors.
+    /// </returns>
+    public static CompileResult<List<FhirResource>> Compile(
+        IEnumerable<FshDoc> docs, CompilerOptions? options = null)
+    {
+        var opts = options ?? new CompilerOptions();
+        var docList = docs.ToList();
+
+        // Build a merged context from all documents so that aliases, rule sets, and
+        // invariants defined in any file are visible during compilation of all files.
+        var context = new CompilerContext();
+        foreach (var doc in docList)
+            context.MergeFrom(doc);
+
+        if (opts.AliasOverrides != null)
+            foreach (var kvp in opts.AliasOverrides)
+                context.Aliases[kvp.Key] = kvp.Value;
+
+        return CompileWithContext(docList, context, opts);
+    }
+
+    private static CompileResult<List<FhirResource>> CompileWithContext(
+        IEnumerable<FshDoc> docs, CompilerContext context, CompilerOptions opts)
+    {
         var errors = new List<CompilerError>();
         var resources = new List<FhirResource>();
 
-        foreach (var entity in doc.Entities)
+        foreach (var doc in docs)
         {
-            try
+            foreach (var entity in doc.Entities)
             {
-                FhirResource? resource = entity switch
+                try
                 {
-                    Profile profile => BuildProfile(profile, context, opts),
-                    fsh_processor.Models.Extension ext => BuildExtension(ext, context, opts),
-                    Logical logical => BuildLogical(logical, context, opts),
-                    fsh_processor.Models.Resource fshResource => BuildResource(fshResource, context, opts),
-                    fsh_processor.Models.ValueSet vs => BuildValueSet(vs, context, opts),
-                    fsh_processor.Models.CodeSystem cs => BuildCodeSystem(cs, context, opts),
-                    // Alias and RuleSet produce no FHIR resource; Instance requires version-specific types
-                    _ => null
-                };
+                    FhirResource? resource = entity switch
+                    {
+                        Profile profile => BuildProfile(profile, context, opts),
+                        fsh_processor.Models.Extension ext => BuildExtension(ext, context, opts),
+                        Logical logical => BuildLogical(logical, context, opts),
+                        fsh_processor.Models.Resource fshResource => BuildResource(fshResource, context, opts),
+                        fsh_processor.Models.ValueSet vs => BuildValueSet(vs, context, opts),
+                        fsh_processor.Models.CodeSystem cs => BuildCodeSystem(cs, context, opts),
+                        // Alias, RuleSet, and Invariant produce no FHIR resource; Instance requires version-specific types
+                        _ => null
+                    };
 
-                if (resource != null)
-                    resources.Add(resource);
-            }
-            catch (Exception ex)
-            {
-                errors.Add(new CompilerError
+                    if (resource != null)
+                        resources.Add(resource);
+                }
+                catch (Exception ex)
                 {
-                    EntityName = entity.Name,
-                    Message = ex.Message,
-                    Position = entity.Position
-                });
+                    errors.Add(new CompilerError
+                    {
+                        EntityName = entity.Name,
+                        Message = ex.Message,
+                        Position = entity.Position
+                    });
+                }
             }
         }
 
@@ -99,13 +139,14 @@ public static class FshCompiler
 
         if (opts.FhirVersion != null && sd.FhirVersion == null)
         {
-            // Map common version strings to the enum; leave null if unrecognized
+            // Try well-known shorthands first, then fall back to EnumUtility.ParseLiteral
+            // which handles all version strings that carry [EnumLiteral] attributes.
             sd.FhirVersion = opts.FhirVersion switch
             {
                 "4.0.1" or "4.0" => FHIRVersion.N4_0_1,
                 "4.3.0" or "4.3" => FHIRVersion.N4_3_0,
                 "5.0.0" or "5.0" => FHIRVersion.N5_0_0,
-                _ => null
+                _ => EnumUtility.ParseLiteral<FHIRVersion>(opts.FhirVersion, ignoreCase: true)
             };
         }
 
@@ -259,7 +300,7 @@ public static class FshCompiler
                     break;
 
                 case VsInsertRule insertRule:
-                    // InsertRule expansion not yet implemented for ValueSets
+                    ApplyVsInsertRule(insertRule, fvs, context, opts);
                     break;
             }
         }
@@ -305,8 +346,8 @@ public static class FshCompiler
                     ApplyCsCaretValueRule(caretRule, fcs, opts.Inspector);
                     break;
 
-                case CsInsertRule:
-                    // InsertRule expansion not yet implemented for CodeSystems
+                case CsInsertRule insertRule:
+                    ApplyCsInsertRule(insertRule, fcs, context, opts);
                     break;
             }
         }
@@ -330,8 +371,16 @@ public static class FshCompiler
                     ApplyCardRule(cardRule, sd);
                     break;
 
+                case LrCardRule lrCard:
+                    ApplyCardCore(lrCard.Path, lrCard.Cardinality, lrCard.Flags, sd);
+                    break;
+
                 case FlagRule flagRule:
                     ApplyFlagRule(flagRule, sd);
+                    break;
+
+                case LrFlagRule lrFlag:
+                    ApplyFlagCore(lrFlag.Path, lrFlag.AdditionalPaths, lrFlag.Flags, sd);
                     break;
 
                 case ValueSetRule valueSetRule:
@@ -347,11 +396,11 @@ public static class FshCompiler
                     break;
 
                 case OnlyRule onlyRule:
-                    ApplyOnlyRule(onlyRule, sd);
+                    ApplyOnlyRule(onlyRule, sd, context);
                     break;
 
                 case ObeysRule obeysRule:
-                    ApplyObeysRule(obeysRule, sd);
+                    ApplyObeysRule(obeysRule, sd, context);
                     break;
 
                 case CaretValueRule caretValueRule:
@@ -372,32 +421,43 @@ public static class FshCompiler
                 case AddElementRule addEl:
                     ApplyAddElementRule(addEl, sd);
                     break;
+
+                case AddCRElementRule addCr:
+                    ApplyAddCRElementRule(addCr, sd);
+                    break;
             }
         }
     }
 
     // ─── Individual SD rule handlers ─────────────────────────────────────────
 
-    private static void ApplyCardRule(CardRule cardRule, StructureDefinition sd)
+    private static void ApplyCardRule(CardRule cardRule, StructureDefinition sd) =>
+        ApplyCardCore(cardRule.Path, cardRule.Cardinality, cardRule.Flags, sd);
+
+    private static void ApplyCardCore(string? path, string cardinality, List<string> flags, StructureDefinition sd)
     {
-        if (string.IsNullOrEmpty(cardRule.Path)) return;
-        var ed = GetOrCreateElement(cardRule.Path, sd);
-        var parts = cardRule.Cardinality.Split("..");
+        if (string.IsNullOrEmpty(path)) return;
+        var ed = GetOrCreateElement(path, sd);
+        var parts = cardinality.Split("..");
         if (parts.Length == 2)
         {
             if (int.TryParse(parts[0], out var min)) ed.Min = min;
             ed.Max = parts[1];
         }
-        ApplyFlags(ed, cardRule.Flags);
+        ApplyFlags(ed, flags);
     }
 
-    private static void ApplyFlagRule(FlagRule flagRule, StructureDefinition sd)
-    {
-        if (!string.IsNullOrEmpty(flagRule.Path))
-            ApplyFlags(GetOrCreateElement(flagRule.Path, sd), flagRule.Flags);
+    private static void ApplyFlagRule(FlagRule flagRule, StructureDefinition sd) =>
+        ApplyFlagCore(flagRule.Path, flagRule.AdditionalPaths, flagRule.Flags, sd);
 
-        foreach (var ap in flagRule.AdditionalPaths)
-            ApplyFlags(GetOrCreateElement(ap, sd), flagRule.Flags);
+    private static void ApplyFlagCore(
+        string? path, List<string> additionalPaths, List<string> flags, StructureDefinition sd)
+    {
+        if (!string.IsNullOrEmpty(path))
+            ApplyFlags(GetOrCreateElement(path, sd), flags);
+
+        foreach (var ap in additionalPaths)
+            ApplyFlags(GetOrCreateElement(ap, sd), flags);
     }
 
     private static void ApplyValueSetRule(
@@ -427,7 +487,13 @@ public static class FshCompiler
         var ed = GetOrCreateElement(fixedValueRule.Path, sd);
         var dt = FhirValueMapper.ToDataType(fixedValueRule.Value);
         if (dt != null)
-            ed.Fixed = dt;
+        {
+            // "exactly" modifier → fixed[x]; omitted → pattern[x]
+            if (fixedValueRule.Exactly)
+                ed.Fixed = dt;
+            else
+                ed.Pattern = dt;
+        }
     }
 
     private static void ApplyContainsRule(ContainsRule containsRule, StructureDefinition sd)
@@ -455,16 +521,57 @@ public static class FshCompiler
         }
     }
 
-    private static void ApplyOnlyRule(OnlyRule onlyRule, StructureDefinition sd)
+    private static void ApplyOnlyRule(OnlyRule onlyRule, StructureDefinition sd, CompilerContext context)
     {
         if (string.IsNullOrEmpty(onlyRule.Path) || onlyRule.TargetTypes.Count == 0) return;
         var ed = GetOrCreateElement(onlyRule.Path, sd);
         ed.Type = onlyRule.TargetTypes
-            .Select(tt => new ElementDefinition.TypeRefComponent { Code = tt })
+            .Select(tt => ParseTypeRef(tt, context))
             .ToList();
     }
 
-    private static void ApplyObeysRule(ObeysRule obeysRule, StructureDefinition sd)
+    /// <summary>
+    /// Parses a FSH target-type expression into a Firely <see cref="ElementDefinition.TypeRefComponent"/>.
+    /// Handles bare type names as well as <c>Reference(...)</c>, <c>Canonical(...)</c>,
+    /// and <c>CodeableReference(...)</c> expressions with optional " or "-separated targets.
+    /// </summary>
+    private static ElementDefinition.TypeRefComponent ParseTypeRef(string typeExpr, CompilerContext context)
+    {
+        typeExpr = typeExpr.Trim();
+
+        // Reference(X) or Reference(X or Y or ...)
+        if (typeExpr.StartsWith("Reference(", StringComparison.Ordinal) && typeExpr.EndsWith(")"))
+        {
+            var inner = typeExpr[10..^1];
+            var targets = SplitOrTargets(inner).Select(t => context.ResolveAlias(t)).ToList();
+            return new ElementDefinition.TypeRefComponent { Code = "Reference", TargetProfile = targets };
+        }
+
+        // Canonical(X|version) or Canonical(X or Y)
+        if (typeExpr.StartsWith("Canonical(", StringComparison.Ordinal) && typeExpr.EndsWith(")"))
+        {
+            var inner = typeExpr[10..^1];
+            var targets = SplitOrTargets(inner).Select(t => context.ResolveAlias(t)).ToList();
+            return new ElementDefinition.TypeRefComponent { Code = "canonical", TargetProfile = targets };
+        }
+
+        // CodeableReference(X) or CodeableReference(X or Y)
+        if (typeExpr.StartsWith("CodeableReference(", StringComparison.Ordinal) && typeExpr.EndsWith(")"))
+        {
+            var inner = typeExpr[18..^1];
+            var targets = SplitOrTargets(inner).Select(t => context.ResolveAlias(t)).ToList();
+            return new ElementDefinition.TypeRefComponent { Code = "CodeableReference", TargetProfile = targets };
+        }
+
+        // Bare type name (e.g. Quantity, string, boolean) — resolve through aliases as well
+        return new ElementDefinition.TypeRefComponent { Code = context.ResolveAlias(typeExpr) };
+    }
+
+    private static IEnumerable<string> SplitOrTargets(string inner) =>
+        inner.Split([" or "], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+             .Select(t => t.Trim());
+
+    private static void ApplyObeysRule(ObeysRule obeysRule, StructureDefinition sd, CompilerContext context)
     {
         if (obeysRule.InvariantNames.Count == 0) return;
 
@@ -475,13 +582,28 @@ public static class FshCompiler
             targetEd = GetOrCreateElement(obeysRule.Path, sd);
 
         targetEd.Constraint ??= new List<ElementDefinition.ConstraintComponent>();
-        foreach (var inv in obeysRule.InvariantNames)
+        foreach (var invName in obeysRule.InvariantNames)
         {
-            targetEd.Constraint.Add(new ElementDefinition.ConstraintComponent
+            var constraint = new ElementDefinition.ConstraintComponent { Key = invName };
+
+            // Populate from the referenced Invariant entity when available in context
+            if (context.Invariants.TryGetValue(invName, out var inv))
             {
-                Key = inv,
-                Severity = ConstraintSeverity.Error
-            });
+                constraint.Human = inv.Description;
+                constraint.Expression = inv.Expression;
+                constraint.Xpath = inv.XPath;
+                constraint.Severity = inv.Severity?.TrimStart('#').ToLowerInvariant() switch
+                {
+                    "warning" => ConstraintSeverity.Warning,
+                    _ => ConstraintSeverity.Error
+                };
+            }
+            else
+            {
+                constraint.Severity = ConstraintSeverity.Error;
+            }
+
+            targetEd.Constraint.Add(constraint);
         }
     }
 
@@ -546,6 +668,23 @@ public static class FshCompiler
             ed.Type = addEl.TargetTypes
                 .Select(tt => new ElementDefinition.TypeRefComponent { Code = tt })
                 .ToList();
+    }
+
+    private static void ApplyAddCRElementRule(AddCRElementRule addCr, StructureDefinition sd)
+    {
+        if (string.IsNullOrEmpty(addCr.Path)) return;
+        var ed = GetOrCreateElement(addCr.Path, sd);
+        var parts = addCr.Cardinality.Split("..");
+        if (parts.Length == 2)
+        {
+            if (int.TryParse(parts[0], out var min)) ed.Min = min;
+            ed.Max = parts[1];
+        }
+        ApplyFlags(ed, addCr.Flags);
+        if (!string.IsNullOrEmpty(addCr.ShortDescription)) ed.Short = addCr.ShortDescription;
+        if (!string.IsNullOrEmpty(addCr.Definition)) ed.Definition = addCr.Definition;
+        if (!string.IsNullOrEmpty(addCr.ContentReference))
+            ed.ContentReference = addCr.ContentReference;
     }
 
     // ─── ValueSet rule processors ─────────────────────────────────────────────
@@ -613,6 +752,39 @@ public static class FshCompiler
         // Silently ignore if the path is not in the ValueSet model.
     }
 
+    /// <summary>
+    /// Expands a <see cref="VsInsertRule"/> by resolving the referenced <see cref="RuleSet"/>
+    /// from the context and replaying any applicable VS rules against the ValueSet.
+    /// </summary>
+    private static void ApplyVsInsertRule(
+        VsInsertRule insertRule, FhirValueSet fvs, CompilerContext context, CompilerOptions opts)
+    {
+        var resolved = RuleSetResolver.Resolve(
+            insertRule.RuleSetReference, insertRule.IsParameterized, insertRule.Parameters, context);
+
+        foreach (var rule in resolved)
+        {
+            switch (rule)
+            {
+                case VsComponentRule compRule:
+                    ApplyVsComponentRule(compRule, fvs, context);
+                    break;
+                case VsCaretValueRule vsCaretRule:
+                    ApplyVsCaretValueRule(vsCaretRule, fvs, opts.Inspector);
+                    break;
+                // CaretValueRule (SD-style, no path) can appear in a RuleSet re-parsed
+                // via a synthetic Profile wrapper and applies to the VS root.
+                case CaretValueRule sdCaret when string.IsNullOrEmpty(sdCaret.Path):
+                    var vsPath = sdCaret.CaretPath.TrimStart('^');
+                    FhirCaretValueWriter.TrySet(fvs, vsPath, sdCaret.Value, opts.Inspector);
+                    break;
+                case VsInsertRule nestedInsert:
+                    ApplyVsInsertRule(nestedInsert, fvs, context, opts);
+                    break;
+            }
+        }
+    }
+
     // ─── CodeSystem rule processors ───────────────────────────────────────────
 
     private static void ApplyConceptRule(Concept concept, FhirCodeSystem fcs)
@@ -655,8 +827,66 @@ public static class FshCompiler
     private static void ApplyCsCaretValueRule(CsCaretValueRule rule, FhirCodeSystem fcs, ModelInspector? inspector)
     {
         var path = rule.CaretPath.TrimStart('^');
-        FhirCaretValueWriter.TrySet(fcs, path, rule.Value, inspector);
-        // Silently ignore if the path is not in the CodeSystem model.
+
+        if (rule.Codes.Count > 0)
+        {
+            // Per-concept caret: apply to the matching concept(s) rather than the CodeSystem itself
+            foreach (var codeStr in rule.Codes)
+            {
+                var concept = FindConceptByCode(fcs.Concept, codeStr.TrimStart('#'));
+                if (concept != null)
+                    FhirCaretValueWriter.TrySet(concept, path, rule.Value, inspector);
+            }
+        }
+        else
+        {
+            FhirCaretValueWriter.TrySet(fcs, path, rule.Value, inspector);
+            // Silently ignore if the path is not in the CodeSystem model.
+        }
+    }
+
+    /// <summary>
+    /// Expands a <see cref="CsInsertRule"/> by resolving the referenced <see cref="RuleSet"/>
+    /// and replaying any applicable CS rules against the CodeSystem.
+    /// </summary>
+    private static void ApplyCsInsertRule(
+        CsInsertRule insertRule, FhirCodeSystem fcs, CompilerContext context, CompilerOptions opts)
+    {
+        var resolved = RuleSetResolver.Resolve(
+            insertRule.RuleSetReference, insertRule.IsParameterized, insertRule.Parameters, context);
+
+        foreach (var rule in resolved)
+        {
+            switch (rule)
+            {
+                case Concept concept:
+                    ApplyConceptRule(concept, fcs);
+                    break;
+                case CsCaretValueRule csCaretRule:
+                    ApplyCsCaretValueRule(csCaretRule, fcs, opts.Inspector);
+                    break;
+                case CaretValueRule sdCaret when string.IsNullOrEmpty(sdCaret.Path):
+                    var csPath = sdCaret.CaretPath.TrimStart('^');
+                    FhirCaretValueWriter.TrySet(fcs, csPath, sdCaret.Value, opts.Inspector);
+                    break;
+                case CsInsertRule nestedInsert:
+                    ApplyCsInsertRule(nestedInsert, fcs, context, opts);
+                    break;
+            }
+        }
+    }
+
+    private static FhirCodeSystem.ConceptDefinitionComponent? FindConceptByCode(
+        IEnumerable<FhirCodeSystem.ConceptDefinitionComponent>? concepts, string code)
+    {
+        if (concepts == null) return null;
+        foreach (var c in concepts)
+        {
+            if (c.Code == code) return c;
+            var child = FindConceptByCode(c.Concept, code);
+            if (child != null) return child;
+        }
+        return null;
     }
 
     // ─── Shared helpers ───────────────────────────────────────────────────────

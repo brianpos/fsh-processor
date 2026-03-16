@@ -13,15 +13,26 @@ public static class RuleSetResolver
     /// Resolves an <see cref="InsertRule"/> and returns the expanded <see cref="FshRule"/> list.
     /// Returns an empty list if the referenced <see cref="RuleSet"/> is not found in the context.
     /// </summary>
-    public static IReadOnlyList<FshRule> Resolve(InsertRule insertRule, CompilerContext context)
+    public static IReadOnlyList<FshRule> Resolve(InsertRule insertRule, CompilerContext context) =>
+        Resolve(insertRule.RuleSetReference, insertRule.IsParameterized, insertRule.Parameters, context);
+
+    /// <summary>
+    /// Resolves a rule set by name and returns the expanded <see cref="FshRule"/> list.
+    /// Returns an empty list if the referenced <see cref="RuleSet"/> is not found in the context.
+    /// </summary>
+    public static IReadOnlyList<FshRule> Resolve(
+        string ruleSetReference,
+        bool isParameterized,
+        IReadOnlyList<string> parameters,
+        CompilerContext context)
     {
-        if (!context.RuleSets.TryGetValue(insertRule.RuleSetReference, out var ruleSet))
+        if (!context.RuleSets.TryGetValue(ruleSetReference, out var ruleSet))
             return Array.Empty<FshRule>();
 
-        if (!insertRule.IsParameterized || insertRule.Parameters.Count == 0)
+        if (!isParameterized || parameters.Count == 0)
             return ruleSet.Rules;
 
-        return ResolveParameterized(ruleSet, insertRule.Parameters, context);
+        return ResolveParameterized(ruleSet, parameters, context);
     }
 
     private static IReadOnlyList<FshRule> ResolveParameterized(
