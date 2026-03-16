@@ -22,4 +22,12 @@
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Copy SDC IG test data from the parser tester project so the integration tests can load it -->
+    <Content Include="..\fsh-tester\TestData\**\*.fsh"
+             CopyToOutputDirectory="PreserveNewest">
+      <Link>TestData\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+
 </Project>
