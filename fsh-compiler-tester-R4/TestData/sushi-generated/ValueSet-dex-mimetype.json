@@ -1,0 +1,43 @@
+{
+  "resourceType": "ValueSet",
+  "status": "active",
+  "name": "DEXMappingLanguageMimeTypes",
+  "id": "dex-mimetype",
+  "title": "DEX mapping language mime types",
+  "description": "The list of mime types that identify mapping languages supported by DEX.",
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/dex-mimetype",
+  "experimental": true,
+  "publisher": "HL7 International - FHIR Infrastructure",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "other",
+          "value": "http:\\\\healthit.gov"
+        }
+      ]
+    }
+  ],
+  "copyright": "Mime types have no IP restrictions",
+  "compose": {
+    "include": [
+      {
+        "system": "urn:ietf:bcp:13",
+        "concept": [
+          {
+            "code": "application/sparql-results+xml",
+            "display": "SPARQL"
+          },
+          {
+            "code": "application/sql",
+            "display": "SQL"
+          },
+          {
+            "code": "application/xquery",
+            "display": "X-Query"
+          }
+        ]
+      }
+    ]
+  }
+}

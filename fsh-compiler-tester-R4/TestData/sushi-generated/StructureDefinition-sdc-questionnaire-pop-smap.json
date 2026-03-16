@@ -1,0 +1,122 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaire-pop-smap",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-pop-smap",
+  "name": "SDCQuestionnairePopulateStructureMap",
+  "title": "Populatable Questionnaire - StructureMap",
+  "status": "active",
+  "description": "Defines elements that support auto-population and pre-population of questionnaires  using the StructureMap-based population mechanism",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Questionnaire",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnairecommon",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Questionnaire",
+        "path": "Questionnaire",
+        "short": "Populatable Questionnaire - StructureMap",
+        "definition": "Defines elements that support auto-population and pre-population of questionnaires  using the StructureMap-based population mechanism.",
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "Form_Package"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.extension:launchContext",
+        "path": "Questionnaire.extension",
+        "sliceName": "launchContext",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-launchContext"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.extension:sourceQueries",
+        "path": "Questionnaire.extension",
+        "sliceName": "sourceQueries",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-sourceQueries"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.extension:sourceStructureMap",
+        "path": "Questionnaire.extension",
+        "sliceName": "sourceStructureMap",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-sourceStructureMap"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:unit",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "unit",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-unit"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:itemHidden",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "itemHidden",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:isSubject",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "isSubject",
+        "requirements": "Allows the population process to leverage the fact that the subject for this group and descendants is distinct",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-isSubject"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

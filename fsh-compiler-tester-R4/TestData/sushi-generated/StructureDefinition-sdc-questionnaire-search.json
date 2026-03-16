@@ -1,0 +1,161 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaire-search",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-search",
+  "name": "SDCQuestionnaireSearch",
+  "title": "Search Questionnaire",
+  "status": "active",
+  "description": "Describes the elements that should be exposed in a response to a search for questionnaires.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Questionnaire",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnairecommon",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Questionnaire",
+        "path": "Questionnaire",
+        "definition": "Describes the elements that should be exposed in a response to a search for questionnaires.",
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "Form_Package"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.extension:assembledFrom",
+        "path": "Questionnaire.extension",
+        "sliceName": "assembledFrom",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-assembledFrom"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.identifier",
+        "path": "Questionnaire.identifier",
+        "mustSupport": true,
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "./form_design/@form_design_identifier {maps to value; system=\"urn:ietf:rfc:3986\"}"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.title",
+        "path": "Questionnaire.title",
+        "min": 1
+      },
+      {
+        "id": "Questionnaire.experimental",
+        "path": "Questionnaire.experimental",
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.date",
+        "path": "Questionnaire.date",
+        "definition": "Identifies when this version of the form was created.  Changes whenever the form is updated.",
+        "min": 1,
+        "mustSupport": true,
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "./administration_package/registration/creation_date"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.publisher",
+        "path": "Questionnaire.publisher",
+        "mustSupport": true,
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "./administration_package/registration/organization"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.description",
+        "path": "Questionnaire.description",
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.useContext",
+        "path": "Questionnaire.useContext",
+        "type": [
+          {
+            "code": "UsageContext",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-usagecontext"
+            ]
+          }
+        ],
+        "mustSupport": true,
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "./form_design/classifier"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.jurisdiction",
+        "path": "Questionnaire.jurisdiction",
+        "comment": "Relevant for systems that support forms from multiple countries/provinces/states.",
+        "max": "1"
+      },
+      {
+        "id": "Questionnaire.purpose",
+        "path": "Questionnaire.purpose",
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.copyright",
+        "path": "Questionnaire.copyright",
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.approvalDate",
+        "path": "Questionnaire.approvalDate",
+        "comment": "Relevant for systems that have strict curation requirements that govern when a form/instrument is permitted for use."
+      },
+      {
+        "id": "Questionnaire.lastReviewDate",
+        "path": "Questionnaire.lastReviewDate",
+        "comment": "Relevant for systems that have strict curation requirements that govern when a form/instrument is permitted for use."
+      },
+      {
+        "id": "Questionnaire.effectivePeriod",
+        "path": "Questionnaire.effectivePeriod",
+        "comment": "Relevant for systems that have strict curation requirements that govern when a form/instrument is permitted for use."
+      },
+      {
+        "id": "Questionnaire.code",
+        "path": "Questionnaire.code",
+        "max": "1",
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.definition",
+        "path": "Questionnaire.item.definition",
+        "comment": "Systems that support searching by the 'definition' parameter SHALL support returning item.definition."
+      },
+      {
+        "id": "Questionnaire.item.code",
+        "path": "Questionnaire.item.code",
+        "comment": "Systems that support searching by the 'code' parameter SHALL support returning item.code."
+      }
+    ]
+  }
+}

@@ -1,0 +1,314 @@
+{
+  "resourceType": "CapabilityStatement",
+  "id": "sdc-form-filler",
+  "url": "http://hl7.org/fhir/uv/sdc/CapabilityStatement/sdc-form-filler",
+  "title": "SDC Form Filler",
+  "description": "This profile defines the expected capabilities of the ''SDC Form Filler'' role when conforming to the S&I Framework's [[index.html|Structured Data Capture FHIR implementation guide]].  This role is responsible for retrieving pre-defined forms, requesting pre-population of forms and/or auto-populating forms, guiding the user through verifying populated data and submitting completed or partially-completed forms.<br/>Note that Form Fillers may also take on the role of [[CapabilityStatement-sdc-form-archiver.html|Form Archiver]] if they have a requirement to retain the completed version of a form (and potentially the source data that was used to complete it).",
+  "rest": [
+    {
+      "resource": [
+        {
+          "interaction": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "code": "search-type",
+              "documentation": "Allows discovery of existing questionnaires to be completed"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHOULD"
+                }
+              ],
+              "code": "read",
+              "documentation": "Allows retrieval of a specific questionnaire by id.  Allows systems to maintain a 'favorites' list of forms and retrieve them by id."
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "MAY"
+                }
+              ],
+              "code": "history-instance",
+              "documentation": "Allows review of changes made to a questionnaire over time.  Of interest to some systems, but probably not most."
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "MAY"
+                }
+              ],
+              "code": "vread",
+              "documentation": "Allows retrieval of a historical version of a questionnaire.  Most systems will make use of the current version only."
+            }
+          ],
+          "type": "Questionnaire",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire"
+        },
+        {
+          "interaction": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "code": "read",
+              "documentation": "Allows retrieval of a specific value set by id (as referenced in a Questionnaire)"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHOULD"
+                }
+              ],
+              "code": "vread",
+              "documentation": "Allows retrieval of a specific version of a value set (as referenced in a Questionnaire)"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "MAY"
+                }
+              ],
+              "code": "history-instance",
+              "documentation": "Allows review of changes to a value set over time.  Of interest to some systems, but probably not most."
+            }
+          ],
+          "type": "ValueSet",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset"
+        },
+        {
+          "interaction": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "code": "read",
+              "documentation": "Allows retrieval of a specific code system by id (as referenced by a ValueSet used in a Questionnaire)"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHOULD"
+                }
+              ],
+              "code": "vread",
+              "documentation": "Allows retrieval of a specific version of a code system (as referenced by a ValueSet used in a Questionnaire)"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "MAY"
+                }
+              ],
+              "code": "history-instance",
+              "documentation": "Allows review of changes to a code system over time.  Of interest to some systems, but probably not most."
+            }
+          ],
+          "type": "CodeSystem",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem"
+        },
+        {
+          "interaction": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "code": "search-type",
+              "documentation": "Allows a user to search for existing completed or partially-completed forms.  Generally used to find partially-completed forms for update."
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "code": "read",
+              "documentation": "Allows retrieval of a specific QuestionnaireResponse by id."
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "code": "create",
+              "documentation": "Allows recording a completed or partially-completed form"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "code": "update",
+              "documentation": "Allows updating an existing completed or partially-completed form.  (Systems may place rules on who can update forms and under what circumstances.)"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "code": "delete",
+              "documentation": "Allows removal of a completed form from a repository.  Note that the removal may be logical rather than physical.  Some systems may have rules for who can remove a completed form and under what circumstances."
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHOULD"
+                }
+              ],
+              "code": "history-instance",
+              "documentation": "Allows review of prior versions of an answer set - allows reversion to previously recorded versions"
+            }
+          ],
+          "type": "QuestionnaireResponse",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse"
+        },
+        {
+          "interaction": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHOULD"
+                }
+              ],
+              "code": "search-type",
+              "documentation": "Allows discovery of existing documents that may be included in a form pre-population request"
+            }
+          ],
+          "type": "DocumentReference"
+        },
+        {
+          "interaction": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHOULD"
+                }
+              ],
+              "code": "read",
+              "documentation": "Allows retrieval of a specific binary (as pointed to by a DocumentReference)"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "MAY"
+                }
+              ],
+              "code": "vread",
+              "documentation": "Allows retrieval of a historical version of a binary.  In general, the most recent version would be appropriate, but some may prefer to use the specific version referenced by a DocumentReference."
+            }
+          ],
+          "type": "Binary"
+        }
+      ],
+      "operation": [
+        {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+              "valueCode": "SHOULD"
+            }
+          ],
+          "name": "expand",
+          "definition": "http://hl7.org/fhir/OperationDefinition/ValueSet-expand"
+        },
+        {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+              "valueCode": "SHOULD"
+            }
+          ],
+          "name": "validate code",
+          "definition": "http://hl7.org/fhir/OperationDefinition/ValueSet-validate-code"
+        },
+        {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+              "valueCode": "MAY"
+            }
+          ],
+          "name": "populate",
+          "definition": "http://hl7.org/fhir/uv/sdc/OperationDefinition/Questionnaire-populate"
+        },
+        {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+              "valueCode": "MAY"
+            }
+          ],
+          "name": "populatehtml",
+          "definition": "http://hl7.org/fhir/uv/sdc/OperationDefinition/Questionnaire-populatehtml"
+        },
+        {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+              "valueCode": "MAY"
+            }
+          ],
+          "name": "populatelink",
+          "definition": "http://hl7.org/fhir/uv/sdc/OperationDefinition/Questionnaire-populatelink"
+        }
+      ],
+      "mode": "client",
+      "documentation": "The [[Questionnaire]], [[ValueSet]] and [[CodeSystem]] resources are retrieved to allow the system to guide the user through the entry process.  The [[Binary]] and [[DocumentReference]] resources allow the system to find existing clinical documents that can be within the pre-population process.  (Support for retrieval operations on these resources is optional as the relevant CDA or FHIR structures may also be directly generated by the ''Form Filler'' itself.)  Finally, the [[QuestionnaireResponse]] resource is used to record the populated form.<br/>Note: Form Fillers that support the 'populate' operation will need to be capable of consuming and rendering a partially completed QuestionnaireResponse in the same manner as if they had retrieved such a QuestionnaireResponse from a ''Form Response Manager''",
+      "security": {
+        "description": "Implementations must meet the general security requirements documented in the [[security.html|SDC implementation guide]]."
+      }
+    }
+  ],
+  "name": "SDCFormFiller",
+  "status": "active",
+  "date": "2014-07-06",
+  "publisher": "HL7 International - FHIR Infrastructure",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "other",
+          "value": "http://wiki.siframework.org/Structured+Data+Capture+Initiative"
+        }
+      ]
+    }
+  ],
+  "kind": "requirements",
+  "fhirVersion": "1.0.0",
+  "format": [
+    "xml",
+    "json"
+  ]
+}

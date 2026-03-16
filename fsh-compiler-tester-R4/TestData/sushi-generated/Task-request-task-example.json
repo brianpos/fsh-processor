@@ -1,0 +1,38 @@
+{
+  "resourceType": "Task",
+  "id": "request-task-example",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-task"
+    ]
+  },
+  "status": "rejected",
+  "statusReason": {
+    "text": "Unable to recall"
+  },
+  "intent": "order",
+  "code": {
+    "coding": [
+      {
+        "code": "fulfill",
+        "system": "http://hl7.org/fhir/CodeSystem/task-code"
+      }
+    ]
+  },
+  "focus": {
+    "reference": "ServiceRequest/example"
+  },
+  "for": {
+    "reference": "http://hl7.org/fhir/Patient/proband",
+    "display": "Annie Proband"
+  },
+  "authoredOn": "2021-09-06",
+  "requester": {
+    "reference": "http://hl7.org/fhir/PractitionerRole/example",
+    "display": "Dr. Adam Careful, Acme Hospital"
+  },
+  "owner": {
+    "reference": "http://hl7.org/fhir/Patient/proband",
+    "display": "Annie Proband"
+  }
+}

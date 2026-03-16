@@ -1,0 +1,25 @@
+{
+  "resourceType": "CodeSystem",
+  "status": "active",
+  "content": "complete",
+  "name": "CollapsibleCodes",
+  "id": "collapsible",
+  "title": "Collapsible Codes",
+  "description": "Defines mechanisms of displaying child items in collapsible form",
+  "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/collapsible",
+  "concept": [
+    {
+      "code": "default-open",
+      "display": "Default Open",
+      "definition": "Indicates that the child items should be displayed in expanded form by default (all shown)"
+    },
+    {
+      "code": "default-closed",
+      "display": "Default Closed",
+      "definition": "Indicates that the child items should be displayed in collapsed form by default (all hidden)"
+    }
+  ],
+  "experimental": false,
+  "caseSensitive": true,
+  "count": 2
+}

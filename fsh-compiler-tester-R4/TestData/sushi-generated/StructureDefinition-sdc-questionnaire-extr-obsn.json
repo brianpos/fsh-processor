@@ -1,0 +1,145 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaire-extr-obsn",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extr-obsn",
+  "name": "SDCQuestionnaireExtractObservation",
+  "title": "Extractable Questionnaire - Observation",
+  "status": "active",
+  "description": "Defines elements that allow conversion of a QuestionnaireResponse to an Observation resource or Bundle of Observation resources using the Observation-based extraction mechanism",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Questionnaire",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnairecommon",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Questionnaire",
+        "path": "Questionnaire",
+        "short": "Extractable Questionnaire - Observation",
+        "definition": "Defines elements that allow conversion of a QuestionnaireResponse to an Observation resource or Bundle of Observation resources using the Observation-based extraction mechanism.",
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "Form_Package"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.extension:observationExtract",
+        "path": "Questionnaire.extension",
+        "sliceName": "observationExtract",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item",
+        "path": "Questionnaire.item",
+        "constraint": [
+          {
+            "key": "sdc-obsn-1",
+            "severity": "error",
+            "human": "Display items cannot be extracted to Observations.",
+            "expression": "type!='display' or extension('http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract').empty()",
+            "xpath": "not(f:type/@value= 'display'  and exists(f:extension[@url='http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract']))",
+            "source": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extr-obsn"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:unit",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "unit",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-unit"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:observationExtract",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "observationExtract",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:observationExtractCategory",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "observationExtractCategory",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observation-extract-category"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:isSubject",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "isSubject",
+        "requirements": "Allows the extraction process to leverage the fact that the subject for this group and descendants is distinct",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-isSubject"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.code",
+        "path": "Questionnaire.item.code",
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.code.extension:observationExtract",
+        "path": "Questionnaire.item.code.extension",
+        "sliceName": "observationExtract",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract"
+            ]
+          }
+        ],
+        "mustSupport": true
+      }
+    ]
+  }
+}

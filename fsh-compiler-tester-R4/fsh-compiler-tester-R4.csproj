@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Hl7.Fhir.Specification.Data.R4" Version="5.13.2" />
     <PackageReference Include="MSTest" Version="4.0.1" />
     <PackageReference Include="Hl7.Fhir.R4" Version="5.13.2" />
   </ItemGroup>
@@ -20,6 +21,13 @@
 
   <ItemGroup>
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copy SDC IG test data from the parser tester project so the integration tests can load it -->
+    <Content Include="..\fsh-tester\TestData\**\*.fsh" CopyToOutputDirectory="PreserveNewest">
+      <Link>TestData\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,46 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaireresponse-adapt",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse-adapt",
+  "name": "SDCQuestionnaireResponseAdapt",
+  "title": "Adaptive Questionnaire Response",
+  "status": "active",
+  "description": "Defines how the questionnaire response resource is used to reflect form data within the ONC's Structured Data Capture standard.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "QuestionnaireResponse",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponsecommon",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "QuestionnaireResponse",
+        "path": "QuestionnaireResponse",
+        "short": "Adaptive Questionnaire Response"
+      },
+      {
+        "id": "QuestionnaireResponse.contained",
+        "path": "QuestionnaireResponse.contained",
+        "comment": "The referenced Questionnaire SHALL be sent as a contained resource.",
+        "min": 1,
+        "mustSupport": true
+      },
+      {
+        "id": "QuestionnaireResponse.questionnaire",
+        "path": "QuestionnaireResponse.questionnaire",
+        "type": [
+          {
+            "code": "canonical",
+            "targetProfile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-adapt"
+            ],
+            "aggregation": [
+              "contained"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-library",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-library",
+  "name": "SDCLibrary",
+  "title": "SDC Library",
+  "status": "active",
+  "description": "Defines how a Library is used as a logic computable library within the ONC's Structured Data Capture standard.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Library",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/cqllibrary",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Library",
+        "path": "Library",
+        "definition": "Sets expectations for SDC-conformant systems around use of libraries."
+      },
+      {
+        "id": "Library.subject[x]",
+        "path": "Library.subject[x]",
+        "mustSupport": true
+      },
+      {
+        "id": "Library.relatedArtifact",
+        "path": "Library.relatedArtifact",
+        "mustSupport": true
+      },
+      {
+        "id": "Library.relatedArtifact.display",
+        "path": "Library.relatedArtifact.display",
+        "min": 1,
+        "mustSupport": true
+      },
+      {
+        "id": "Library.relatedArtifact.url",
+        "path": "Library.relatedArtifact.url",
+        "min": 1,
+        "mustSupport": true
+      },
+      {
+        "id": "Library.content",
+        "path": "Library.content",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "contentType"
+            }
+          ],
+          "rules": "open"
+        },
+        "mustSupport": true
+      },
+      {
+        "id": "Library.content:cqlContent",
+        "path": "Library.content",
+        "sliceName": "cqlContent",
+        "short": "CQL Content",
+        "definition": "The CQL content represented as base-64 encoded data.",
+        "min": 0,
+        "max": "1"
+      },
+      {
+        "id": "Library.content:cqlContent.contentType",
+        "path": "Library.content.contentType",
+        "min": 1,
+        "patternCode": "text/cql",
+        "mustSupport": true
+      },
+      {
+        "id": "Library.content:cqlContent.data",
+        "path": "Library.content.data",
+        "min": 1
+      },
+      {
+        "id": "Library.content:fhirpathContent",
+        "path": "Library.content",
+        "sliceName": "fhirpathContent",
+        "short": "FHIRPath Content",
+        "definition": "The FHIRPath content represented as base-64 encoded data.",
+        "min": 0,
+        "max": "1"
+      },
+      {
+        "id": "Library.content:fhirpathContent.contentType",
+        "path": "Library.content.contentType",
+        "min": 1,
+        "patternCode": "text/fhirpath",
+        "mustSupport": true
+      },
+      {
+        "id": "Library.content:fhirpathContent.data",
+        "path": "Library.content.data",
+        "min": 1
+      },
+      {
+        "id": "Library.content:queryContent",
+        "path": "Library.content",
+        "sliceName": "queryContent",
+        "short": "Query Content",
+        "definition": "The query content represented as base-64 encoded data.",
+        "min": 0,
+        "max": "1"
+      },
+      {
+        "id": "Library.content:queryContent.contentType",
+        "path": "Library.content.contentType",
+        "min": 1,
+        "patternCode": "application/x-fhir-query",
+        "mustSupport": true
+      },
+      {
+        "id": "Library.content:queryContent.data",
+        "path": "Library.content.data",
+        "min": 1
+      }
+    ]
+  }
+}

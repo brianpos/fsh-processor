@@ -67,6 +67,23 @@ public static class FhirCaretValueWriter
         var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector);
         if (converted is null) return false;
 
+        if (propMap.IsCollection)
+        {
+            // Collection property: append the new value to the existing list (or create one).
+            // This matches FSH semantics where a non-indexed caret assignment like
+            //   * ^contextInvariant = "..."
+            // appends to the collection (equivalent to [+]).
+            var list = propMap.GetValue(target) as System.Collections.IList;
+            if (list is null)
+            {
+                var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+                list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                propMap.SetValue(target, list);
+            }
+            list.Add(converted);
+            return true;
+        }
+
         propMap.SetValue(target, converted);
         return true;
     }

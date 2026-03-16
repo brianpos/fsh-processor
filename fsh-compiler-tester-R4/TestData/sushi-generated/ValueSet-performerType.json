@@ -1,0 +1,31 @@
+{
+  "resourceType": "ValueSet",
+  "status": "active",
+  "name": "QuestionnairePerformerType",
+  "id": "performerType",
+  "title": "Questionnaire Performer Type",
+  "description": "List of resource types that can record answers to a Questionnaire.",
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/performerType",
+  "experimental": false,
+  "compose": {
+    "include": [
+      {
+        "system": "http://hl7.org/fhir/resource-types",
+        "concept": [
+          {
+            "code": "Patient",
+            "display": "Patient"
+          },
+          {
+            "code": "Practitioner",
+            "display": "Practitioner"
+          },
+          {
+            "code": "RelatedPerson",
+            "display": "RelatedPerson"
+          }
+        ]
+      }
+    ]
+  }
+}

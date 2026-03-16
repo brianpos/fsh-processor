@@ -1,0 +1,73 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "ProfileExample",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/ProfileExample",
+  "identifier": [
+    {
+      "system": "http://nlm.nih.gov/some_other_text/data_element_identifier",
+      "value": "DE42AHRQ"
+    }
+  ],
+  "name": "SDCExample",
+  "title": "Patient Gender",
+  "status": "active",
+  "publisher": "Health Level Seven, International",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "other",
+          "value": "http://hl7.org"
+        }
+      ]
+    }
+  ],
+  "description": "Data element SDC Profile Example",
+  "fhirVersion": "4.0.1",
+  "mapping": [
+    {
+      "identity": "c-cda",
+      "name": "Consolidated CDA R2",
+      "uri": "http://hl7.org/C-CDA-not-a-real-url"
+    }
+  ],
+  "kind": "logical",
+  "abstract": false,
+  "type": "http://hl7.org/fhir/uv/sdc/StructureDefinition/ProfileExample",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Element",
+  "derivation": "specialization",
+  "differential": {
+    "element": [
+      {
+        "id": "ProfileExample",
+        "path": "ProfileExample",
+        "short": "Patient Gender",
+        "definition": "Data element SDC Profile Example",
+        "mapping": [
+          {
+            "identity": "c-cda",
+            "map": "/ClinicalDocument/recordTarget/patientRole/patient/administrativeGender",
+            "language": "text/xpath"
+          }
+        ]
+      },
+      {
+        "id": "ProfileExample.gender",
+        "path": "ProfileExample.gender",
+        "short": "The gender (i.e., the behavioral, cultural, or psychological traits typically associated with one sex) of a living subject as defined for administrative purposes.",
+        "definition": "The gender (i.e., the behavioral, cultural, or psychological traits typically associated with one sex) of a living subject as defined for administrative purposes.",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "CodeableConcept"
+          }
+        ],
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://hl7.org/fhir/ValueSet/administrative-gender"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "parameters-questionnaireresponse-extract-in",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/parameters-questionnaireresponse-extract-in",
+  "name": "SDCParametersQuestionnaireResponseExtractIn",
+  "title": "Questionnaire extract operation input parameters",
+  "status": "active",
+  "description": "Profile used to validate the parameters that are the input of the 'extract' questionnaire response operation",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Parameters",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Parameters",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Parameters.parameter",
+        "path": "Parameters.parameter",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "name"
+            }
+          ],
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Parameters.parameter:in",
+        "path": "Parameters.parameter",
+        "sliceName": "in",
+        "min": 0,
+        "max": "*"
+      },
+      {
+        "id": "Parameters.parameter:in.name",
+        "path": "Parameters.parameter.name",
+        "fixedString": "in"
+      },
+      {
+        "id": "Parameters.parameter:in.value[x]",
+        "path": "Parameters.parameter.value[x]",
+        "max": "0"
+      },
+      {
+        "id": "Parameters.parameter:in.resource",
+        "path": "Parameters.parameter.resource",
+        "type": [
+          {
+            "code": "Questionnaire",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extr-obsn",
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extr-defn",
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extr-smap"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Parameters.parameter:in.part",
+        "path": "Parameters.parameter.part",
+        "max": "0"
+      },
+      {
+        "id": "Parameters.parameter:questionnaire",
+        "path": "Parameters.parameter",
+        "sliceName": "questionnaire",
+        "short": "Questionnaire reference for extraction",
+        "min": 0,
+        "max": "1"
+      },
+      {
+        "id": "Parameters.parameter:questionnaire.name",
+        "path": "Parameters.parameter.name",
+        "fixedString": "questionnaire"
+      },
+      {
+        "id": "Parameters.parameter:questionnaire.value[x]",
+        "path": "Parameters.parameter.value[x]",
+        "max": "0"
+      },
+      {
+        "id": "Parameters.parameter:questionnaire.resource",
+        "path": "Parameters.parameter.resource",
+        "type": [
+          {
+            "code": "Questionnaire"
+          }
+        ]
+      },
+      {
+        "id": "Parameters.parameter:questionnaire.part",
+        "path": "Parameters.parameter.part",
+        "max": "0"
+      }
+    ]
+  }
+}

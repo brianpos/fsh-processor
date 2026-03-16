@@ -1,0 +1,177 @@
+{
+  "resourceType": "CodeSystem",
+  "status": "active",
+  "content": "complete",
+  "name": "AssembleExpectation",
+  "id": "assemble-expectation",
+  "title": "Assemble Expectation Codes",
+  "description": "A set of codes that reflect the relevance of the Questionnaire to the $assemble operation - specifically, whether the form needs to be assembled, whether the form can be referenced as a subQuestionnaire and whether the form can be used as the 'root' of a QuestionnaireResponse.",
+  "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/assemble-expectation",
+  "concept": [
+    {
+      "code": "assembly",
+      "display": "Assembly needed",
+      "definition": "An abstract code that subsumes all codes for Questionnaires that require assembly prior to use",
+      "property": [
+        {
+          "code": "notSelectable",
+          "valueBoolean": true
+        }
+      ]
+    },
+    {
+      "code": "independent",
+      "display": "No assembly needed",
+      "definition": "An abstract code that subsumes all codes for Questionnaires that DO NOT require assembly prior to use",
+      "property": [
+        {
+          "code": "notSelectable",
+          "valueBoolean": true
+        }
+      ]
+    },
+    {
+      "code": "root",
+      "display": "Root Questionnaires",
+      "definition": "An abstract code that subsumes all codes for Questionnaires that can act as the root for a QuestionnaireResponse",
+      "property": [
+        {
+          "code": "notSelectable",
+          "valueBoolean": true
+        }
+      ]
+    },
+    {
+      "code": "child",
+      "display": "Child Questionnaires",
+      "definition": "An abstract code that subsumes all codes for Questionnaires that can act as subQuestionnaires",
+      "property": [
+        {
+          "code": "notSelectable",
+          "valueBoolean": true
+        }
+      ]
+    },
+    {
+      "code": "assemble-root-or-child",
+      "display": "Assembly-required root or child",
+      "definition": "This Questionnaire can be used as the root of an assembly operation or as a child in an assembly process.  In either case, assembly is required before use.",
+      "property": [
+        {
+          "code": "notSelectable",
+          "valueBoolean": false
+        },
+        {
+          "code": "parent",
+          "valueCode": "assembly"
+        },
+        {
+          "code": "parent",
+          "valueCode": "root"
+        },
+        {
+          "code": "parent",
+          "valueCode": "child"
+        }
+      ]
+    },
+    {
+      "code": "assemble-root",
+      "display": "Assembly-required root",
+      "definition": "This Questionnaire can be used as the root of an assembly operation, but requires assembly before use.  It is not intended for use as a child module.",
+      "property": [
+        {
+          "code": "notSelectable",
+          "valueBoolean": false
+        },
+        {
+          "code": "parent",
+          "valueCode": "assembly"
+        },
+        {
+          "code": "parent",
+          "valueCode": "root"
+        }
+      ]
+    },
+    {
+      "code": "assemble-child",
+      "display": "Assembly required child",
+      "definition": "This Questionnaire is intended to be used as an assembly operation but cannot be used as a root - it must always be a child module",
+      "property": [
+        {
+          "code": "notSelectable",
+          "valueBoolean": false
+        },
+        {
+          "code": "parent",
+          "valueCode": "assembly"
+        },
+        {
+          "code": "parent",
+          "valueCode": "child"
+        }
+      ]
+    },
+    {
+      "code": "independent-root-or-child",
+      "display": "Assembled root-or-child",
+      "definition": "This Questionnaire can be used without assembly and be used directly, but is also safe for use as a child module",
+      "property": [
+        {
+          "code": "notSelectable",
+          "valueBoolean": false
+        },
+        {
+          "code": "parent",
+          "valueCode": "independent"
+        },
+        {
+          "code": "parent",
+          "valueCode": "root"
+        },
+        {
+          "code": "parent",
+          "valueCode": "child"
+        }
+      ]
+    },
+    {
+      "code": "independent-child",
+      "display": "Assembled child",
+      "definition": "This Questionnaire can be used without assembly, is also safe for use as a child module and is only intended for use as a child",
+      "property": [
+        {
+          "code": "notSelectable",
+          "valueBoolean": false
+        },
+        {
+          "code": "parent",
+          "valueCode": "independent"
+        },
+        {
+          "code": "parent",
+          "valueCode": "child"
+        }
+      ]
+    }
+  ],
+  "version": "1.0.0",
+  "experimental": false,
+  "caseSensitive": true,
+  "property": [
+    {
+      "code": "notSelectable",
+      "uri": "http://hl7.org/fhir/concept-properties#notSelectable",
+      "type": "boolean",
+      "description": "Indicates that the concept is abstract.  It can be used for searching, but cannot appear in instances"
+    },
+    {
+      "code": "parent",
+      "uri": "http://hl7.org/fhir/concept-properties#parent",
+      "type": "code",
+      "description": "Indicates a parent concept that can subsume this concept"
+    }
+  ],
+  "count": 9
+}

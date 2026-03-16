@@ -1,0 +1,108 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaire-pop-obsn",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-pop-obsn",
+  "name": "SDCQuestionnairePopulateObservation",
+  "title": "Populatable Questionnaire - Observation",
+  "status": "active",
+  "description": "Defines elements that support auto-population and pre-population of questionnaires using the Observation-based population mechanism",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Questionnaire",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnairecommon",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Questionnaire",
+        "path": "Questionnaire",
+        "short": "Populatable Questionnaire - Observation",
+        "definition": "Defines elements that support auto-population and pre-population of questionnaires using the Observation-based population mechanism.",
+        "constraint": [
+          {
+            "key": "sdc-pop-2",
+            "severity": "error",
+            "human": "The observationLinkPeriod extension must appear at least once in the Questionnaire",
+            "expression": "descendants().extension('http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationLinkPeriod').exists() or extension('http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationLinkPeriod').exists()",
+            "source": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-pop-obsn"
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "Form_Package"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.extension:observationLinkPeriod",
+        "path": "Questionnaire.extension",
+        "sliceName": "observationLinkPeriod",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationLinkPeriod"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:observationLinkPeriod",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "observationLinkPeriod",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationLinkPeriod"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:unit",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "unit",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-unit"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:isSubject",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "isSubject",
+        "requirements": "Allows the population process to leverage the fact that the subject for this group and descendants is distinct",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-isSubject"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.code",
+        "path": "Questionnaire.item.code",
+        "mustSupport": true
+      }
+    ]
+  }
+}
