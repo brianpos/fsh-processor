@@ -2,28 +2,18 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>fsh_tester</RootNamespace>
+    <RootNamespace>fsh_compiler_r5</RootNamespace>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MSTest" Version="4.0.1" />
     <PackageReference Include="Hl7.Fhir.R5" Version="5.13.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\fsh-processor\fsh-processor.csproj" />
     <ProjectReference Include="..\fsh-compiler\fsh-compiler.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="TestData\**\*.fsh" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
