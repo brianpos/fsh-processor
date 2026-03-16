@@ -133,4 +133,28 @@ public class R4MappingCompilerTests
         Assert.IsNotNull(statusEd.Mapping);
         Assert.AreEqual("HL7v2 2.6", statusEd.Mapping[0].Language);
     }
+
+    [TestMethod]
+    public void ShouldExpandInsertRuleInMapping()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+
+            RuleSet: ObsFieldMapping
+            * status -> ""OBX-11""
+
+            Mapping: ObsMapping
+            Id: obs-map
+            Source: MyObservation
+            Target: ""http://hl7.org/v2""
+            * insert ObsFieldMapping
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyObservation");
+        var statusEd = CompilerTestHelper.GetElement(sd, "status");
+        Assert.IsNotNull(statusEd.Mapping, "InsertRule should have expanded MappingRule onto status element");
+        Assert.AreEqual(1, statusEd.Mapping.Count);
+        Assert.AreEqual("obs-map", statusEd.Mapping[0].Identity);
+        Assert.AreEqual("OBX-11", statusEd.Mapping[0].Map);
+    }
 }
