@@ -68,9 +68,16 @@ public class ProfileTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI ignores duplicate metadata occurrences (first-wins semantics).
-        // fsh-processor applies the last occurrence (last-wins) instead.
-        Assert.Inconclusive("Parser applies last duplicate metadata value rather than first; first-wins not yet implemented");
+        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        var doc = SushiTestHelper.ParseDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            Id: first-id
+            Id: second-id
+        ");
+        var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
+        // fsh-processor last-wins: the second declaration overwrites the first.
+        Assert.AreEqual("second-id", profile.Id?.Value);
     }
 
     [TestMethod]
@@ -138,7 +145,15 @@ public class ProfileTests
     {
         // SUSHI splits "* status 1..1 MS" into a CardRule and a separate FlagRule.
         // fsh-processor combines cardinality and flags into a single CardRule.
-        Assert.Inconclusive("Parser does not yet split combined cardinality+flag rules into separate CardRule and FlagRule");
+        var doc = SushiTestHelper.ParseDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * status 1..1 MS
+        ");
+        var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
+        Assert.AreEqual(1, profile.Rules.Count);
+        var rule = SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
+        CollectionAssert.Contains(rule.Flags, "MS");
     }
 
     // ─── #flagRule ───────────────────────────────────────────────────────────
@@ -297,9 +312,17 @@ public class ProfileTests
     [TestMethod]
     public void ShouldParseContainsRuleWithOneItem()
     {
-        // SUSHI splits "* component contains bpSystolic 1..1" into ContainsRule + CardRule.
-        // fsh-processor combines them.
-        Assert.Inconclusive("Parser does not yet split contains+cardinality into separate ContainsRule and CardRule");
+        // SUSHI splits "* component contains bpSystolic 1..1" into a ContainsRule + a CardRule.
+        // fsh-processor combines them into a single ContainsRule with cardinality on the item.
+        var doc = SushiTestHelper.ParseDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * component contains bpSystolic 1..1
+        ");
+        var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
+        Assert.AreEqual(1, profile.Rules.Count);
+        var rule = SushiTestHelper.AssertContainsRule(profile.Rules[0], "component", "bpSystolic");
+        Assert.AreEqual("1..1", rule.Items[0].Cardinality);
     }
 
     // ─── #caretValueRule ─────────────────────────────────────────────────────
@@ -366,8 +389,16 @@ public class ProfileTests
     public void ShouldParseObeysRuleWithMultipleInvariants()
     {
         // SUSHI splits "* obeys obs-1 and obs-2" into two separate ObeysRules.
-        // fsh-processor emits a single ObeysRule with both invariants in InvariantNames.
-        Assert.Inconclusive("Parser does not yet split multi-invariant obeys rule into separate ObeysRules per invariant");
+        // fsh-processor keeps both invariants in a single ObeysRule.
+        var doc = SushiTestHelper.ParseDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * obeys obs-1 and obs-2
+        ");
+        var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
+        Assert.AreEqual(1, profile.Rules.Count);
+        var rule = SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1", "obs-2");
+        Assert.AreEqual(2, rule.InvariantNames.Count);
     }
 
     // ─── #pathRule ───────────────────────────────────────────────────────────

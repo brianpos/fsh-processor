@@ -232,8 +232,11 @@ public class RuleSetTests
     public void ShouldLogAnErrorWhenParsingARuleSetWithNoRules()
     {
         // SUSHI logs a semantic error for an empty ruleset, but still adds it to the result.
-        // Our parser requires at least one rule; an empty RuleSet fails to parse.
-        Assert.Inconclusive("Not tested: empty RuleSet causes a parse error in our parser (grammar requires at least one rule)");
+        // Our parser requires at least one rule; an empty RuleSet is a parse error.
+        var failed = SushiTestHelper.ParseExpectFailure(@"
+            RuleSet: EmptyRuleSet
+        ");
+        Assert.IsTrue(failed, "Expected a parse error for an empty RuleSet (grammar requires at least one rule)");
     }
 
     [TestMethod]

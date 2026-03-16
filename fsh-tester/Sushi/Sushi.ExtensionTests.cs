@@ -87,9 +87,15 @@ public class ExtensionTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI ignores duplicate metadata occurrences (first-wins semantics).
-        // fsh-processor applies the last occurrence (last-wins) instead.
-        Assert.Inconclusive("Parser applies last duplicate metadata value rather than first; first-wins not yet implemented");
+        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        var doc = SushiTestHelper.ParseDoc(@"
+        Extension: SomeExtension
+        Id: first-id
+        Id: second-id
+        ");
+        var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
+        // fsh-processor last-wins: the second declaration overwrites the first.
+        Assert.AreEqual("second-id", ext.Id);
     }
 
     [TestMethod]
@@ -137,7 +143,17 @@ public class ExtensionTests
     {
         // SUSHI splits "* value[x] 1..1 MS N" into a CardRule and a separate FlagRule (3 rules total).
         // fsh-processor combines cardinality and flags into a single CardRule (2 rules total).
-        Assert.Inconclusive("Parser does not yet split combined cardinality+flag rules into separate CardRule and FlagRule");
+        var doc = SushiTestHelper.ParseDoc(@"
+        Extension: SomeExtension
+        * extension 0..0
+        * value[x] 1..1 MS N
+        ");
+        var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
+        Assert.AreEqual(2, ext.Rules.Count);
+        SushiTestHelper.AssertCardRule(ext.Rules[0], "extension", "0..0");
+        var rule = SushiTestHelper.AssertCardRule(ext.Rules[1], "value[x]", "1..1");
+        CollectionAssert.Contains(rule.Flags, "MS");
+        CollectionAssert.Contains(rule.Flags, "N");
     }
 
     // ─── #flagRule ───────────────────────────────────────────────────────────
@@ -222,7 +238,15 @@ public class ExtensionTests
     {
         // SUSHI splits "* extension contains foo 1..1" into a ContainsRule + a CardRule (3 rules total).
         // fsh-processor emits only the ContainsRule with cardinality embedded (2 rules total).
-        Assert.Inconclusive("Parser does not yet split contains+cardinality into separate ContainsRule and CardRule");
+        var doc = SushiTestHelper.ParseDoc(@"
+        Extension: SomeExtension
+        * extension 0..*
+        * extension contains foo 1..1
+        ");
+        var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
+        Assert.AreEqual(2, ext.Rules.Count);
+        var rule = SushiTestHelper.AssertContainsRule(ext.Rules[1], "extension", "foo");
+        Assert.AreEqual("1..1", rule.Items[0].Cardinality);
     }
 
     [TestMethod]
@@ -230,7 +254,15 @@ public class ExtensionTests
     {
         // SUSHI splits "* extension contains code 1..1" into a ContainsRule + a CardRule (3 rules total).
         // fsh-processor emits only the ContainsRule with cardinality embedded (2 rules total).
-        Assert.Inconclusive("Parser does not yet split contains+cardinality into separate ContainsRule and CardRule");
+        var doc = SushiTestHelper.ParseDoc(@"
+        Extension: SomeExtension
+        * extension 0..*
+        * extension contains code 1..1
+        ");
+        var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
+        Assert.AreEqual(2, ext.Rules.Count);
+        var rule = SushiTestHelper.AssertContainsRule(ext.Rules[1], "extension", "code");
+        Assert.AreEqual("1..1", rule.Items[0].Cardinality);
     }
 
     [TestMethod]
@@ -238,7 +270,16 @@ public class ExtensionTests
     {
         // SUSHI splits "* extension contains MaxSizeExtension named max 1..1" into ContainsRule + CardRule.
         // fsh-processor emits only the ContainsRule with cardinality embedded (2 rules total).
-        Assert.Inconclusive("Parser does not yet split contains+cardinality into separate ContainsRule and CardRule");
+        var doc = SushiTestHelper.ParseDoc(@"
+        Extension: SomeExtension
+        * extension 0..*
+        * extension contains MaxSizeExtension named max 1..1
+        ");
+        var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
+        Assert.AreEqual(2, ext.Rules.Count);
+        var rule = SushiTestHelper.AssertContainsRule(ext.Rules[1], "extension", "MaxSizeExtension");
+        Assert.AreEqual("max", rule.Items[0].NamedAlias);
+        Assert.AreEqual("1..1", rule.Items[0].Cardinality);
     }
 
     // ─── #caretValueRule ─────────────────────────────────────────────────────
@@ -263,8 +304,15 @@ public class ExtensionTests
     public void ShouldParseAnObeysRuleWithAPathAndMultipleInvariants()
     {
         // SUSHI splits "* extension obeys inv-1 and inv-2" into two separate ObeysRules.
-        // fsh-processor emits a single ObeysRule with both invariant names in InvariantNames.
-        Assert.Inconclusive("Parser does not yet split multi-invariant obeys rule into separate ObeysRules per invariant");
+        // fsh-processor keeps both invariants in a single ObeysRule.
+        var doc = SushiTestHelper.ParseDoc(@"
+        Extension: SomeExtension
+        * extension obeys inv-1 and inv-2
+        ");
+        var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
+        Assert.AreEqual(1, ext.Rules.Count);
+        var rule = SushiTestHelper.AssertObeysRule(ext.Rules[0], "extension", "inv-1", "inv-2");
+        Assert.AreEqual(2, rule.InvariantNames.Count);
     }
 
     // ─── #insertRule ─────────────────────────────────────────────────────────

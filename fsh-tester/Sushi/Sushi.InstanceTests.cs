@@ -74,8 +74,14 @@ public class InstanceTests
     {
         // SUSHI drops instances without InstanceOf (semantic validation → size=0).
         // Our parser retains the instance with InstanceOf = null.
-        // This is a behavioral difference from SUSHI.
-        Assert.Inconclusive("Not tested: SUSHI drops instances without InstanceOf (semantic validation). Our parser retains the instance with InstanceOf = null.");
+        var doc = SushiTestHelper.ParseDoc(@"
+            Instance: MyObservation
+        ");
+        var instances = SushiTestHelper.GetInstances(doc);
+        // fsh-processor retains the instance even without InstanceOf
+        Assert.AreEqual(1, instances.Count);
+        Assert.AreEqual("MyObservation", instances[0].Name);
+        Assert.IsNull(instances[0].InstanceOf);
     }
 
     // ─── #title ─────────────────────────────────────────────────────────────
@@ -308,8 +314,16 @@ public class InstanceTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI first-wins for duplicate metadata. Our parser behavior may differ.
-        Assert.Inconclusive("Not tested: SUSHI first-wins duplicate metadata semantic behavior not guaranteed by parser");
+        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        var doc = SushiTestHelper.ParseDoc(@"
+            Instance: MyObservation
+            InstanceOf: Observation
+            Description: ""First description.""
+            Description: ""Second description.""
+        ");
+        var instance = SushiTestHelper.GetInstance(doc, "MyObservation");
+        // fsh-processor last-wins: the second declaration overwrites the first.
+        Assert.AreEqual("Second description.", instance.Description);
     }
 
     [TestMethod]
