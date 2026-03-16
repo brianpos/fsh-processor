@@ -26,6 +26,12 @@ public class CompilerContext
     public Dictionary<string, Invariant> Invariants { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Non-fatal warnings accumulated during compilation.  Populated by rule processors when
+    /// a rule is silently skipped or an unresolved reference is encountered.
+    /// </summary>
+    public List<CompilerWarning> Warnings { get; } = new();
+
+    /// <summary>
     /// Builds a <see cref="CompilerContext"/> by scanning a single <see cref="FshDoc"/> for
     /// <c>Alias</c> and <c>RuleSet</c> entities.
     /// </summary>

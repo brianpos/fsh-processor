@@ -78,4 +78,23 @@ public class R4ValueSetCompilerTests
         var vs = CompilerTestHelper.GetValueSet(resources, "MyValueSet");
         Assert.AreEqual("Injected VS description", vs.Description);
     }
+
+    // ─── Code-level caret value rules (Gap 9) ────────────────────────────────
+
+    [TestMethod]
+    public void ShouldApplyCodeCaretValueRuleToConceptDisplay()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            ValueSet: MyValueSet
+            * include #active from system http://example.org/status
+            * #active ^display = ""Active Patient""
+        ");
+        var vs = CompilerTestHelper.GetValueSet(resources, "MyValueSet");
+        Assert.IsNotNull(vs.Compose);
+        var concept = vs.Compose.Include
+            .SelectMany(i => i.Concept ?? Enumerable.Empty<FhirValueSet.ConceptReferenceComponent>())
+            .FirstOrDefault(c => c.Code == "active");
+        Assert.IsNotNull(concept, "Code 'active' should be in the include");
+        Assert.AreEqual("Active Patient", concept.Display);
+    }
 }

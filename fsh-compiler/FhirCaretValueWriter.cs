@@ -71,6 +71,51 @@ public static class FhirCaretValueWriter
         return true;
     }
 
+    /// <summary>
+    /// Attempts to set an indexed collection element for <paramref name="elementName"/> on
+    /// <paramref name="target"/> using the value from <paramref name="fshValue"/>.
+    /// When <paramref name="elementName"/> refers to a collection property, the list is grown as
+    /// necessary and the element at <paramref name="index"/> is set.  For non-collection
+    /// properties, the index is ignored and the value is set directly (same as
+    /// <see cref="TrySet"/>).
+    /// </summary>
+    public static bool TrySetIndexed(
+        Base target, string elementName, int index, FshValue? fshValue, ModelInspector? inspector = null)
+    {
+        if (fshValue is null) return false;
+
+        var activeInspector = inspector ?? _conformanceFallback.Value;
+        var classMap = activeInspector.FindClassMapping(target.GetType());
+        if (classMap is null) return false;
+
+        var propMap = classMap.FindMappedElementByName(elementName);
+        if (propMap is null) return false;
+
+        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector);
+        if (converted is null) return false;
+
+        if (!propMap.IsCollection)
+        {
+            propMap.SetValue(target, converted);
+            return true;
+        }
+
+        // Ensure the list exists, then set element at the requested index.
+        var list = propMap.GetValue(target) as System.Collections.IList;
+        if (list is null)
+        {
+            var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+            list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+            propMap.SetValue(target, list);
+        }
+
+        while (list.Count <= index)
+            list.Add(Activator.CreateInstance(propMap.ImplementingType));
+
+        list[index] = converted;
+        return true;
+    }
+
     // ─── Value conversion ────────────────────────────────────────────────────
 
     private static object? ConvertValue(FshValue fshValue, Type targetType, ModelInspector inspector)

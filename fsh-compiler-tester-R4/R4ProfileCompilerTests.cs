@@ -1,4 +1,5 @@
 using fsh_compiler;
+using fsh_processor;
 using Hl7.Fhir.Model;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
@@ -742,5 +743,61 @@ public class R4ProfileCompilerTests
         Assert.AreEqual(1, ed.Min);
         Assert.AreEqual("1", ed.Max);
         Assert.IsTrue(ed.MustSupport);
+    }
+
+    // ─── ContainsRule with named alias (Gap 10) ──────────────────────────────
+
+    [TestMethod]
+    public void ShouldApplyContainsRuleWithNamedAlias()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyPatient
+            Parent: Patient
+            * extension contains http://example.org/ext named myExt 0..1
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyPatient");
+        // Slice name should be 'myExt' (from the named alias), not 'http://example.org/ext'
+        var sliceEd = CompilerTestHelper.GetSliceElement(sd, "extension", "myExt");
+        Assert.IsNotNull(sliceEd, "Slice named 'myExt' should exist");
+        Assert.AreEqual(0, sliceEd.Min);
+        Assert.AreEqual("1", sliceEd.Max);
+    }
+
+    [TestMethod]
+    public void ShouldSetTypeOnNamedSlice()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Alias: $MyExt = http://example.org/StructureDefinition/myExt
+
+            Profile: MyPatient
+            Parent: Patient
+            * extension contains $MyExt named myExt 0..1
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyPatient");
+        var sliceEd = CompilerTestHelper.GetSliceElement(sd, "extension", "myExt");
+        Assert.IsNotNull(sliceEd.Type, "Slice element should have Type set");
+        Assert.AreEqual(1, sliceEd.Type.Count);
+        Assert.AreEqual("http://example.org/StructureDefinition/myExt", sliceEd.Type[0].Code);
+    }
+
+    // ─── Compiler warnings (Gap 15) ──────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldEmitWarningForUnresolvedInsertRule()
+    {
+        var fsh = CompilerTestHelper.LeftAlign(@"
+            Profile: MyPatient
+            Parent: Patient
+            * insert NonExistentRuleSet
+        ");
+        var doc = FshParser.Parse(fsh);
+        Assert.IsInstanceOfType<fsh_processor.Models.ParseResult.Success>(doc);
+        var fshDoc = ((fsh_processor.Models.ParseResult.Success)doc).Document;
+
+        var result = fsh_compiler_r4.R4FshCompiler.Compile(fshDoc);
+        Assert.IsTrue(result.IsSuccess, "Should succeed despite unresolved rule set");
+        Assert.IsTrue(result.Warnings.Count > 0, "Should emit at least one warning");
+        Assert.IsTrue(result.Warnings.Any(w => w.Message.Contains("NonExistentRuleSet")),
+            "Warning should mention the missing rule set name");
     }
 }
