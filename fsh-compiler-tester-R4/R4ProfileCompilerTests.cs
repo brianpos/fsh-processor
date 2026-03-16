@@ -228,6 +228,48 @@ public class R4ProfileCompilerTests
         Assert.AreEqual("final", ((Code)ed.Pattern!).Value);
     }
 
+    [TestMethod]
+    public void ShouldApplyPatternRatioWithQuantityParts()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * referenceRange.low = 3 'mg' : 1 'mg'
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "referenceRange.low");
+        Assert.IsNotNull(ed.Pattern, "Pattern should be set");
+        Assert.IsInstanceOfType<Ratio>(ed.Pattern);
+        var ratio = (Ratio)ed.Pattern!;
+        Assert.IsNotNull(ratio.Numerator);
+        Assert.AreEqual(3m, ratio.Numerator.Value);
+        // The FSH parser preserves UCUM unit tokens including their surrounding single quotes
+        // (e.g. 'mg'), so the unit string in the model contains the quotes as written in FSH.
+        Assert.AreEqual("'mg'", ratio.Numerator.Unit);
+        Assert.IsNotNull(ratio.Denominator);
+        Assert.AreEqual(1m, ratio.Denominator.Value);
+        Assert.AreEqual("'mg'", ratio.Denominator.Unit);
+    }
+
+    [TestMethod]
+    public void ShouldApplyFixedRatioWithNumericParts()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * referenceRange.low = 10 : 2 (exactly)
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "referenceRange.low");
+        Assert.IsNotNull(ed.Fixed, "Fixed should be set");
+        Assert.IsInstanceOfType<Ratio>(ed.Fixed);
+        var ratio = (Ratio)ed.Fixed!;
+        Assert.IsNotNull(ratio.Numerator);
+        Assert.AreEqual(10m, ratio.Numerator.Value);
+        Assert.IsNotNull(ratio.Denominator);
+        Assert.AreEqual(2m, ratio.Denominator.Value);
+    }
+
     // ─── OnlyRule ────────────────────────────────────────────────────────────
 
     [TestMethod]
