@@ -1,0 +1,66 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "parameters-questionnaire-next-question-in",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/parameters-questionnaire-next-question-in",
+  "name": "SDCParametersQuestionnaireNextQuestionnaireIn",
+  "title": "Next question operation input parameters",
+  "status": "active",
+  "description": "Profile used to validate the parameters that are the input of the 'next question' adaptive questionnaire operation",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Parameters",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Parameters",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Parameters.parameter",
+        "path": "Parameters.parameter",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "name"
+            }
+          ],
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Parameters.parameter:in",
+        "path": "Parameters.parameter",
+        "sliceName": "in",
+        "min": 0,
+        "max": "*"
+      },
+      {
+        "id": "Parameters.parameter:in.name",
+        "path": "Parameters.parameter.name",
+        "fixedString": "questionnaire-response"
+      },
+      {
+        "id": "Parameters.parameter:in.value[x]",
+        "path": "Parameters.parameter.value[x]",
+        "max": "0"
+      },
+      {
+        "id": "Parameters.parameter:in.resource",
+        "path": "Parameters.parameter.resource",
+        "type": [
+          {
+            "code": "QuestionnaireResponse",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse-adapt"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Parameters.parameter:in.part",
+        "path": "Parameters.parameter.part",
+        "max": "0"
+      }
+    ]
+  }
+}

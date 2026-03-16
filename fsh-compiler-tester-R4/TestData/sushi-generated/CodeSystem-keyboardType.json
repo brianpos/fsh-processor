@@ -1,0 +1,40 @@
+{
+  "resourceType": "CodeSystem",
+  "status": "active",
+  "content": "complete",
+  "name": "KeyboardTypeCodes",
+  "id": "keyboardType",
+  "title": "Keyboard Type",
+  "description": "For string or text items, indicates the 'keyboard type' that should be used by the user interface to guide entry.",
+  "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/keyboardType",
+  "concept": [
+    {
+      "code": "phone",
+      "display": "Phone",
+      "definition": "Keyboard type optimized for input of phone numbers (digits with letters, different prediction)"
+    },
+    {
+      "code": "email",
+      "display": "email",
+      "definition": "Keyboard type optimized for input of email addresses (easy access to at-sign, different prediction)"
+    },
+    {
+      "code": "number",
+      "display": "Number",
+      "definition": "Keyboard type optimized for entering digits (useful for strings as well, such as for entering numerical identifiers)"
+    },
+    {
+      "code": "url",
+      "display": "URL",
+      "definition": "Keyboard type optimized for entering URLs and URIs"
+    },
+    {
+      "code": "chat",
+      "display": "Chat",
+      "definition": "Keyboard type optimized for chat messages (easy access to emoticons, different prediction)"
+    }
+  ],
+  "experimental": false,
+  "caseSensitive": true,
+  "count": 5
+}

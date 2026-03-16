@@ -1,0 +1,30 @@
+{
+  "resourceType": "ValueSet",
+  "status": "active",
+  "name": "TaskCode",
+  "id": "task-code",
+  "title": "SDC Task Code",
+  "description": "The codes allowed for an SDC Task seeking completion of a Questionnaire",
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/task-code",
+  "experimental": false,
+  "compose": {
+    "include": [
+      {
+        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+        "concept": [
+          {
+            "code": "complete-questionnaire"
+          }
+        ]
+      },
+      {
+        "system": "http://hl7.org/fhir/CodeSystem/task-code",
+        "concept": [
+          {
+            "code": "fulfill"
+          }
+        ]
+      }
+    ]
+  }
+}

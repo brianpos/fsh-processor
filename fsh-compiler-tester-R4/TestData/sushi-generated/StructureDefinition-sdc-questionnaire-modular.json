@@ -1,0 +1,67 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaire-modular",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-modular",
+  "name": "SDCModularQuestionnaire",
+  "title": "SDC Modular Questionnaire",
+  "status": "active",
+  "description": "Indicates expectations for questionnaires that draw their item content (not just codes) from other resources",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Questionnaire",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Questionnaire",
+        "path": "Questionnaire",
+        "definition": "Indicates expectations for questionnaires that draw their item content (not just codes) from other resources"
+      },
+      {
+        "id": "Questionnaire.extension",
+        "path": "Questionnaire.extension",
+        "min": 1
+      },
+      {
+        "id": "Questionnaire.extension:assemble-expectation",
+        "path": "Questionnaire.extension",
+        "sliceName": "assemble-expectation",
+        "min": 1
+      },
+      {
+        "id": "Questionnaire.extension:assembleContext",
+        "path": "Questionnaire.extension",
+        "sliceName": "assembleContext",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-assembleContext"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:subQuestionnaire",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "subQuestionnaire",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-subQuestionnaire"
+            ]
+          }
+        ],
+        "mustSupport": true
+      }
+    ]
+  }
+}

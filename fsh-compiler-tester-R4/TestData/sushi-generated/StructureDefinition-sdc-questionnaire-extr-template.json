@@ -1,0 +1,162 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaire-extr-template",
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
+      "valueCode": "draft"
+    },
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-fmm",
+      "valueInteger": 0
+    }
+  ],
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extr-template",
+  "name": "SDCQuestionnaireExtractTemplate",
+  "title": "Extractable Questionnaire - Template",
+  "status": "draft",
+  "description": "Defines elements that allow conversion of a QuestionnaireResponse to a FHIR resource or Bundle of FHIR resources using the Template-based extraction mechanism",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Questionnaire",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnairecommon",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Questionnaire",
+        "path": "Questionnaire",
+        "short": "Extractable Questionnaire - Template",
+        "definition": "Defines elements that allow conversion of a QuestionnaireResponse to a FHIR resource or Bundle of FHIR resources using the Template-based extraction mechanism.",
+        "constraint": [
+          {
+            "key": "tev-1",
+            "severity": "error",
+            "human": "Either the `templateExtract` or a `templateExtractBundle` extension must be provided (or both).",
+            "expression": "extension('http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-templateExtract').exists() or extension('http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-templateExtractBundle').exists() or repeat(item).extension('http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-templateExtract').exists()",
+            "source": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extr-template"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.contained",
+        "path": "Questionnaire.contained",
+        "min": 1,
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.extension:templateExtract",
+        "path": "Questionnaire.extension",
+        "sliceName": "templateExtract",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-templateExtract"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.extension:templateExtractBundle",
+        "path": "Questionnaire.extension",
+        "sliceName": "templateExtractBundle",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-templateExtractBundle"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.extension:extractContext",
+        "path": "Questionnaire.extension",
+        "sliceName": "extractContext",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-templateExtractContext"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.extension:extractAllocateId",
+        "path": "Questionnaire.extension",
+        "sliceName": "extractAllocateId",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extractAllocateId"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:templateExtract",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "templateExtract",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-templateExtract"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:extractContext",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "extractContext",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-templateExtractContext"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:extractAllocateId",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "extractAllocateId",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extractAllocateId"
+            ]
+          }
+        ],
+        "mustSupport": true
+      }
+    ]
+  }
+}

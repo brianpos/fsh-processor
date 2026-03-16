@@ -1,0 +1,51 @@
+{
+  "resourceType": "ServiceRequest",
+  "id": "example",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-servicerequest"
+    ]
+  },
+  "code": {
+    "coding": [
+      {
+        "code": "complete-questionnaire",
+        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
+      }
+    ]
+  },
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-servicerequest-questionnaire",
+      "valueCanonical": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-PHQ9"
+    }
+  ],
+  "status": "active",
+  "intent": "order",
+  "subject": {
+    "reference": "http://hl7.org/fhir/Patient/proband",
+    "display": "Annie Proband"
+  },
+  "occurrenceTiming": {
+    "repeat": {
+      "frequency": 1,
+      "period": 1,
+      "periodUnit": "mo"
+    }
+  },
+  "requester": {
+    "reference": "http://hl7.org/fhir/PractitionerRole/example",
+    "display": "Dr. Adam Careful, Acme Hospital"
+  },
+  "performer": [
+    {
+      "reference": "http://hl7.org/fhir/Patient/proband",
+      "display": "Annie Proband"
+    }
+  ],
+  "reasonCode": [
+    {
+      "text": "Monitor effects of new anti-depressant"
+    }
+  ]
+}

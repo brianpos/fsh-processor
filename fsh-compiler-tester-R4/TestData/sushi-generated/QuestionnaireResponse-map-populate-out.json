@@ -1,0 +1,130 @@
+{
+  "resourceType": "QuestionnaireResponse",
+  "id": "map-populate-out",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse"
+    ]
+  },
+  "questionnaire": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-test-fhirpath-prepop-source-query",
+  "status": "in-progress",
+  "subject": {
+    "reference": "http://example.org/fhir/Patient/a0df9da6-3157-4b72-95f1-729853718c09"
+  },
+  "authored": "2022-01-03T13:50:53-07:00",
+  "item": [
+    {
+      "linkId": "grp",
+      "item": [
+        {
+          "linkId": "part-details",
+          "item": [
+            {
+              "linkId": "participant-id",
+              "answer": [
+                {
+                  "valueString": "a0df9da6-3157-4b72-95f1-729853718c09"
+                }
+              ]
+            },
+            {
+              "linkId": "family-name",
+              "answer": [
+                {
+                  "valueString": "Doe"
+                }
+              ]
+            },
+            {
+              "linkId": "given-names",
+              "answer": [
+                {
+                  "valueString": "Jane"
+                }
+              ]
+            },
+            {
+              "linkId": "dob",
+              "answer": [
+                {
+                  "valueDate": "1951-02-19"
+                }
+              ]
+            },
+            {
+              "linkId": "condition-count",
+              "answer": [
+                {
+                  "valueInteger": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "linkId": "meds",
+          "item": [
+            {
+              "linkId": "med-name",
+              "answer": [
+                {
+                  "valueString": "SomeMed"
+                }
+              ]
+            },
+            {
+              "linkId": "med-status",
+              "answer": [
+                {
+                  "valueString": "active"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "linkId": "meds",
+          "item": [
+            {
+              "linkId": "med-name",
+              "answer": [
+                {
+                  "valueString": "Another med"
+                }
+              ]
+            },
+            {
+              "linkId": "med-status",
+              "answer": [
+                {
+                  "valueString": "active"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "linkId": "meds",
+          "item": [
+            {
+              "linkId": "med-name",
+              "answer": [
+                {
+                  "valueString": "SomeMed"
+                }
+              ]
+            },
+            {
+              "linkId": "med-status",
+              "answer": [
+                {
+                  "valueString": "active"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

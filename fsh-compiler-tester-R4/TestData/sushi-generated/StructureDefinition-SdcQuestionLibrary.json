@@ -1,0 +1,235 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "SdcQuestionLibrary",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary",
+  "version": "3.0.0",
+  "name": "SDCQuestionLibrary",
+  "title": "SDC Question Library",
+  "status": "active",
+  "experimental": true,
+  "description": "An example library of questions showing how questions can be compiled into a library for use by modular questionnaires",
+  "fhirVersion": "4.0.1",
+  "kind": "logical",
+  "abstract": false,
+  "type": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Base",
+  "derivation": "specialization",
+  "differential": {
+    "element": [
+      {
+        "id": "SdcQuestionLibrary",
+        "path": "SdcQuestionLibrary",
+        "short": "SDC Question Library",
+        "definition": "A set of questions related to demographics"
+      },
+      {
+        "id": "SdcQuestionLibrary.dob",
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+            "valueExpression": {
+              "name": "name",
+              "language": "text/fhirpath",
+              "expression": "%patient.birthdate"
+            }
+          }
+        ],
+        "path": "SdcQuestionLibrary.dob",
+        "label": "What is this person's date of birth?",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "date"
+          }
+        ],
+        "minValueDate": "1900-01-01",
+        "_maxValueDate": {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
+              "valueExpression": {
+                "language": "text/fhirpath",
+                "expression": "now() as date + 1 day"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "SdcQuestionLibrary.sex",
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
+            "valueExpression": {
+              "name": "name",
+              "language": "text/fhirpath",
+              "expression": "iif(%patient.gender='male','M', iif(%patient.gender='female','F'))"
+            }
+          }
+        ],
+        "path": "SdcQuestionLibrary.sex",
+        "label": "What is this person's gender?",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "code"
+          }
+        ],
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://hl7.org/fhir/ValueSet/administrative-gender"
+        }
+      },
+      {
+        "id": "SdcQuestionLibrary.address",
+        "path": "SdcQuestionLibrary.address",
+        "label": "What is this person's current mailing address?",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Element"
+          }
+        ]
+      },
+      {
+        "id": "SdcQuestionLibrary.address.street",
+        "path": "SdcQuestionLibrary.address.street",
+        "label": "Street address",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "string"
+          }
+        ]
+      },
+      {
+        "id": "SdcQuestionLibrary.address.city",
+        "path": "SdcQuestionLibrary.address.city",
+        "label": "City/Town",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "string"
+          }
+        ]
+      },
+      {
+        "id": "SdcQuestionLibrary.address.state",
+        "path": "SdcQuestionLibrary.address.state",
+        "label": "State",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "code"
+          }
+        ],
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/sdc-question-library-states"
+        }
+      },
+      {
+        "id": "SdcQuestionLibrary.address.postalCode",
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/StructureDefinition/entryFormat",
+            "valueString": "9999"
+          }
+        ],
+        "path": "SdcQuestionLibrary.address.postalCode",
+        "label": "Postal Code",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 1,
+        "max": "1",
+        "type": [
+          {
+            "code": "string",
+            "extension": [
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/regex",
+                "valueString": "[\\d]{4}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "SdcQuestionLibrary.name",
+        "path": "SdcQuestionLibrary.name",
+        "label": "What is the person's official name?",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Element"
+          }
+        ]
+      },
+      {
+        "id": "SdcQuestionLibrary.name.prefix",
+        "path": "SdcQuestionLibrary.name.prefix",
+        "label": "Prefix",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "string"
+          }
+        ]
+      },
+      {
+        "id": "SdcQuestionLibrary.name.first",
+        "path": "SdcQuestionLibrary.name.first",
+        "label": "First",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "string"
+          }
+        ],
+        "maxLength": 100
+      },
+      {
+        "id": "SdcQuestionLibrary.name.last",
+        "path": "SdcQuestionLibrary.name.last",
+        "label": "Last",
+        "short": "n/a",
+        "definition": "n/a",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "string"
+          }
+        ],
+        "maxLength": 100
+      }
+    ]
+  }
+}

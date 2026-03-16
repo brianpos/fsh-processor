@@ -1,0 +1,82 @@
+{
+  "resourceType": "CodeSystem",
+  "status": "active",
+  "content": "complete",
+  "name": "CHFCodes",
+  "id": "chf-codes",
+  "title": "CHF Codes",
+  "description": "Codes used in the congestive heart failure pathway. Ideally these shouldn't exist, but where I couldn't find an appropriate code in a standard terminology, I defined codes here.",
+  "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/chf-codes",
+  "concept": [
+    {
+      "code": "body-weight-change",
+      "display": "Body weight change",
+      "definition": "The change in body weight between two body weight measurements, in kg. Typically captured daily."
+    },
+    {
+      "code": "net-intake-output",
+      "display": "Net intake/output",
+      "definition": "The net intake and output, in Liters per day. Typically captured daily."
+    },
+    {
+      "code": "measure-jvp",
+      "display": "Measure jugular venous pressure",
+      "definition": "Measure jugular venous pressure in cmH2O"
+    },
+    {
+      "code": "jvp",
+      "display": "Jugular venous pressure",
+      "definition": "Jugular venous pressure in cmH2O. May be loinc#8595-1?"
+    },
+    {
+      "code": "egfr",
+      "display": "eGFR result",
+      "definition": "eGFR result in mol/mm/m2. Too many codes to choose from, needs clinical/terminological SME input"
+    },
+    {
+      "code": "measure-egfr",
+      "display": "Measure eGFR",
+      "definition": "Measure eGFR, could not identify SNOMED code for this"
+    },
+    {
+      "code": "lasix-iv",
+      "display": "LASIX IV",
+      "definition": "LASIX IV"
+    },
+    {
+      "code": "lasix-po",
+      "display": "LASIX PO",
+      "definition": "LASIX PO"
+    },
+    {
+      "code": "cardiology-consultation",
+      "display": "Cardiology Consultation",
+      "definition": "Cardiology consultation"
+    }
+  ],
+  "version": "1.0.0",
+  "experimental": true,
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "url",
+          "value": "http://www.hl7.org/Special/committees/dss/index.cfm"
+        }
+      ]
+    }
+  ],
+  "jurisdiction": [
+    {
+      "coding": [
+        {
+          "code": "001",
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "display": "World"
+        }
+      ]
+    }
+  ],
+  "caseSensitive": true,
+  "count": 9
+}

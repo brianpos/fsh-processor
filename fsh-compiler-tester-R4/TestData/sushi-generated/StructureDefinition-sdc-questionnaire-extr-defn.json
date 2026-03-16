@@ -1,0 +1,165 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaire-extr-defn",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extr-defn",
+  "name": "SDCQuestionnaireExtractDefinition",
+  "title": "Extractable Questionnaire - Definition",
+  "status": "active",
+  "description": "Defines elements that allow conversion of a QuestionnaireResponse to a FHIR resource or Bundle of FHIR resources using the Definition-based extraction mechanism",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Questionnaire",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnairecommon",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Questionnaire",
+        "path": "Questionnaire",
+        "short": "Extractable Questionnaire - Definition",
+        "definition": "Defines elements that allow conversion of a QuestionnaireResponse to a FHIR resource or Bundle of FHIR resources using the Definition-based extraction mechanism.",
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "Form_Package"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.extension:definitionExtract",
+        "path": "Questionnaire.extension",
+        "sliceName": "definitionExtract",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-definitionExtract"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.extension:definitionExtractValue",
+        "path": "Questionnaire.extension",
+        "sliceName": "definitionExtractValue",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-definitionExtractValue"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.extension:extractAllocateId",
+        "path": "Questionnaire.extension",
+        "sliceName": "extractAllocateId",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extractAllocateId"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.extension:library",
+        "path": "Questionnaire.extension",
+        "sliceName": "library",
+        "definition": "A reference to a library containing cql used in this Questionnaire.",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/cqf-library"
+            ]
+          }
+        ],
+        "mustSupport": false
+      },
+      {
+        "id": "Questionnaire.item.extension:definitionExtract",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "definitionExtract",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-definitionExtract"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:definitionExtractValue",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "definitionExtractValue",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-definitionExtractValue"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:extractAllocateId",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "extractAllocateId",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-extractAllocateId"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:unit",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "unit",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-unit"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.definition",
+        "path": "Questionnaire.item.definition",
+        "mustSupport": true
+      }
+    ]
+  }
+}

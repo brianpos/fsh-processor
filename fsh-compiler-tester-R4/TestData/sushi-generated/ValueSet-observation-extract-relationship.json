@@ -1,0 +1,17 @@
+{
+  "resourceType": "ValueSet",
+  "status": "active",
+  "name": "ObservationExtractRelationship",
+  "id": "observation-extract-relationship",
+  "title": "Observation Extract Relationship Value Set",
+  "description": "Defines the set of codes used to specify the relationship type for extracted Observations.",
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/observation-extract-relationship",
+  "experimental": false,
+  "compose": {
+    "include": [
+      {
+        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/observation-extract-relationship"
+      }
+    ]
+  }
+}

@@ -1,0 +1,704 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaire-render",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-render",
+  "name": "SDCQuestionnaireRender",
+  "title": "Advanced Rendering Questionnaire",
+  "status": "active",
+  "description": "Defines additional capabilities for controlling the rendering of the questionnaire.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Questionnaire",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnairecommon",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Questionnaire",
+        "path": "Questionnaire",
+        "short": "Advanced Rendering Questionnaire",
+        "definition": "Defines additional capabilities for controlling the rendering of the questionnaire.",
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "Form_Package"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.modifierExtension",
+        "path": "Questionnaire.modifierExtension",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "url"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Questionnaire.modifierExtension:rendering-criticalExtension",
+        "path": "Questionnaire.modifierExtension",
+        "sliceName": "rendering-criticalExtension",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-rendering-criticalExtension"
+            ]
+          }
+        ],
+        "mustSupport": true,
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "N/A (new requirement)"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.title.extension",
+        "path": "Questionnaire.title.extension",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "url"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Questionnaire.title.extension:title-renderingStyle",
+        "path": "Questionnaire.title.extension",
+        "sliceName": "title-renderingStyle",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-style"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "../style"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.title.extension:title-xhtml",
+        "path": "Questionnaire.title.extension",
+        "sliceName": "title-xhtml",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-xhtml"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "(strings can contain xhtml)"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:itemMedia",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "itemMedia",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemMedia"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:itemOptionalDisplay",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "itemOptionalDisplay",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-optionalDisplay"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "N/A (new requirement)"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:itemShortText",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "itemShortText",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-shortText"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "N/A (new requirement)"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:openLabel",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "openLabel",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-openLabel"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:itemControl",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "itemControl",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.extension:choiceOrientation",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "choiceOrientation",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-choiceOrientation"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:displayCategory",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "displayCategory",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-displayCategory"
+            ]
+          }
+        ],
+        "mustSupport": true,
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "/form_package/mapping_package/mdr_mapping/question_element_data_element_association[question_element_identifier=current()/question_identifier]/data_element_scoped_identifier"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:supportLink",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "supportLink",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-supportLink"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:choiceColumn",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "choiceColumn",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-choiceColumn"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:width",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "width",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-width"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:sliderStepValue",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "sliderStepValue",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-sliderStepValue"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:entryFormat",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "entryFormat",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/entryFormat"
+            ]
+          }
+        ],
+        "mustSupport": true,
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "./*_Field/format | ./*_Field/datatype/string/pattern"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:collapsible",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "collapsible",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-collapsible"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "./*_Field/format | ./*_Field/datatype/string/pattern"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:columnCount",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "columnCount",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-columnCount"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:keyboardType",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "keyboardType",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-keyboard"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.prefix.extension",
+        "path": "Questionnaire.item.prefix.extension",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "url"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Questionnaire.item.prefix.extension:itemLabel-renderingStyle",
+        "path": "Questionnaire.item.prefix.extension",
+        "sliceName": "itemLabel-renderingStyle",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-style"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "../style"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.prefix.extension:itemLabel-xhtml",
+        "path": "Questionnaire.item.prefix.extension",
+        "sliceName": "itemLabel-xhtml",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-xhtml"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "(strings can contain xhtml)"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.text.extension",
+        "path": "Questionnaire.item.text.extension",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "url"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Questionnaire.item.text.extension:groupText-renderingStyle",
+        "path": "Questionnaire.item.text.extension",
+        "sliceName": "groupText-renderingStyle",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-style"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "../style"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.text.extension:groupText-xhtml",
+        "path": "Questionnaire.item.text.extension",
+        "sliceName": "groupText-xhtml",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-xhtml"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "(strings can contain xhtml)"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.text.extension:expression",
+        "path": "Questionnaire.item.text.extension",
+        "sliceName": "expression",
+        "comment": "Note: The variation cannot change the meaning of the question. The extension can be used even if text is present; and if the extension is supported, the evaluation will replace the text provided (with 'smarter' text). ",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/cqf-expression"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.answerOption.extension",
+        "path": "Questionnaire.item.answerOption.extension",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "url"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Questionnaire.item.answerOption.extension:itemAnswerMedia",
+        "path": "Questionnaire.item.answerOption.extension",
+        "sliceName": "itemAnswerMedia",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemAnswerMedia"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.answerOption.extension:optionPrefix",
+        "path": "Questionnaire.item.answerOption.extension",
+        "sliceName": "optionPrefix",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-optionPrefix"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.answerOption.value[x]",
+        "path": "Questionnaire.item.answerOption.value[x]",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "type",
+              "path": "$this"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Questionnaire.item.answerOption.value[x]:valueString",
+        "path": "Questionnaire.item.answerOption.value[x]",
+        "sliceName": "valueString",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "string"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.answerOption.value[x]:valueString.extension",
+        "path": "Questionnaire.item.answerOption.value[x].extension",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "url"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Questionnaire.item.answerOption.value[x]:valueString.extension:optionString-renderingStyle",
+        "path": "Questionnaire.item.answerOption.value[x].extension",
+        "sliceName": "optionString-renderingStyle",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-style"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "../style"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.answerOption.value[x]:valueString.extension:optionString-xhtml",
+        "path": "Questionnaire.item.answerOption.value[x].extension",
+        "sliceName": "optionString-xhtml",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-xhtml"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "(strings can contain xhtml)"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.answerOption.value[x]:valueCoding",
+        "path": "Questionnaire.item.answerOption.value[x]",
+        "sliceName": "valueCoding",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Coding"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.answerOption.value[x]:valueCoding.display.extension",
+        "path": "Questionnaire.item.answerOption.value[x].display.extension",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "url"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Questionnaire.item.answerOption.value[x]:valueCoding.display.extension:optionDisplay-renderingStyle",
+        "path": "Questionnaire.item.answerOption.value[x].display.extension",
+        "sliceName": "optionDisplay-renderingStyle",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-style"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "../style"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.answerOption.value[x]:valueCoding.display.extension:optionDisplay-xhtml",
+        "path": "Questionnaire.item.answerOption.value[x].display.extension",
+        "sliceName": "optionDisplay-xhtml",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-xhtml"
+            ]
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "(strings can contain xhtml)"
+          }
+        ]
+      }
+    ]
+  }
+}
