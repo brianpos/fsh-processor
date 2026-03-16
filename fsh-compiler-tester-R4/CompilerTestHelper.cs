@@ -105,6 +105,36 @@ public static class CompilerTestHelper
     }
 
     /// <summary>
+    /// Parses a FSH string and returns the <see cref="FshDoc"/>. Fails the test on parse errors.
+    /// </summary>
+    public static FshDoc ParseDoc(string fsh)
+    {
+        var trimmed = LeftAlign(fsh);
+        var parseResult = FshParser.Parse(trimmed);
+        if (parseResult is ParseResult.Failure parseFailure)
+        {
+            var msg = string.Join("; ", parseFailure.Errors.Select(e => $"Line {e.Line}: {e.Message}"));
+            Assert.Fail($"Parse failed: {msg}");
+        }
+        return ((ParseResult.Success)parseResult).Document;
+    }
+
+    /// <summary>
+    /// Compiles multiple <see cref="FshDoc"/> instances together, sharing a single context.
+    /// Fails the test on compilation errors.
+    /// </summary>
+    public static List<FhirResource> CompileDocs(params FshDoc[] docs)
+    {
+        var compileResult = R4FshCompiler.Compile(docs);
+        if (compileResult is CompileResult<List<FhirResource>>.FailureResult failure)
+        {
+            var msg = string.Join("; ", failure.Errors.Select(e => e.ToString()));
+            Assert.Fail($"Compile failed: {msg}");
+        }
+        return ((CompileResult<List<FhirResource>>.SuccessResult)compileResult).Value;
+    }
+
+    /// <summary>
     /// Removes common leading whitespace from a multiline string.
     /// </summary>
     public static string LeftAlign(string input)

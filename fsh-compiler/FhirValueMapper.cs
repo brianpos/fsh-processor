@@ -2,9 +2,12 @@ using fsh_processor.Models;
 using Hl7.Fhir.Model;
 using FhirCode = Hl7.Fhir.Model.Code;
 using FhirCanonical = Hl7.Fhir.Model.Canonical;
+using FhirCodeableReference = Hl7.Fhir.Model.CodeableReference;
 using FshQuantity = fsh_processor.Models.Quantity;
 using FshCode = fsh_processor.Models.Code;
 using FshCanonical = fsh_processor.Models.Canonical;
+using FshRatio = fsh_processor.Models.Ratio;
+using FshCodeableReference = fsh_processor.Models.CodeableReference;
 
 namespace fsh_compiler;
 
@@ -28,10 +31,12 @@ public static class FhirValueMapper
             TimeValue tv => new Time(tv.Value),
             FshCode c => new FhirCode(c.Value.TrimStart('#')),
             FshQuantity q => ToQuantity(q),
-            // Ratio requires version-specific DataType not available in Hl7.Fhir.Conformance; returns null.
             RegexValue rv => new FhirString(rv.Pattern),
             Reference r => new ResourceReference(r.Type),
             FshCanonical can => new FhirCanonical(can.Version is null ? can.Url : $"{can.Url}|{can.Version}"),
+            FshCodeableReference cr => new FhirCodeableReference { Reference = new ResourceReference(cr.Type) },
+            // Ratio requires a version-specific assembly (Hl7.Fhir.R4/R5); not available in
+            // the shared Conformance package. Callers can override via version-specific code.
             _ => null
         };
 
