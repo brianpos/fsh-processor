@@ -74,6 +74,12 @@ public static class FshCompiler
         var errors = new List<CompilerError>();
         var resources = new List<FhirResource>();
 
+        // Track entity-name → StructureDefinition for Mapping deferred processing.
+        var sdByEntityName = new Dictionary<string, StructureDefinition>(StringComparer.Ordinal);
+
+        // Collect Mapping entities for a second pass (they annotate already-compiled SDs).
+        var pendingMappings = new List<(fsh_processor.Models.Mapping Mapping, string EntityName)>();
+
         foreach (var doc in docs)
         {
             foreach (var entity in doc.Entities)
@@ -88,12 +94,22 @@ public static class FshCompiler
                         fsh_processor.Models.Resource fshResource => BuildResource(fshResource, context, opts),
                         fsh_processor.Models.ValueSet vs => BuildValueSet(vs, context, opts),
                         fsh_processor.Models.CodeSystem cs => BuildCodeSystem(cs, context, opts),
-                        // Alias, RuleSet, and Invariant produce no FHIR resource; Instance requires version-specific types
+                        fsh_processor.Models.Instance inst => BuildInstance(inst, context, opts),
+                        fsh_processor.Models.Mapping => null, // handled in second pass below
+                        // Alias, RuleSet, and Invariant produce no FHIR resource
                         _ => null
                     };
 
                     if (resource != null)
+                    {
                         resources.Add(resource);
+                        if (resource is StructureDefinition sd)
+                            sdByEntityName.TryAdd(entity.Name, sd);
+                    }
+
+                    // Queue Mapping entities for deferred processing.
+                    if (entity is fsh_processor.Models.Mapping mapping)
+                        pendingMappings.Add((mapping, entity.Name));
                 }
                 catch (Exception ex)
                 {
@@ -107,9 +123,40 @@ public static class FshCompiler
             }
         }
 
+        // Second pass: apply Mapping entities to the already-compiled StructureDefinitions.
+        foreach (var (mapping, entityName) in pendingMappings)
+        {
+            try
+            {
+                if (mapping.Source is null ||
+                    !sdByEntityName.TryGetValue(mapping.Source, out var targetSd))
+                {
+                    context.Warnings.Add(new CompilerWarning
+                    {
+                        EntityName = entityName,
+                        Message = mapping.Source is null
+                            ? "Mapping has no Source; skipped."
+                            : $"Mapping Source '{mapping.Source}' does not match any compiled StructureDefinition; skipped."
+                    });
+                    continue;
+                }
+
+                ApplyMappingToSD(mapping, targetSd, context);
+            }
+            catch (Exception ex)
+            {
+                errors.Add(new CompilerError
+                {
+                    EntityName = entityName,
+                    Message = ex.Message,
+                    Position = mapping.Position
+                });
+            }
+        }
+
         return errors.Count > 0
-            ? CompileResult<List<FhirResource>>.FromFailure(errors)
-            : CompileResult<List<FhirResource>>.FromSuccess(resources);
+            ? CompileResult<List<FhirResource>>.FromFailure(errors, context.Warnings)
+            : CompileResult<List<FhirResource>>.FromSuccess(resources, context.Warnings);
     }
 
     // ─── StructureDefinition builders ────────────────────────────────────────
@@ -302,6 +349,23 @@ public static class FshCompiler
                 case VsInsertRule insertRule:
                     ApplyVsInsertRule(insertRule, fvs, context, opts);
                     break;
+
+                case CodeCaretValueRule codeCaretRule:
+                    ApplyCodeCaretValueRule(codeCaretRule, fvs, opts.Inspector);
+                    break;
+
+                case CodeInsertRule codeInsertRule:
+                    ApplyCodeInsertRule(codeInsertRule, fvs, context, opts);
+                    break;
+
+                default:
+                    context.Warnings.Add(new CompilerWarning
+                    {
+                        EntityName = vs.Name,
+                        Message = $"Rule type '{rule.GetType().Name}' is not supported for ValueSets; skipped.",
+                        Position = rule.Position
+                    });
+                    break;
             }
         }
 
@@ -392,7 +456,7 @@ public static class FshCompiler
                     break;
 
                 case ContainsRule containsRule:
-                    ApplyContainsRule(containsRule, sd);
+                    ApplyContainsRule(containsRule, sd, context);
                     break;
 
                 case OnlyRule onlyRule:
@@ -411,6 +475,13 @@ public static class FshCompiler
                     var resolved = RuleSetResolver.Resolve(insertRule, context);
                     if (resolved.Count > 0)
                         ApplySdRules(resolved, sd, context, opts);
+                    else
+                        context.Warnings.Add(new CompilerWarning
+                        {
+                            EntityName = sd.Name,
+                            Message = $"InsertRule references unknown RuleSet '{insertRule.RuleSetReference}'; skipped.",
+                            Position = insertRule.Position
+                        });
                     break;
 
                 case PathRule pathRule:
@@ -424,6 +495,15 @@ public static class FshCompiler
 
                 case AddCRElementRule addCr:
                     ApplyAddCRElementRule(addCr, sd);
+                    break;
+
+                default:
+                    context.Warnings.Add(new CompilerWarning
+                    {
+                        EntityName = sd.Name,
+                        Message = $"Rule type '{rule.GetType().Name}' is not supported for StructureDefinitions; skipped.",
+                        Position = rule.Position
+                    });
                     break;
             }
         }
@@ -496,7 +576,7 @@ public static class FshCompiler
         }
     }
 
-    private static void ApplyContainsRule(ContainsRule containsRule, StructureDefinition sd)
+    private static void ApplyContainsRule(ContainsRule containsRule, StructureDefinition sd, CompilerContext context)
     {
         if (string.IsNullOrEmpty(containsRule.Path) || containsRule.Items.Count == 0) return;
 
@@ -510,7 +590,12 @@ public static class FshCompiler
 
         foreach (var item in containsRule.Items)
         {
-            var sliceEd = GetOrCreateElement($"{containsRule.Path}:{item.Name}", sd);
+            // When the "named" keyword is present:
+            //   name(0) = type alias (e.g. the extension profile), name(1) = slice name.
+            // When absent:
+            //   name(0) = slice name (and no separate type is implied).
+            var sliceName = item.NamedAlias ?? item.Name;
+            var sliceEd = GetOrCreateElement($"{containsRule.Path}:{sliceName}", sd);
             var parts = item.Cardinality.Split("..");
             if (parts.Length == 2)
             {
@@ -518,6 +603,16 @@ public static class FshCompiler
                 sliceEd.Max = parts[1];
             }
             ApplyFlags(sliceEd, item.Flags);
+
+            // Gap 10: when NamedAlias is set, populate ed.Type with the type from item.Name.
+            if (item.NamedAlias != null)
+            {
+                var resolvedType = context.ResolveAlias(item.Name);
+                sliceEd.Type =
+                [
+                    new ElementDefinition.TypeRefComponent { Code = resolvedType }
+                ];
+            }
         }
     }
 
@@ -785,6 +880,77 @@ public static class FshCompiler
         }
     }
 
+    /// <summary>
+    /// Applies a <see cref="CodeCaretValueRule"/> to specific concept references within the
+    /// <see cref="FhirValueSet"/>.  The rule targets one or more codes within the compose
+    /// include/exclude components; the caret path is applied to each matching
+    /// <see cref="FhirValueSet.ConceptReferenceComponent"/>.
+    /// </summary>
+    private static void ApplyCodeCaretValueRule(
+        CodeCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector)
+    {
+        if (rule.Codes.Count == 0 || string.IsNullOrEmpty(rule.CaretPath)) return;
+        var path = rule.CaretPath.TrimStart('^');
+
+        foreach (var codeStr in rule.Codes)
+        {
+            var bare = codeStr.TrimStart('#');
+            var concept = FindConceptReferenceByCode(fvs, bare);
+            if (concept != null)
+                FhirCaretValueWriter.TrySet(concept, path, rule.Value, inspector);
+        }
+    }
+
+    /// <summary>
+    /// Finds the first <see cref="FhirValueSet.ConceptReferenceComponent"/> in a ValueSet's
+    /// compose (include and exclude) whose Code matches <paramref name="code"/>.
+    /// </summary>
+    private static FhirValueSet.ConceptReferenceComponent? FindConceptReferenceByCode(
+        FhirValueSet fvs, string code)
+    {
+        if (fvs.Compose is null) return null;
+
+        foreach (var component in fvs.Compose.Include.Concat(fvs.Compose.Exclude))
+        {
+            var match = component.Concept?.FirstOrDefault(c => c.Code == code);
+            if (match != null) return match;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Expands a <see cref="CodeInsertRule"/> by resolving the referenced <see cref="RuleSet"/>
+    /// and replaying any applicable code-level caret rules for the listed codes.
+    /// </summary>
+    private static void ApplyCodeInsertRule(
+        CodeInsertRule insertRule, FhirValueSet fvs, CompilerContext context, CompilerOptions opts)
+    {
+        var resolved = RuleSetResolver.Resolve(
+            insertRule.RuleSetReference, insertRule.IsParameterized, insertRule.Parameters, context);
+
+        foreach (var rule in resolved)
+        {
+            switch (rule)
+            {
+                case CodeCaretValueRule codeCaretRule:
+                    // Merge the enclosing rule's codes with any codes in the nested rule.
+                    var effectiveCodes = insertRule.Codes.Count > 0 ? insertRule.Codes : codeCaretRule.Codes;
+                    var merged = new CodeCaretValueRule
+                    {
+                        Indent = codeCaretRule.Indent,
+                        Codes = effectiveCodes,
+                        CaretPath = codeCaretRule.CaretPath,
+                        Value = codeCaretRule.Value
+                    };
+                    ApplyCodeCaretValueRule(merged, fvs, opts.Inspector);
+                    break;
+                case CodeInsertRule nestedInsert:
+                    ApplyCodeInsertRule(nestedInsert, fvs, context, opts);
+                    break;
+            }
+        }
+    }
+
     // ─── CodeSystem rule processors ───────────────────────────────────────────
 
     private static void ApplyConceptRule(Concept concept, FhirCodeSystem fcs)
@@ -956,5 +1122,209 @@ public static class FshCompiler
         if (idOrName.StartsWith("http://") || idOrName.StartsWith("https://")) return idOrName;
         if (string.IsNullOrEmpty(opts.CanonicalBase)) return idOrName;
         return $"{opts.CanonicalBase.TrimEnd('/')}/{idOrName}";
+    }
+
+    // ─── Instance builder ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Converts a FSH <see cref="fsh_processor.Models.Instance"/> entity to a FHIR resource.
+    /// Requires a version-specific <see cref="CompilerOptions.Inspector"/> to resolve the
+    /// <c>InstanceOf</c> type name to a CLR type; returns <c>null</c> when the type cannot
+    /// be resolved or the inspector is not supplied.
+    /// </summary>
+    public static FhirResource? BuildInstance(
+        fsh_processor.Models.Instance instance, CompilerContext context, CompilerOptions? options = null)
+    {
+        var opts = options ?? new CompilerOptions();
+        if (string.IsNullOrEmpty(instance.InstanceOf)) return null;
+
+        var inspector = opts.Inspector;
+        if (inspector is null) return null;  // instance compilation requires a version-specific inspector
+
+        // Resolve alias → type name, then strip any URL prefix to get the bare FHIR type name.
+        var typeName = context.ResolveAlias(instance.InstanceOf);
+        var lastSlash = typeName.LastIndexOf('/');
+        if (lastSlash >= 0)
+            typeName = typeName[(lastSlash + 1)..];
+
+        var classMap = inspector.FindClassMapping(typeName);
+        if (classMap is null || !classMap.IsResource) return null;
+
+        if (Activator.CreateInstance(classMap.NativeType) is not FhirResource resource)
+            return null;
+
+        // Apply instance rules.
+        ApplyInstanceRules(instance.Rules, resource, context, opts, inspector);
+
+        return resource;
+    }
+
+    private static void ApplyInstanceRules(
+        IEnumerable<InstanceRule> rules,
+        FhirResource resource,
+        CompilerContext context,
+        CompilerOptions opts,
+        ModelInspector inspector)
+    {
+        foreach (var rule in rules)
+        {
+            switch (rule)
+            {
+                case InstanceFixedValueRule fixedRule when
+                    !string.IsNullOrEmpty(fixedRule.Path) && fixedRule.Value != null:
+                    SetInstancePath(resource, fixedRule.Path, fixedRule.Value, inspector);
+                    break;
+
+                case InstanceInsertRule insertRule:
+                    var resolved = RuleSetResolver.Resolve(
+                        insertRule.RuleSetReference, insertRule.IsParameterized,
+                        insertRule.Parameters, context);
+                    ApplyInstanceRules(
+                        resolved.OfType<InstanceRule>(), resource, context, opts, inspector);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sets a value on <paramref name="obj"/> by following the dot-separated
+    /// <paramref name="path"/>, creating intermediate objects and list elements as needed.
+    /// Returns <c>true</c> when the leaf value was set successfully.
+    /// </summary>
+    private static bool SetInstancePath(Base obj, string path, FshValue value, ModelInspector inspector)
+    {
+        var segments = SplitInstancePath(path);
+        if (segments.Length == 0) return false;
+
+        var current = obj;
+
+        // Navigate to the parent of the leaf element.
+        for (int i = 0; i < segments.Length - 1; i++)
+        {
+            var (segName, segIdx) = ParseInstanceSegment(segments[i]);
+            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector);
+            if (current is null) return false;
+        }
+
+        // Set the leaf.
+        var (leafName, leafIdx) = ParseInstanceSegment(segments[segments.Length - 1]);
+        return FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector);
+    }
+
+    /// <summary>
+    /// Navigates into (or creates) a child element of <paramref name="parent"/> by property
+    /// <paramref name="name"/> at list <paramref name="index"/>.
+    /// Returns <c>null</c> when the property is not found or cannot be instantiated.
+    /// </summary>
+    private static Base? GetOrCreateInstanceChild(Base parent, string name, int index, ModelInspector inspector)
+    {
+        var classMap = inspector.FindClassMapping(parent.GetType());
+        if (classMap is null) return null;
+
+        var propMap = classMap.FindMappedElementByName(name);
+        if (propMap is null) return null;
+
+        // Determine the concrete instantiable type.
+        var concreteType = propMap.ImplementingType;
+        if (concreteType is null || concreteType.IsAbstract) return null;
+
+        if (propMap.IsCollection)
+        {
+            var list = propMap.GetValue(parent) as System.Collections.IList;
+            if (list is null)
+            {
+                var listType = typeof(List<>).MakeGenericType(concreteType);
+                list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                propMap.SetValue(parent, list);
+            }
+
+            while (list.Count <= index)
+                list.Add(Activator.CreateInstance(concreteType));
+
+            return list[index] as Base;
+        }
+        else
+        {
+            var child = propMap.GetValue(parent) as Base;
+            if (child is null)
+            {
+                child = Activator.CreateInstance(concreteType) as Base;
+                if (child is null) return null;
+                propMap.SetValue(parent, child);
+            }
+            return child;
+        }
+    }
+
+    /// <summary>Splits a FHIR instance path on <c>.</c> boundaries.</summary>
+    private static string[] SplitInstancePath(string path) =>
+        path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>
+    /// Parses a path segment such as <c>name</c> or <c>name[2]</c> into its name and
+    /// zero-based list index (defaulting to 0 when no brackets are present).
+    /// </summary>
+    private static (string Name, int Index) ParseInstanceSegment(string segment)
+    {
+        var bracketStart = segment.IndexOf('[');
+        if (bracketStart < 0) return (segment, 0);
+
+        var name = segment[..bracketStart];
+        var bracketEnd = segment.IndexOf(']', bracketStart);
+        var idxStr = bracketEnd > bracketStart + 1
+            ? segment[(bracketStart + 1)..bracketEnd]
+            : "0";
+        return (name, int.TryParse(idxStr, out var idx) ? idx : 0);
+    }
+
+    // ─── Mapping compiler ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Applies a FSH <see cref="fsh_processor.Models.Mapping"/> entity to a target
+    /// <see cref="StructureDefinition"/> by:
+    /// <list type="bullet">
+    ///   <item>Adding a <c>mapping</c> identity declaration to <c>sd.Mapping</c>.</item>
+    ///   <item>
+    ///     Adding per-element <see cref="ElementDefinition.MappingComponent"/> entries for
+    ///     each <see cref="MappingMapRule"/> in the entity.
+    ///   </item>
+    /// </list>
+    /// </summary>
+    private static void ApplyMappingToSD(
+        fsh_processor.Models.Mapping mapping, StructureDefinition sd, CompilerContext context)
+    {
+        // Register the mapping identity on the StructureDefinition.
+        var identity = mapping.Id ?? mapping.Name;
+        sd.Mapping ??= new List<StructureDefinition.MappingComponent>();
+        if (!sd.Mapping.Any(m => m.Identity == identity))
+        {
+            sd.Mapping.Add(new StructureDefinition.MappingComponent
+            {
+                Identity = identity,
+                Uri = mapping.Target,
+                Name = mapping.Title,
+                Comment = mapping.Description
+            });
+        }
+
+        // Apply per-element mapping rules.
+        foreach (var rule in mapping.Rules)
+        {
+            if (rule is not MappingMapRule mapRule) continue;
+
+            ElementDefinition targetEd;
+            if (string.IsNullOrEmpty(mapRule.Path) || mapRule.Path == ".")
+                targetEd = sd.Differential.Element.First();
+            else
+                targetEd = GetOrCreateElement(mapRule.Path, sd);
+
+            targetEd.Mapping ??= new List<ElementDefinition.MappingComponent>();
+            targetEd.Mapping.Add(new ElementDefinition.MappingComponent
+            {
+                Identity = identity,
+                Map = mapRule.Target,
+                Language = mapRule.Language
+            });
+        }
     }
 }
