@@ -19,9 +19,9 @@ public class ExtensionTests
         Assert.AreEqual(1, SushiTestHelper.GetExtensions(doc).Count);
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
         Assert.AreEqual("SomeExtension", ext.Name);
-        // SUSHI defaults Parent to "Extension" and Id to the name when not specified.
-        // fsh-processor does not apply these defaults yet.
-        Assert.Inconclusive("Parser does not yet default Extension.Parent to 'Extension' or Extension.Id to the entity name");
+        // P-EX1/P-EX2: SUSHI defaults Parent to "Extension" and Id to the entity Name.
+        Assert.AreEqual("Extension", ext.Parent, "Parent should default to 'Extension'");
+        Assert.AreEqual("SomeExtension", ext.Id, "Id should default to entity name");
     }
 
     [TestMethod]

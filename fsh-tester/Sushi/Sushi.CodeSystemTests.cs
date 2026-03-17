@@ -19,8 +19,8 @@ public class CodeSystemTests
         Assert.AreEqual(1, SushiTestHelper.GetCodeSystems(doc).Count);
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
         Assert.AreEqual("ZOO", cs.Name);
-        // SUSHI defaults Id to the name when not specified; fsh-processor does not.
-        Assert.Inconclusive("Parser does not yet default CodeSystem.Id to the entity name");
+        // P-CS1: SUSHI defaults Id to the entity Name when not specified.
+        Assert.AreEqual("ZOO", cs.Id, "Id should default to entity name");
     }
 
     [TestMethod]
@@ -72,9 +72,12 @@ public class CodeSystemTests
         """"""
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        // SUSHI trims the leading newline from triple-quoted strings that start on the next line.
-        // fsh-processor preserves the leading newline.
-        Assert.Inconclusive("Parser does not yet trim leading newline from triple-quoted multiline strings that start on a new line");
+        // P-CS2: SUSHI trims the leading newline from triple-quoted strings.
+        Assert.IsNotNull(cs.Description, "Description should be parsed");
+        Assert.IsFalse(cs.Description!.StartsWith("\n"),
+            "Leading newline should be trimmed from triple-quoted multiline strings");
+        Assert.IsTrue(cs.Description.Contains("Animals that may be present"),
+            "Description content should be preserved");
     }
 
     [TestMethod]
@@ -163,9 +166,24 @@ public class CodeSystemTests
     [TestMethod]
     public void ShouldParseConceptWithMultiLineDefinition()
     {
-        // fsh-processor includes a leading newline in triple-quoted strings that start on a new line.
-        // SUSHI trims that leading newline, so this test is inconclusive until the parser is fixed.
-        Assert.Inconclusive("Parser does not yet trim leading newline from triple-quoted multiline strings that start on a new line");
+        var doc = SushiTestHelper.ParseDoc(@"
+        CodeSystem: ZOO
+        * #bear ""Bear"" """"""
+        A member of family Ursidae.
+        They are large and furry.
+        """"""
+        ");
+        var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
+        Assert.AreEqual(1, cs.Rules.Count);
+        var concept = (Concept)cs.Rules[0];
+        Assert.AreEqual("#bear", concept.Codes[0]);
+        Assert.AreEqual("Bear", concept.Display);
+        // P-CS2: Leading newline should be trimmed from triple-quoted strings.
+        Assert.IsNotNull(concept.Definition, "Definition should be parsed");
+        Assert.IsFalse(concept.Definition!.StartsWith("\n"),
+            "Leading newline should be trimmed from triple-quoted definition");
+        Assert.IsTrue(concept.Definition.Contains("Ursidae"),
+            "Definition content should be preserved");
     }
 
     [TestMethod]

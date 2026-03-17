@@ -147,6 +147,11 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             ProcessSdMetadata(extension, metadata);
         }
 
+        // P-EX1/P-EX2: Apply defaults when metadata is not explicitly specified.
+        // SUSHI defaults Parent to "Extension" and Id to the entity Name.
+        extension.Parent ??= "Extension";
+        extension.Id ??= extension.Name;
+
         // Process context
         foreach (var ctx in context.context())
         {
@@ -232,7 +237,9 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         foreach (var rule in context.lrRule())
         {
             // lrRule allows sdRule (including caretValueRule, insertRule, etc.) as well as
-            // addElementRule and addCRElementRule.  Accept any FshRule, not just LrRule.
+            // addElementRule and addCRElementRule.  We cast to FshRule (not LrRule) so that
+            // CaretValueRule and InsertRule (SdRule subclasses) are not silently dropped —
+            // this is the fix for P-RS1/P-RS2 (CaretValueRule and InsertRule on Resource).
             var lrRule = Visit(rule) as FshRule;
             if (lrRule != null)
             {
@@ -322,6 +329,9 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             ProcessVsMetadata(valueSet, metadata);
         }
 
+        // C-VS2: SUSHI defaults Id to the entity Name when not specified.
+        valueSet.Id ??= valueSet.Name;
+
         // Process rules
         foreach (var rule in context.vsRule())
         {
@@ -351,6 +361,9 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         {
             ProcessCsMetadata(codeSystem, metadata);
         }
+
+        // P-CS1: SUSHI defaults Id to the entity Name when not specified.
+        codeSystem.Id ??= codeSystem.Name;
 
         // Process rules
         foreach (var rule in context.csRule())
@@ -2034,10 +2047,17 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
 
     private static string ExtractMulitLineString(string quotedString)
     {
-        // Remove quotes from strings
+        // Remove triple-quote delimiters.
         if (quotedString.StartsWith("\"\"\"") && quotedString.EndsWith("\"\"\"") && quotedString.Length >= 6)
         {
-            return quotedString[3..^3];
+            var content = quotedString[3..^3];
+            // P-CS2: SUSHI trims a single leading newline when the content starts on the line
+            // immediately after the opening triple-quote.  E.g. `"""\n  text\n"""` → `  text\n`.
+            if (content.Length > 0 && (content[0] == '\n' || (content[0] == '\r' && content.Length > 1 && content[1] == '\n')))
+            {
+                content = content[0] == '\r' ? content[2..] : content[1..];
+            }
+            return content;
         }
         return quotedString;
     }

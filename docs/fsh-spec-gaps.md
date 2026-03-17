@@ -72,8 +72,8 @@ No parser gaps beyond X1/X2/X3.
 ### Parser
 | ID | Status | Description |
 |----|--------|-------------|
-| P-EX1 | ❌ | Extension `Parent` not defaulted to `"Extension"` when omitted. Inconclusive test: *"Parser does not yet default Extension.Parent to 'Extension'"*. |
-| P-EX2 | ❌ | Extension `Id` not defaulted to the kebab-case entity name. (Same test.) |
+| P-EX1 | ✅ | Extension `Parent` not defaulted to `"Extension"` when omitted. Inconclusive test: *"Parser does not yet default Extension.Parent to 'Extension'"*. |
+| P-EX2 | ✅ | Extension `Id` not defaulted to the kebab-case entity name. (Same test.) |
 | P-EX3 | ❌ | `Context` model has no `Type` property; cannot distinguish `fhirpath` (quoted), `element` (unquoted name/id/url), and `extension` (extension URL) context types. |
 
 ### Compiler
@@ -128,7 +128,7 @@ No parser-layer gaps identified.
 |----|--------|-------------|
 | C-IN1 | ✅ | Instance entity `Name` (defaulted to kebab-case `Id`) not applied to `FhirResource.Id`. Sushi sets `resource.id` from the entity name. |
 | C-IN2 | ✅ | `InstanceOf` value not written to `resource.Meta.Profile` for conformance instances. Sushi sets `meta.profile` to the full canonical URL of the profile. |
-| C-IN3 | ❌ | Instance `Title` and `Description` metadata keywords unused at compile time. |
+| C-IN3 | ✅ | Instance `Title` and `Description` metadata keywords unused at compile time. |
 | C-IN4 | ✅ | Instance `Usage` (`#example`, `#definition`, `#inline`) ignored. Sushi uses this to control standalone resource emission. |
 | C-IN5 | ❌ | Soft-index expansion (`[+]`/`[=]`) not implemented for instance assignment paths. Large instances (Bundle, CapabilityStatement) rely on soft indexing. |
 | C-IN6 | ❌ | Indented rule path composition not implemented for instance rules. `Indent` is stored but never used to expand relative paths. |
@@ -156,7 +156,7 @@ No parser gaps beyond X1/X2/X3.
 | ID | Status | Description |
 |----|--------|-------------|
 | C-VS1 | ✅ | `ValueSet.Experimental` not set. Sushi emits `"experimental": false` by default. |
-| C-VS2 | ❌ | `ValueSet.Id` not defaulted to the kebab-case entity name when omitted. |
+| C-VS2 | ✅ | `ValueSet.Id` not defaulted to the kebab-case entity name when omitted. |
 | C-VS3 | ✅ | `ValueSet.Url` generated as `{canonicalBase}/{id}` — missing the `/ValueSet/` path segment. Sushi produces `{canonicalBase}/ValueSet/{id}`. |
 
 ---
@@ -166,8 +166,8 @@ No parser gaps beyond X1/X2/X3.
 ### Parser
 | ID | Status | Description |
 |----|--------|-------------|
-| P-CS1 | ❌ | `CodeSystem.Id` not defaulted to entity name. Inconclusive: *"Parser does not yet default CodeSystem.Id to the entity name"*. |
-| P-CS2 | ❌ | Leading newline not trimmed for triple-quoted multiline strings that start on a new line. Inconclusive: *"Parser does not yet trim leading newline from triple-quoted multiline strings that start on a new line"*. |
+| P-CS1 | ✅ | `CodeSystem.Id` not defaulted to entity name. Inconclusive: *"Parser does not yet default CodeSystem.Id to the entity name"*. |
+| P-CS2 | ✅ | Leading newline not trimmed for triple-quoted multiline strings that start on a new line. Inconclusive: *"Parser does not yet trim leading newline from triple-quoted multiline strings that start on a new line"*. |
 
 ### Compiler
 | ID | Status | Description |
@@ -219,7 +219,7 @@ These are cross-cutting features affecting all entity/rule types.
 | ID | Status | Description |
 |----|--------|-------------|
 | C-FP1 | ❌ | Indented rules are not path-composed in the compiler. Since the parser stores relative paths, the compiler receives rules with incomplete paths and cannot expand them without the indent context. |
-| C-FP2 | ❌ | Soft-index expansion not implemented. Paths like `item[+].linkId` are passed to `SetInstancePath` / `GetOrCreateElement` as-is rather than being resolved to `item[0].linkId`. |
+| C-FP2 | ✅ | Soft-index expansion not implemented. Paths like `item[+].linkId` are passed to `SetInstancePath` / `GetOrCreateElement` as-is rather than being resolved to `item[0].linkId`. |
 
 ---
 
@@ -228,7 +228,7 @@ These are cross-cutting features affecting all entity/rule types.
 ### Parser
 | ID | Status | Description |
 |----|--------|-------------|
-| P-AR1 | ❌ | **`BooleanValue` not emitted for `true`/`false` in `fixedValueRule`**. The `name()` branch in `VisitValue` wins before the `@bool()` branch, so `true`/`false` become `NameValue` instead of `BooleanValue`. Affects at least 4 tests (Extension, SDRules, CodeSystem, ValueSet). |
+| P-AR1 | ✅ | **`BooleanValue` not emitted for `true`/`false` in `fixedValueRule`**. The `name()` branch in `VisitValue` wins before the `@bool()` branch, so `true`/`false` become `NameValue` instead of `BooleanValue`. Affects at least 4 tests (Extension, SDRules, CodeSystem, ValueSet). |
 
 ---
 
@@ -246,7 +246,7 @@ These are cross-cutting features affecting all entity/rule types.
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-CU1 | ❌ | `ResolveUrl(idOrName, opts)` generates `{canonicalBase}/{idOrName}` for all resource types. Sushi uses resource-type-specific segments: `{base}/StructureDefinition/{id}`, `{base}/ValueSet/{id}`, `{base}/CodeSystem/{id}`. All generated URLs are wrong when `CanonicalBase` is supplied. |
+| C-CU1 | ✅ | `ResolveUrl(idOrName, opts)` generates `{canonicalBase}/{idOrName}` for all resource types. Sushi uses resource-type-specific segments: `{base}/StructureDefinition/{id}`, `{base}/ValueSet/{id}`, `{base}/CodeSystem/{id}`. All generated URLs are wrong when `CanonicalBase` is supplied. |
 
 ---
 
@@ -317,3 +317,12 @@ These are cross-cutting features affecting all entity/rule types.
 | P-LG2 | `InsertRule` on Logical entities (grammar already supported; tests fixed) | ✅ |
 | P-RS1 | `CaretValueRule` on Resource entities (grammar already supported; tests fixed) | ✅ |
 | P-RS2 | `InsertRule` on Resource entities (grammar already supported; tests fixed) | ✅ |
+| P-CS1 | `CodeSystem.Id` defaults to entity `Name` when omitted | ✅ |
+| P-CS2 | Leading newline trimmed from triple-quoted multiline strings | ✅ |
+| P-EX1 | Extension `Parent` defaults to `"Extension"` when omitted | ✅ |
+| P-EX2 | Extension `Id` defaults to entity `Name` when omitted | ✅ |
+| C-VS2 | `ValueSet.Id` defaults to entity `Name` when omitted | ✅ |
+| C-IN3 | Instance `Title`/`Description` set on conformance resource properties | ✅ |
+| C-FP2 | Soft-index expansion (`[+]`/`[=]`) in instance paths | ✅ |
+| P-AR1 | `BooleanValue` for `true`/`false` in `fixedValueRule` — already working | ✅ |
+| T5 | `ShouldHaveRequiredMetadataOnAllResources` hardened to hard assertion | ✅ |

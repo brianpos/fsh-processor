@@ -182,4 +182,26 @@ public class R4InstanceCompilerTests
         Assert.AreEqual(1, resources.OfType<StructureDefinition>().Count(),
             "Profile should still compile");
     }
+
+    // ─── Soft-index expansion (C-FP2) ────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldExpandSoftIndicesInInstancePath()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Instance: ExamplePatient
+            InstanceOf: Patient
+            * name[+].family = ""Smith""
+            * name[=].given[+] = ""John""
+            * name[+].family = ""Jones""
+        ");
+        var patient = resources.OfType<Patient>().FirstOrDefault();
+        Assert.IsNotNull(patient, "Patient instance should compile");
+        // [+] on name → name[0], [=] on name → still name[0], [+] on name again → name[1]
+        Assert.IsTrue(patient.Name.Count >= 2, "Should have at least 2 name entries");
+        Assert.AreEqual("Smith", patient.Name[0].Family, "First name.family should be Smith");
+        Assert.AreEqual("Jones", patient.Name[1].Family, "Second name.family should be Jones");
+        Assert.IsTrue(patient.Name[0].GivenElement.Count > 0,
+            "First name should have given element set by [=]");
+    }
 }

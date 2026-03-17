@@ -557,19 +557,14 @@ public class SdcIgCompilerTests
         {
             Console.WriteLine($"\nMetadata validation findings ({metadataFailures.Count}):");
             foreach (var f in metadataFailures) Console.WriteLine($"  {f}");
-            Console.WriteLine(
-                "\nNOTE: Metadata issues above reflect pre-existing compiler gaps (instances " +
-                "missing Id/Url assignment).  Fix the instance compiler to resolve these.");
         }
         else
         {
             Console.WriteLine($"\nAll {resources.Count} compiled resources have required metadata.");
         }
 
-        // Treat metadata gaps as informational – they reflect known compiler limitations.
-        // TODO: Convert to a hard assertion once instance Id/Url population is implemented:
-        //   Assert.AreEqual(0, metadataFailures.Count, "Resource(s) missing required metadata");
-        Assert.IsTrue(resources.Count > 0, "No resources compiled – cannot check metadata.");
+        Assert.AreEqual(0, metadataFailures.Count,
+            $"{metadataFailures.Count} resource(s) missing required metadata. See output for details.");
     }
 
     // ── Test 6: Output full JSON for manual comparison with sushi ─────────────

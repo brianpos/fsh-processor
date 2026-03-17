@@ -247,8 +247,9 @@ public static class FshCompiler
             }
         }
 
-        // Fallback: most profiles target resources; if the name ends with a lowercase initial
-        // letter (e.g. "string", "boolean", "code") assume complex-type/primitive-type.
+        // Fallback: most profiles target resources; if the name starts with a lowercase letter
+        // (e.g. "string", "boolean", "code") assume complex-type (FHIR uses ComplexType for
+        // both complex data types and primitive types in the SDK model).
         if (typeName.Length > 0 && char.IsLower(typeName[0]))
             return StructureDefinition.StructureDefinitionKind.ComplexType;
 
@@ -1311,10 +1312,39 @@ public static class FshCompiler
             resource.Meta.Profile = [instanceOfUrl];
         }
 
+        // C-IN3: Set Title and Description on conformance resources that support them.
+        if (!string.IsNullOrEmpty(instance.Title) || !string.IsNullOrEmpty(instance.Description))
+        {
+            var resClassMap = inspector.FindClassMapping(resource.GetType());
+            if (resClassMap != null)
+            {
+                if (!string.IsNullOrEmpty(instance.Title))
+                    TrySetStringProperty(resource, resClassMap, "title", instance.Title);
+                if (!string.IsNullOrEmpty(instance.Description))
+                    TrySetStringProperty(resource, resClassMap, "description", instance.Description);
+            }
+        }
+
         // Apply instance rules.
         ApplyInstanceRules(instance.Rules, resource, context, opts, inspector);
 
         return resource;
+    }
+
+    /// <summary>
+    /// Attempts to set a string property by name on a FHIR resource.
+    /// Silently ignores properties that don't exist or are not string-typed.
+    /// </summary>
+    private static void TrySetStringProperty(Base obj, ClassMapping classMap, string propName, string value)
+    {
+        var propMap = classMap.FindMappedElementByName(propName);
+        if (propMap is null) return;
+        if (propMap.ImplementingType == typeof(FhirString))
+            propMap.SetValue(obj, new FhirString(value));
+        else if (propMap.ImplementingType == typeof(Markdown))
+            propMap.SetValue(obj, new Markdown(value));
+        else if (propMap.ImplementingType == typeof(string))
+            propMap.SetValue(obj, value);
     }
 
     private static void ApplyInstanceRules(
@@ -1324,13 +1354,21 @@ public static class FshCompiler
         CompilerOptions opts,
         ModelInspector inspector)
     {
+        // C-FP2: Soft-index state — maps path prefix → current resolved index.
+        // The state dictionary persists across ALL rules in this entity's rule list so that
+        // each [+] accumulates sequentially and [=] can reference a [+] from a previous rule.
+        // [+] increments (or starts at 0) and stores the new index in state.
+        // [=] reuses the stored index (defaults to 0 if no prior [+] has been seen for this prefix).
+        var softIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
+
         foreach (var rule in rules)
         {
             switch (rule)
             {
                 case InstanceFixedValueRule fixedRule when
                     !string.IsNullOrEmpty(fixedRule.Path) && fixedRule.Value != null:
-                    SetInstancePath(resource, fixedRule.Path, fixedRule.Value, inspector);
+                    var resolvedPath = ResolveSoftIndices(fixedRule.Path, softIndexState);
+                    SetInstancePath(resource, resolvedPath, fixedRule.Value, inspector);
                     break;
 
                 case InstanceInsertRule insertRule:
@@ -1342,6 +1380,79 @@ public static class FshCompiler
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Resolves soft-index tokens (<c>[+]</c> and <c>[=]</c>) in an instance path to
+    /// numeric indices, updating <paramref name="state"/> as a side-effect.
+    /// </summary>
+    /// <remarks>
+    /// The FSH spec (§Soft Indexing) defines:
+    /// <list type="bullet">
+    ///   <item>
+    ///     <c>[+]</c> — increment the running index for the path-prefix up to this segment
+    ///     and store the new index in <paramref name="state"/>.
+    ///   </item>
+    ///   <item>
+    ///     <c>[=]</c> — reuse the stored index for this prefix (0 if no prior <c>[+]</c>
+    ///     has been seen; note: <c>[=]</c> does NOT update <paramref name="state"/>).
+    ///   </item>
+    /// </list>
+    /// </remarks>
+    private static string ResolveSoftIndices(string path, Dictionary<string, int> state)
+    {
+        if (!path.Contains("[+]") && !path.Contains("[=]")) return path;
+
+        // Process segment by segment, keeping track of the resolved prefix.
+        var segments = path.Split('.');
+        var resolvedSegments = new string[segments.Length];
+        var resolvedPrefix = string.Empty;
+
+        for (int i = 0; i < segments.Length; i++)
+        {
+            var seg = segments[i];
+
+            if (seg.Contains("[+]"))
+            {
+                var baseName = seg.Replace("[+]", string.Empty).TrimEnd();
+                var prefixKey = string.IsNullOrEmpty(resolvedPrefix)
+                    ? baseName
+                    : $"{resolvedPrefix}.{baseName}";
+
+                // Increment index for this path prefix.
+                var currentIdx = state.TryGetValue(prefixKey, out var existing) ? existing + 1 : 0;
+                state[prefixKey] = currentIdx;
+
+                resolvedSegments[i] = $"{baseName}[{currentIdx}]";
+                resolvedPrefix = string.IsNullOrEmpty(resolvedPrefix)
+                    ? $"{baseName}[{currentIdx}]"
+                    : $"{resolvedPrefix}.{baseName}[{currentIdx}]";
+            }
+            else if (seg.Contains("[=]"))
+            {
+                var baseName = seg.Replace("[=]", string.Empty).TrimEnd();
+                var prefixKey = string.IsNullOrEmpty(resolvedPrefix)
+                    ? baseName
+                    : $"{resolvedPrefix}.{baseName}";
+
+                // Reuse the last [+] index for this prefix (default to 0 if none seen yet).
+                var currentIdx = state.TryGetValue(prefixKey, out var existing) ? existing : 0;
+
+                resolvedSegments[i] = $"{baseName}[{currentIdx}]";
+                resolvedPrefix = string.IsNullOrEmpty(resolvedPrefix)
+                    ? $"{baseName}[{currentIdx}]"
+                    : $"{resolvedPrefix}.{baseName}[{currentIdx}]";
+            }
+            else
+            {
+                resolvedSegments[i] = seg;
+                resolvedPrefix = string.IsNullOrEmpty(resolvedPrefix)
+                    ? seg
+                    : $"{resolvedPrefix}.{seg}";
+            }
+        }
+
+        return string.Join('.', resolvedSegments);
     }
 
     /// <summary>
