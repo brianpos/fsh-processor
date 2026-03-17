@@ -192,8 +192,15 @@ public class ResourceTests
     [TestMethod]
     public void ShouldParseCaretValueRuleOnResource()
     {
-        // fsh-processor does not yet parse CaretValueRule on Resource entities (0 rules produced).
-        Assert.Inconclusive("Parser does not yet support CaretValueRule on Resource entities");
+        var doc = SushiTestHelper.ParseDoc(@"
+            Resource: MyResource
+            * field1 0..1 string ""Short""
+            * ^status = #active
+        ");
+        var resource = SushiTestHelper.GetResource(doc, "MyResource");
+        var caretRule = resource.Rules.OfType<CaretValueRule>().FirstOrDefault();
+        Assert.IsNotNull(caretRule, "Expected a CaretValueRule on Resource");
+        Assert.AreEqual("^status", caretRule.CaretPath);
     }
 
     // ─── #insertRule ─────────────────────────────────────────────────────────
@@ -201,7 +208,17 @@ public class ResourceTests
     [TestMethod]
     public void ShouldParseInsertRuleOnResource()
     {
-        // fsh-processor does not yet parse InsertRule on Resource entities (0 rules produced).
-        Assert.Inconclusive("Parser does not yet support InsertRule on Resource entities");
+        var doc = SushiTestHelper.ParseDoc(@"
+            RuleSet: TestRS
+            * field1 MS
+
+            Resource: MyResource
+            * field1 0..1 string ""Short""
+            * insert TestRS
+        ");
+        var resource = SushiTestHelper.GetResource(doc, "MyResource");
+        var insertRule = resource.Rules.OfType<InsertRule>().FirstOrDefault();
+        Assert.IsNotNull(insertRule, "Expected an InsertRule on Resource");
+        Assert.AreEqual("TestRS", insertRule.RuleSetReference);
     }
 }

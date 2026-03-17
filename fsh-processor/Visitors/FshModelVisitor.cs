@@ -196,7 +196,9 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         FshRule? previousRule = null;
         foreach (var rule in context.lrRule())
         {
-            var lrRule = Visit(rule) as LrRule;
+            // lrRule allows sdRule (including caretValueRule, insertRule, etc.) as well as
+            // addElementRule and addCRElementRule.  Accept any FshRule, not just LrRule.
+            var lrRule = Visit(rule) as FshRule;
             if (lrRule != null)
             {
                 ExtractAndAttachInlineComment(rule, previousRule, lrRule);
@@ -229,7 +231,9 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         FshRule? previousRule = null;
         foreach (var rule in context.lrRule())
         {
-            var lrRule = Visit(rule) as LrRule;
+            // lrRule allows sdRule (including caretValueRule, insertRule, etc.) as well as
+            // addElementRule and addCRElementRule.  Accept any FshRule, not just LrRule.
+            var lrRule = Visit(rule) as FshRule;
             if (lrRule != null)
             {
                 ExtractAndAttachInlineComment(rule, previousRule, lrRule);

@@ -199,8 +199,19 @@ public class LogicalTests
     [TestMethod]
     public void ShouldParseInsertRuleOnLogical()
     {
-        // fsh-processor does not yet parse InsertRule on Logical entities (0 rules produced).
-        Assert.Inconclusive("Parser does not yet support InsertRule on Logical entities");
+        var doc = SushiTestHelper.ParseDoc(@"
+            RuleSet: TestRS
+            * field1 MS
+
+            Logical: MyModel
+            * field1 0..1 string ""Short""
+            * insert TestRS
+        ");
+        var logical = SushiTestHelper.GetLogical(doc, "MyModel");
+        // The insert rule should be present after the add-element rule.
+        var insertRule = logical.Rules.OfType<InsertRule>().FirstOrDefault();
+        Assert.IsNotNull(insertRule, "Expected an InsertRule on Logical");
+        Assert.AreEqual("TestRS", insertRule.RuleSetReference);
     }
 
     // ─── #caretValueRule ─────────────────────────────────────────────────────
@@ -208,7 +219,14 @@ public class LogicalTests
     [TestMethod]
     public void ShouldParseCaretValueRuleOnLogical()
     {
-        // fsh-processor does not yet parse CaretValueRule on Logical entities (0 rules produced).
-        Assert.Inconclusive("Parser does not yet support CaretValueRule on Logical entities");
+        var doc = SushiTestHelper.ParseDoc(@"
+            Logical: MyModel
+            * field1 0..1 string ""Short""
+            * ^status = #active
+        ");
+        var logical = SushiTestHelper.GetLogical(doc, "MyModel");
+        var caretRule = logical.Rules.OfType<CaretValueRule>().FirstOrDefault();
+        Assert.IsNotNull(caretRule, "Expected a CaretValueRule on Logical");
+        Assert.AreEqual("^status", caretRule.CaretPath);
     }
 }

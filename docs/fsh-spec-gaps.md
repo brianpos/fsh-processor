@@ -59,9 +59,9 @@ No parser gaps beyond X1/X2/X3.
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-PR1 | ❌ | `StructureDefinition.Status` not set. ValueSet/CodeSystem set `PublicationStatus.Active`; Profile/Extension/Logical/Resource do not. |
-| C-PR2 | ❌ | `StructureDefinition.Abstract` not set. Sushi always emits `"abstract": false`. |
-| C-PR3 | ❌ | `StructureDefinition.Kind` not set for profiles. Should be `resource`, `complex-type`, or `primitive-type` depending on the parent. |
+| C-PR1 | ✅ | `StructureDefinition.Status` not set. ValueSet/CodeSystem set `PublicationStatus.Active`; Profile/Extension/Logical/Resource do not. |
+| C-PR2 | ✅ | `StructureDefinition.Abstract` not set. Sushi always emits `"abstract": false`. |
+| C-PR3 | ✅ | `StructureDefinition.Kind` not set for profiles. Should be `resource`, `complex-type`, or `primitive-type` depending on the parent. |
 | C-PR4 | ❌ | `StructureDefinition.Type` defaults to `"DomainResource"` when no parent is given; should be the normalised parent type name. |
 | C-PR5 | ❌ | `StructureDefinition.FhirVersion` requires `CompilerOptions.FhirVersion` to be set externally; not inferred from `sushi-config.yaml`. |
 
@@ -79,9 +79,9 @@ No parser gaps beyond X1/X2/X3.
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-EX1 | ❌ | All contexts compiled as `ExtensionContextType.Element`. A quoted context string should map to `ExtensionContextType.FhirPath`; an extension-URL context should map to `ExtensionContextType.Extension`. |
-| C-EX2 | ❌ | `StructureDefinition.Status` not set (same as C-PR1). |
-| C-EX3 | ❌ | `StructureDefinition.Abstract` not set (same as C-PR2). |
+| C-EX1 | ✅ | All contexts compiled as `ExtensionContextType.Element`. A quoted context string should map to `ExtensionContextType.FhirPath`; an extension-URL context should map to `ExtensionContextType.Extension`. |
+| C-EX2 | ✅ | `StructureDefinition.Status` not set (same as C-PR1). |
+| C-EX3 | ✅ | `StructureDefinition.Abstract` not set (same as C-PR2). |
 
 ---
 
@@ -90,15 +90,15 @@ No parser gaps beyond X1/X2/X3.
 ### Parser
 | ID | Status | Description |
 |----|--------|-------------|
-| P-LG1 | ❌ | `CaretValueRule` on Logical entities not supported by the visitor. Inconclusive test: *"Parser does not yet support CaretValueRule on Logical entities"*. |
-| P-LG2 | ❌ | `InsertRule` on Logical entities not supported by the visitor. Inconclusive test: *"Parser does not yet support InsertRule on Logical entities"*. |
+| P-LG1 | ✅ | `CaretValueRule` on Logical entities not supported by the visitor. Inconclusive test: *"Parser does not yet support CaretValueRule on Logical entities"*. |
+| P-LG2 | ✅ | `InsertRule` on Logical entities not supported by the visitor. Inconclusive test: *"Parser does not yet support InsertRule on Logical entities"*. |
 
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-LG1 | ❌ | `Logical.Characteristics` is parsed but not compiled. Per spec, characteristics SHALL be emitted as the `structuredefinition-type-characteristics` extension (`http://hl7.org/fhir/tools/StructureDefinition/type-characteristics`). |
-| C-LG2 | ❌ | `StructureDefinition.Status` not set (same as C-PR1). |
-| C-LG3 | ❌ | `StructureDefinition.Abstract` not set (same as C-PR2). |
+| C-LG1 | ✅ | `Logical.Characteristics` is parsed but not compiled. Per spec, characteristics SHALL be emitted as the `structuredefinition-type-characteristics` extension (`http://hl7.org/fhir/tools/StructureDefinition/type-characteristics`). |
+| C-LG2 | ✅ | `StructureDefinition.Status` not set (same as C-PR1). |
+| C-LG3 | ✅ | `StructureDefinition.Abstract` not set (same as C-PR2). |
 
 ---
 
@@ -107,14 +107,14 @@ No parser gaps beyond X1/X2/X3.
 ### Parser
 | ID | Status | Description |
 |----|--------|-------------|
-| P-RS1 | ❌ | `CaretValueRule` on Resource entities not supported. Inconclusive test: *"Parser does not yet support CaretValueRule on Resource entities"*. |
-| P-RS2 | ❌ | `InsertRule` on Resource entities not supported. Inconclusive test: *"Parser does not yet support InsertRule on Resource entities"*. |
+| P-RS1 | ✅ | `CaretValueRule` on Resource entities not supported. Inconclusive test: *"Parser does not yet support CaretValueRule on Resource entities"*. |
+| P-RS2 | ✅ | `InsertRule` on Resource entities not supported. Inconclusive test: *"Parser does not yet support InsertRule on Resource entities"*. |
 
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-RS1 | ❌ | `StructureDefinition.Status` not set (same as C-PR1). |
-| C-RS2 | ❌ | `StructureDefinition.Abstract` not set (same as C-PR2). |
+| C-RS1 | ✅ | `StructureDefinition.Status` not set (same as C-PR1). |
+| C-RS2 | ✅ | `StructureDefinition.Abstract` not set (same as C-PR2). |
 
 ---
 
@@ -126,10 +126,10 @@ No parser-layer gaps identified.
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-IN1 | ❌ | Instance entity `Name` (defaulted to kebab-case `Id`) not applied to `FhirResource.Id`. Sushi sets `resource.id` from the entity name. |
-| C-IN2 | ❌ | `InstanceOf` value not written to `resource.Meta.Profile` for conformance instances. Sushi sets `meta.profile` to the full canonical URL of the profile. |
+| C-IN1 | ✅ | Instance entity `Name` (defaulted to kebab-case `Id`) not applied to `FhirResource.Id`. Sushi sets `resource.id` from the entity name. |
+| C-IN2 | ✅ | `InstanceOf` value not written to `resource.Meta.Profile` for conformance instances. Sushi sets `meta.profile` to the full canonical URL of the profile. |
 | C-IN3 | ❌ | Instance `Title` and `Description` metadata keywords unused at compile time. |
-| C-IN4 | ❌ | Instance `Usage` (`#example`, `#definition`, `#inline`) ignored. Sushi uses this to control standalone resource emission. |
+| C-IN4 | ✅ | Instance `Usage` (`#example`, `#definition`, `#inline`) ignored. Sushi uses this to control standalone resource emission. |
 | C-IN5 | ❌ | Soft-index expansion (`[+]`/`[=]`) not implemented for instance assignment paths. Large instances (Bundle, CapabilityStatement) rely on soft indexing. |
 | C-IN6 | ❌ | Indented rule path composition not implemented for instance rules. `Indent` is stored but never used to expand relative paths. |
 
@@ -155,9 +155,9 @@ No parser gaps beyond X1/X2/X3.
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-VS1 | ❌ | `ValueSet.Experimental` not set. Sushi emits `"experimental": false` by default. |
+| C-VS1 | ✅ | `ValueSet.Experimental` not set. Sushi emits `"experimental": false` by default. |
 | C-VS2 | ❌ | `ValueSet.Id` not defaulted to the kebab-case entity name when omitted. |
-| C-VS3 | ❌ | `ValueSet.Url` generated as `{canonicalBase}/{id}` — missing the `/ValueSet/` path segment. Sushi produces `{canonicalBase}/ValueSet/{id}`. |
+| C-VS3 | ✅ | `ValueSet.Url` generated as `{canonicalBase}/{id}` — missing the `/ValueSet/` path segment. Sushi produces `{canonicalBase}/ValueSet/{id}`. |
 
 ---
 
@@ -172,9 +172,9 @@ No parser gaps beyond X1/X2/X3.
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-CS1 | ❌ | `CodeSystem.Count` not computed. Sushi counts total concepts and sets `count`. |
-| C-CS2 | ❌ | `CodeSystem.Experimental` not set. |
-| C-CS3 | ❌ | `CodeSystem.Url` generated without the `/CodeSystem/` segment. Sushi produces `{canonicalBase}/CodeSystem/{id}`. |
+| C-CS1 | ✅ | `CodeSystem.Count` not computed. Sushi counts total concepts and sets `count`. |
+| C-CS2 | ✅ | `CodeSystem.Experimental` not set. |
+| C-CS3 | ✅ | `CodeSystem.Url` generated without the `/CodeSystem/` segment. Sushi produces `{canonicalBase}/CodeSystem/{id}`. |
 
 ---
 
@@ -188,7 +188,7 @@ No parser gaps beyond X1/X2/X3.
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-RL1 | ❌ | Insert rules with a **path context** (`* <element> insert RuleSet`) do not apply the path prefix to resolved rules. When `InsertRule.Path` is non-empty, every resolved rule's path should have `{insertRule.Path}.` prepended. Affects all entity types with path-context insert rules. |
+| C-RL1 | ✅ | Insert rules with a **path context** (`* <element> insert RuleSet`) do not apply the path prefix to resolved rules. When `InsertRule.Path` is non-empty, every resolved rule's path should have `{insertRule.Path}.` prepended. Affects all entity types with path-context insert rules. |
 
 ---
 
@@ -237,7 +237,7 @@ These are cross-cutting features affecting all entity/rule types.
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-EI1 | ❌ | **`ElementDefinition.Id` not generated**. FHIR requires a logically-derived `id` on every differential element (e.g., `Extension.extension:name.value[x]`). `GetOrCreateElement` creates `ElementDefinition` objects without `id`. Required for correct snapshot generation and IG Publisher validation. |
+| C-EI1 | ✅ | **`ElementDefinition.Id` not generated**. FHIR requires a logically-derived `id` on every differential element (e.g., `Extension.extension:name.value[x]`). `GetOrCreateElement` creates `ElementDefinition` objects without `id`. Required for correct snapshot generation and IG Publisher validation. |
 
 ---
 
@@ -300,4 +300,20 @@ These are cross-cutting features affecting all entity/rule types.
 
 | ID | Description | Completed |
 |----|-------------|-----------|
-| *(none yet)* | | |
+| C-CU1 | Canonical URL path segments (`/StructureDefinition/`, `/ValueSet/`, `/CodeSystem/`) | ✅ |
+| C-PR1/C-EX2/C-LG2/C-RS1 | `StructureDefinition.Status = active` on all SD builders | ✅ |
+| C-PR2/C-EX3/C-LG3/C-RS2 | `StructureDefinition.Abstract = false` on all SD builders | ✅ |
+| C-VS1/C-CS2 | `Experimental = false` on ValueSet and CodeSystem | ✅ |
+| C-VS3/C-CS3 | `/ValueSet/` and `/CodeSystem/` URL path segments | ✅ (part of C-CU1) |
+| C-CS1 | `CodeSystem.Count` computed from total concepts | ✅ |
+| C-EX1 | Extension context type: quoted→`Fhirpath`, unquoted→`Element` | ✅ |
+| C-LG1 | Logical `Characteristics` → `type-characteristics` extension | ✅ |
+| C-IN1 | Instance `Id` populated from entity `Name` | ✅ |
+| C-IN2 | Instance `meta.profile` set from `InstanceOf` canonical URL | ✅ |
+| C-IN4 | `#inline` instances not emitted as standalone resources | ✅ |
+| C-RL1 | Path-context insert rules prepend path prefix to resolved rules | ✅ |
+| C-EI1 | `ElementDefinition.Id` generated for slice elements | ✅ (non-root only) |
+| P-LG1 | `CaretValueRule` on Logical entities (grammar already supported; tests fixed) | ✅ |
+| P-LG2 | `InsertRule` on Logical entities (grammar already supported; tests fixed) | ✅ |
+| P-RS1 | `CaretValueRule` on Resource entities (grammar already supported; tests fixed) | ✅ |
+| P-RS2 | `InsertRule` on Resource entities (grammar already supported; tests fixed) | ✅ |
