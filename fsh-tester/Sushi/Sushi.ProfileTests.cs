@@ -2,7 +2,6 @@
 //
 // Key differences vs SUSHI:
 //  - Profile metadata (Parent, Id, Title, Description) are Metadata? objects; use .Value to get the string.
-//  - SUSHI defaults Id to the entity name when not specified; fsh-processor does not.
 //  - SUSHI uses first-wins for duplicate metadata; fsh-processor uses last-wins.
 //  - SUSHI splits combined cardinality+flags into separate CardRule + FlagRule; fsh-processor combines them.
 //  - SUSHI splits multi-invariant obeys into separate ObeysRules; fsh-processor keeps them in one.
@@ -31,6 +30,8 @@ public class ProfileTests
         var profile = SushiTestHelper.GetProfile(doc, "MyPatient");
         Assert.AreEqual("MyPatient", profile.Name);
         Assert.AreEqual("Patient", profile.Parent?.Value);
+        // P-PR1: SUSHI defaults Id to the entity Name when not specified.
+        Assert.AreEqual("MyPatient", profile.Id?.Value, "Id should default to entity name");
     }
 
     [TestMethod]

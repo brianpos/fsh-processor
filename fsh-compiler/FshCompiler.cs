@@ -16,6 +16,8 @@ namespace fsh_compiler;
 /// </summary>
 public static class FshCompiler
 {
+    /// <summary>The FSH alias-reference prefix character (e.g. <c>$myAlias</c>).</summary>
+    private const char AliasPrefix = '$';
     /// <summary>
     /// Compiles all entities in <paramref name="doc"/> to FHIR resources.
     /// Entities that do not produce a FHIR resource (Alias, RuleSet) are silently skipped.
@@ -176,6 +178,13 @@ public static class FshCompiler
         var resolvedParent = context.ResolveAlias(parentTypeName);
         var kind = InferKindFromType(resolvedParent, opts.Inspector);
 
+        // C-PR4: StructureDefinition.Type must be the bare FHIR type name.
+        // When the parent is a URL (e.g. from an alias), strip to the last segment and
+        // check whether that segment is a known base FHIR type via the ModelInspector.
+        // Only use the stripped name when it is a recognised type; otherwise fall back to
+        // the pre-alias-resolution name so profiles-of-profiles don't produce a bogus type.
+        var typeValue = ExtractBareTypeName(resolvedParent, parentTypeName, opts.Inspector);
+
         var sd = new StructureDefinition
         {
             Id = profile.Id?.Value,
@@ -187,7 +196,7 @@ public static class FshCompiler
             Experimental = false,
             Abstract = false,
             Kind = kind,
-            Type = parentTypeName,
+            Type = typeValue,
             BaseDefinition = resolvedParent,
             Derivation = StructureDefinition.TypeDerivationRule.Constraint,
             Differential = new StructureDefinition.DifferentialComponent
@@ -250,10 +259,40 @@ public static class FshCompiler
         // Fallback: most profiles target resources; if the name starts with a lowercase letter
         // (e.g. "string", "boolean", "code") assume complex-type (FHIR uses ComplexType for
         // both complex data types and primitive types in the SDK model).
+        // NOTE: This is a last-resort heuristic that works for the FHIR naming convention
+        // where base resource types are PascalCase (Patient, Questionnaire) while primitive
+        // and complex data types are lowercase (string, boolean, code, Coding).  It will
+        // fail for non-standard type names that don't follow this convention.
         if (typeName.Length > 0 && char.IsLower(typeName[0]))
             return StructureDefinition.StructureDefinitionKind.ComplexType;
 
         return StructureDefinition.StructureDefinitionKind.Resource;
+    }
+
+    /// <summary>
+    /// Extracts the bare FHIR type name from a parent type name or URL.
+    /// When <paramref name="resolvedParent"/> is a URL, strips the last segment and
+    /// checks whether it is a known base FHIR type via <paramref name="inspector"/>.
+    /// Falls back to <paramref name="originalParent"/> (pre-alias-resolution name) so that
+    /// profiles-of-profiles (where the URL segment is a profile id, not a type name) don't
+    /// produce a bogus type value.
+    /// </summary>
+    private static string ExtractBareTypeName(
+        string resolvedParent, string originalParent, ModelInspector? inspector)
+    {
+        if (!IsAbsoluteUrl(resolvedParent))
+            return resolvedParent;   // Already bare (e.g. "Patient", "DomainResource").
+
+        var lastSlash = resolvedParent.LastIndexOf('/');
+        var segment = lastSlash >= 0 ? resolvedParent[(lastSlash + 1)..] : resolvedParent;
+
+        // Only use the URL segment when the ModelInspector recognises it as a known FHIR type.
+        // Otherwise keep the original pre-alias name (the next best approximation).
+        if (inspector != null && inspector.FindClassMapping(segment) != null)
+            return segment;
+
+        // Alias name like "$someAlias" → strip the leading alias prefix to get a displayable fallback.
+        return originalParent.TrimStart(AliasPrefix);
     }
 
     /// <summary>
@@ -483,7 +522,7 @@ public static class FshCompiler
             Concept = new List<FhirCodeSystem.ConceptDefinitionComponent>()
         };
 
-        foreach (var rule in cs.Rules)
+        foreach (var rule in PropagateConceptCodesToCaretRules(cs.Rules))
         {
             switch (rule)
             {
@@ -519,7 +558,129 @@ public static class FshCompiler
         return total;
     }
 
-    // ─── SD rule processing ───────────────────────────────────────────────────
+    /// <summary>
+    /// Propagates concept codes from parent <see cref="Concept"/> rules to child
+    /// <see cref="CsCaretValueRule"/> rules that are indented under them (C-CS4).
+    /// </summary>
+    /// <remarks>
+    /// In FSH a concept-scoped caret-value rule can be written two ways:
+    /// <code>
+    /// * #root ^property[+].code = #notSelectable      ← explicit code on the same line
+    /// * #root "Root"                                   ← concept
+    ///   * ^property[+].code = #notSelectable           ← indented caret rule (no code tokens)
+    /// </code>
+    /// The indented form stores an empty <see cref="CsCaretValueRule.Codes"/> list.
+    /// This method detects that pattern by comparing indentation levels and fills in
+    /// the codes from the ancestor <see cref="Concept"/> rule.
+    /// </remarks>
+    private static IEnumerable<CsRule> PropagateConceptCodesToCaretRules(IEnumerable<CsRule> rules)
+    {
+        // Stack entries: (indentLength, conceptCodes)
+        var stack = new Stack<(int IndentLen, List<string> Codes)>();
+
+        foreach (var rule in rules)
+        {
+            var indentLen = rule.Indent.Length;
+
+            // Pop all stack entries at the same or deeper indent — they can no longer be
+            // ancestors of the current rule.
+            while (stack.Count > 0 && stack.Peek().IndentLen >= indentLen)
+                stack.Pop();
+
+            if (rule is Concept concept)
+            {
+                // Push concept's codes so that more-indented caret rules can inherit them.
+                if (concept.Codes.Count > 0)
+                    stack.Push((indentLen, concept.Codes));
+                yield return rule;
+            }
+            else if (rule is CsCaretValueRule caretRule && caretRule.Codes.Count == 0
+                     && stack.Count > 0)
+            {
+                // C-CS4: Indented caret rule with no explicit codes — inherit from parent concept.
+                var parentCodes = stack.Peek().Codes;
+                yield return new CsCaretValueRule
+                {
+                    Position = caretRule.Position,
+                    LeadingHiddenTokens = caretRule.LeadingHiddenTokens,
+                    TrailingHiddenTokens = caretRule.TrailingHiddenTokens,
+                    Indent = caretRule.Indent,
+                    Codes = parentCodes,
+                    CaretPath = caretRule.CaretPath,
+                    Value = caretRule.Value
+                };
+            }
+            else
+            {
+                yield return rule;
+            }
+        }
+    }
+
+
+
+    /// <summary>
+    /// Applies indented-rule path composition to <paramref name="rules"/>, returning a new
+    /// sequence where each rule's path has been prefixed by any ancestor rule's path,
+    /// respecting indentation levels (C-FP1 / P-FP1).
+    /// </summary>
+    /// <remarks>
+    /// FSH allows nested rules to use relative paths:
+    /// <code>
+    /// * extension[option]          ← context path = "extension[option]"
+    ///   * value[x] 1..1            ← resolved path = "extension[option].value[x]"
+    ///   * ^short = "The value"     ← resolved path = "extension[option]" (empty path inherits context)
+    ///     * ^definition = "..."    ← resolved path = "extension[option].value[x]" (inherits from value[x])
+    /// </code>
+    /// The <c>Indent</c> property on each rule (the whitespace before <c>*</c>) determines
+    /// the nesting level.  This method composes paths bottom-up from that hierarchy.
+    /// </remarks>
+    private static IEnumerable<FshRule> ComposeIndentedPaths(IEnumerable<FshRule> rules)
+    {
+        // Stack entries: (indentLength, effectivePath)
+        var stack = new Stack<(int IndentLen, string Path)>();
+
+        foreach (var rule in rules)
+        {
+            var indentLen = rule.Indent.Length;
+
+            // Pop all ancestors that are at the same or deeper indent — they cannot be
+            // ancestors of the current rule.
+            while (stack.Count > 0 && stack.Peek().IndentLen >= indentLen)
+                stack.Pop();
+
+            // The parent context path is from the stack top.
+            var parentPath = stack.Count > 0 ? stack.Peek().Path : string.Empty;
+
+            // Compute the effective path: compose parent path with rule path.
+            string effectivePath;
+            if (!string.IsNullOrEmpty(parentPath))
+            {
+                effectivePath = string.IsNullOrEmpty(rule.Path)
+                    ? parentPath               // caret/obeys rule with no element path → inherits parent
+                    : $"{parentPath}.{rule.Path}";
+            }
+            else
+            {
+                effectivePath = rule.Path;
+            }
+
+            // Push this rule as potential context for deeper children.
+            if (!string.IsNullOrEmpty(effectivePath))
+                stack.Push((indentLen, effectivePath));
+
+            // Yield rule with effective path (unchanged when there is no parent context).
+            if (effectivePath == rule.Path)
+            {
+                yield return rule;
+            }
+            else
+            {
+                var clone = CloneRuleWithPath(rule, effectivePath);
+                yield return clone ?? rule;
+            }
+        }
+    }
 
     private static void ApplySdRules(
         IEnumerable<FshRule> rules,
@@ -527,7 +688,10 @@ public static class FshCompiler
         CompilerContext context,
         CompilerOptions opts)
     {
-        foreach (var rule in rules)
+        // C-FP1: Apply indented-rule path composition before processing.
+        // This expands relative child paths (e.g. `* value[x]` under `* extension[x]`)
+        // into their fully-qualified form (`extension[x].value[x]`).
+        foreach (var rule in ComposeIndentedPaths(rules))
         {
             switch (rule)
             {
@@ -1626,6 +1790,10 @@ public static class FshCompiler
                 return new CaretValueRule { Position = r.Position, Indent = r.Indent, Path = newPath, CaretPath = r.CaretPath, Value = r.Value };
             case PathRule r:
                 return new PathRule { Position = r.Position, Indent = r.Indent, Path = newPath };
+            case LrCardRule r:
+                return new LrCardRule { Position = r.Position, Indent = r.Indent, Path = newPath, Cardinality = r.Cardinality, Flags = r.Flags };
+            case LrFlagRule r:
+                return new LrFlagRule { Position = r.Position, Indent = r.Indent, Path = newPath, AdditionalPaths = r.AdditionalPaths, Flags = r.Flags };
             default:
                 return null;
         }

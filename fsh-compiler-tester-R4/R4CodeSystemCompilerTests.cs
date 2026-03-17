@@ -165,4 +165,30 @@ public class R4CodeSystemCompilerTests
         Assert.AreEqual("http://example.org/fhir/CodeSystem/my-cs", cs.Url,
             "CodeSystem URL should use /CodeSystem/ segment");
     }
+
+    [TestMethod]
+    public void ShouldApplyConceptCodeContextFromIndentedCaretRules()
+    {
+        // C-CS4: Indented caret rules under a Concept should have their codes propagated
+        // from the parent Concept rule so they apply to that concept (not the CodeSystem).
+        // We test with the flat ^definition property which TrySet can set directly.
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: StatusCodes
+            * #active ""Active""
+              * ^definition = ""The active status""
+            * #inactive ""Inactive""
+              * ^definition = ""The inactive status""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "StatusCodes");
+        Assert.IsNotNull(cs, "CodeSystem should compile");
+        Assert.AreEqual(2, cs.Concept.Count, "Should have 2 concepts");
+        var active = cs.Concept.FirstOrDefault(c => c.Code == "active");
+        Assert.IsNotNull(active, "#active concept should exist");
+        Assert.AreEqual("The active status", active.Definition,
+            "Indented ^definition should be applied to #active concept");
+        var inactive = cs.Concept.FirstOrDefault(c => c.Code == "inactive");
+        Assert.IsNotNull(inactive, "#inactive concept should exist");
+        Assert.AreEqual("The inactive status", inactive.Definition,
+            "Indented ^definition should be applied to #inactive concept");
+    }
 }

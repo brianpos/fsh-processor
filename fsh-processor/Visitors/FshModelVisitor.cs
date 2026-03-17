@@ -114,6 +114,9 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             ProcessSdMetadata(profile, metadata);
         }
 
+        // P-PR1: SUSHI defaults Id to the entity Name when not specified.
+        profile.Id ??= new Metadata { Value = profile.Name };
+
         // Process rules
         FshRule? previousRule = null;
         foreach (var rule in context.sdRule())
@@ -2053,10 +2056,10 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             var content = quotedString[3..^3];
             // P-CS2: SUSHI trims a single leading newline when the content starts on the line
             // immediately after the opening triple-quote.  E.g. `"""\n  text\n"""` → `  text\n`.
-            if (content.Length > 0 && (content[0] == '\n' || (content[0] == '\r' && content.Length > 1 && content[1] == '\n')))
-            {
-                content = content[0] == '\r' ? content[2..] : content[1..];
-            }
+            if (content.StartsWith("\r\n"))
+                content = content[2..];
+            else if (content.StartsWith("\n"))
+                content = content[1..];
             return content;
         }
         return quotedString;

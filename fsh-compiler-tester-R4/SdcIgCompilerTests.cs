@@ -228,15 +228,9 @@ public class SdcIgCompilerTests
         Assert.AreEqual(0, parseErrors.Count,
             $"{parseErrors.Count} file(s) failed to parse. See output for details.");
 
-        // Compile errors are logged as informational rather than a hard assertion failure
-        // because some errors reflect pre-existing gaps in the FSH compiler rather than
-        // problems with this test.  Review the "Compile failures" section of the output to
-        // track progress toward fully clean compilation.
-        // TODO: Once all SDC IG entities compile cleanly, change this to:
-        //   Assert.AreEqual(0, compileErrors.Count, "Compilation errors found");
-        if (compileErrors.Count > 0)
-            Console.WriteLine($"\nNOTE: {compileErrors.Count} compile error(s) above reflect pre-existing " +
-                              "compiler gap(s) – fix those to achieve full SDC IG compilation.");
+        // T1: SDC IG now compiles with zero errors.  Hard assert so regressions are caught.
+        Assert.AreEqual(0, compileErrors.Count,
+            $"{compileErrors.Count} compile error(s) found. See output for details.");
 
         Assert.IsTrue(resources.Count > 0, "No FHIR resources were produced from the SDC IG FSH.");
     }

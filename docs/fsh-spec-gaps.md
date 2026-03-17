@@ -54,7 +54,7 @@ No parser gaps beyond X1/X2/X3.
 ### Parser
 | ID | Status | Description |
 |----|--------|-------------|
-| P-PR1 | ❌ | Profile `Id` is not defaulted to the kebab-case entity name when omitted. SUSHI applies this default. |
+| P-PR1 | ✅ | Profile `Id` is not defaulted to the kebab-case entity name when omitted. SUSHI applies this default. |
 
 ### Compiler
 | ID | Status | Description |
@@ -62,7 +62,7 @@ No parser gaps beyond X1/X2/X3.
 | C-PR1 | ✅ | `StructureDefinition.Status` not set. ValueSet/CodeSystem set `PublicationStatus.Active`; Profile/Extension/Logical/Resource do not. |
 | C-PR2 | ✅ | `StructureDefinition.Abstract` not set. Sushi always emits `"abstract": false`. |
 | C-PR3 | ✅ | `StructureDefinition.Kind` not set for profiles. Should be `resource`, `complex-type`, or `primitive-type` depending on the parent. |
-| C-PR4 | ❌ | `StructureDefinition.Type` defaults to `"DomainResource"` when no parent is given; should be the normalised parent type name. |
+| C-PR4 | ✅ | `StructureDefinition.Type` defaults to `"DomainResource"` when no parent is given; should be the normalised parent type name. |
 | C-PR5 | ❌ | `StructureDefinition.FhirVersion` requires `CompilerOptions.FhirVersion` to be set externally; not inferred from `sushi-config.yaml`. |
 
 ---
@@ -130,7 +130,7 @@ No parser-layer gaps identified.
 | C-IN2 | ✅ | `InstanceOf` value not written to `resource.Meta.Profile` for conformance instances. Sushi sets `meta.profile` to the full canonical URL of the profile. |
 | C-IN3 | ✅ | Instance `Title` and `Description` metadata keywords unused at compile time. |
 | C-IN4 | ✅ | Instance `Usage` (`#example`, `#definition`, `#inline`) ignored. Sushi uses this to control standalone resource emission. |
-| C-IN5 | ❌ | Soft-index expansion (`[+]`/`[=]`) not implemented for instance assignment paths. Large instances (Bundle, CapabilityStatement) rely on soft indexing. |
+| C-IN5 | ✅ | Soft-index expansion (`[+]`/`[=]`) not implemented for instance assignment paths. Large instances (Bundle, CapabilityStatement) rely on soft indexing. |
 | C-IN6 | ❌ | Indented rule path composition not implemented for instance rules. `Indent` is stored but never used to expand relative paths. |
 
 ---
@@ -175,6 +175,7 @@ No parser gaps beyond X1/X2/X3.
 | C-CS1 | ✅ | `CodeSystem.Count` not computed. Sushi counts total concepts and sets `count`. |
 | C-CS2 | ✅ | `CodeSystem.Experimental` not set. |
 | C-CS3 | ✅ | `CodeSystem.Url` generated without the `/CodeSystem/` segment. Sushi produces `{canonicalBase}/CodeSystem/{id}`. |
+| C-CS4 | ✅ | Indented `CsCaretValueRule` rules with empty `Codes` under a `Concept` now inherit the parent concept's code(s). |
 
 ---
 
@@ -218,7 +219,7 @@ These are cross-cutting features affecting all entity/rule types.
 ### Compiler
 | ID | Status | Description |
 |----|--------|-------------|
-| C-FP1 | ❌ | Indented rules are not path-composed in the compiler. Since the parser stores relative paths, the compiler receives rules with incomplete paths and cannot expand them without the indent context. |
+| C-FP1 | ✅ | Indented rules are not path-composed in the compiler. Since the parser stores relative paths, the compiler receives rules with incomplete paths and cannot expand them without the indent context. |
 | C-FP2 | ✅ | Soft-index expansion not implemented. Paths like `item[+].linkId` are passed to `SetInstancePath` / `GetOrCreateElement` as-is rather than being resolved to `item[0].linkId`. |
 
 ---
@@ -256,7 +257,7 @@ These are cross-cutting features affecting all entity/rule types.
 
 | ID | Status | Test | Description |
 |----|--------|------|-------------|
-| T1 | ❌ | `ShouldCompileAllSdcIgFilesToFhirResources` | Compile error count is informational only. Should become `Assert.AreEqual(0, compileErrors.Count)` once all gaps are resolved. |
+| T1 | ✅ | `ShouldCompileAllSdcIgFilesToFhirResources` | Compile error count is informational only. Should become `Assert.AreEqual(0, compileErrors.Count)` once all gaps are resolved. |
 | T2 | ❌ | `ShouldSerializeCompiledResourcesToValidFhirJson` | Sushi JSON comparison noted as a TODO in the test body. |
 | T3 | ❌ | `ShouldGenerateSnapshotsForStructureDefinitions` | Snapshot may differ when `specification.zip` absent. |
 | T4 | ❌ | `ShouldProduceExpectedResourceTypeCounts` | Sushi resource counts should be confirmed and used as assertions. |
@@ -326,3 +327,9 @@ These are cross-cutting features affecting all entity/rule types.
 | C-FP2 | Soft-index expansion (`[+]`/`[=]`) in instance paths | ✅ |
 | P-AR1 | `BooleanValue` for `true`/`false` in `fixedValueRule` — already working | ✅ |
 | T5 | `ShouldHaveRequiredMetadataOnAllResources` hardened to hard assertion | ✅ |
+| P-PR1 | `Profile.Id` defaults to entity `Name` when omitted | ✅ |
+| C-PR4 | `StructureDefinition.Type` extracted as bare FHIR type name (not URL) via `ExtractBareTypeName` | ✅ |
+| C-IN5 | Soft-index expansion for instance paths — duplicate of C-FP2 (already done) | ✅ |
+| C-FP1 | Indented-rule path composition in SD compiler via `ComposeIndentedPaths` | ✅ |
+| C-CS4 | CodeSystem concept-code context propagation from indented `CsCaretValueRule` | ✅ |
+| T1 | `ShouldCompileAllSdcIgFilesToFhirResources` compile error assertion hardened (0 errors confirmed) | ✅ |
