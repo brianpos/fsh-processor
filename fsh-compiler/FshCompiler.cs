@@ -168,6 +168,14 @@ public static class FshCompiler
         Profile profile, CompilerContext context, CompilerOptions? options = null)
     {
         var opts = options ?? new CompilerOptions();
+
+        // C-PR3: Determine the profile's Kind from the parent type via the ModelInspector.
+        // For profiles of resources → "resource"; for datatypes → "complex-type".
+        // Fall back to "resource" when the type can't be resolved (most common case).
+        var parentTypeName = profile.Parent?.Value ?? "DomainResource";
+        var resolvedParent = context.ResolveAlias(parentTypeName);
+        var kind = InferKindFromType(resolvedParent, opts.Inspector);
+
         var sd = new StructureDefinition
         {
             Id = profile.Id?.Value,
@@ -178,8 +186,9 @@ public static class FshCompiler
             Status = PublicationStatus.Active,
             Experimental = false,
             Abstract = false,
-            Type = profile.Parent?.Value ?? "DomainResource",
-            BaseDefinition = context.ResolveAlias(profile.Parent?.Value ?? string.Empty),
+            Kind = kind,
+            Type = parentTypeName,
+            BaseDefinition = resolvedParent,
             Derivation = StructureDefinition.TypeDerivationRule.Constraint,
             Differential = new StructureDefinition.DifferentialComponent
             {
@@ -205,6 +214,45 @@ public static class FshCompiler
 
         ApplySdRules(profile.Rules, sd, context, opts);
         return sd;
+    }
+
+    /// <summary>
+    /// Infers the <see cref="StructureDefinition.StructureDefinitionKind"/> for a profile
+    /// given its parent type name (possibly a URL).  Uses the optional <paramref name="inspector"/>
+    /// to look up whether the type is a resource.  Defaults to <c>Resource</c> when the
+    /// type cannot be resolved.
+    /// </summary>
+    private static StructureDefinition.StructureDefinitionKind InferKindFromType(
+        string? parentTypeOrUrl, ModelInspector? inspector)
+    {
+        if (string.IsNullOrEmpty(parentTypeOrUrl))
+            return StructureDefinition.StructureDefinitionKind.Resource;
+
+        // Strip URL prefix to get the bare type name.
+        var typeName = parentTypeOrUrl;
+        if (IsAbsoluteUrl(typeName))
+        {
+            var lastSlash = typeName.LastIndexOf('/');
+            if (lastSlash >= 0) typeName = typeName[(lastSlash + 1)..];
+        }
+
+        if (inspector != null)
+        {
+            var classMap = inspector.FindClassMapping(typeName);
+            if (classMap != null)
+            {
+                return classMap.IsResource
+                    ? StructureDefinition.StructureDefinitionKind.Resource
+                    : StructureDefinition.StructureDefinitionKind.ComplexType;
+            }
+        }
+
+        // Fallback: most profiles target resources; if the name ends with a lowercase initial
+        // letter (e.g. "string", "boolean", "code") assume complex-type/primitive-type.
+        if (typeName.Length > 0 && char.IsLower(typeName[0]))
+            return StructureDefinition.StructureDefinitionKind.ComplexType;
+
+        return StructureDefinition.StructureDefinitionKind.Resource;
     }
 
     /// <summary>

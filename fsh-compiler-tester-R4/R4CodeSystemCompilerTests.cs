@@ -134,4 +134,35 @@ public class R4CodeSystemCompilerTests
         var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
         Assert.AreEqual("Injected description", cs.Description);
     }
+
+    // ─── Count and URL ────────────────────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldComputeCodeSystemCount()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: MyCS
+            * #active ""Active""
+            * #inactive ""Inactive""
+            * #draft ""Draft""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
+        Assert.AreEqual(3, cs.Count, "CodeSystem.Count should equal the total number of concepts");
+    }
+
+    [TestMethod]
+    public void ShouldUseCodeSystemPathSegmentInUrl()
+    {
+        var fsh = CompilerTestHelper.LeftAlign(@"
+            CodeSystem: MyCS
+            Id: my-cs
+        ");
+        var doc = fsh_processor.FshParser.Parse(fsh);
+        var fshDoc = ((fsh_processor.Models.ParseResult.Success)doc).Document;
+        var opts = new fsh_compiler.CompilerOptions { CanonicalBase = "http://example.org/fhir" };
+        var result = fsh_compiler.FshCompiler.Compile(fshDoc, opts);
+        var cs = (FhirCodeSystem)((fsh_compiler.CompileResult<System.Collections.Generic.List<Hl7.Fhir.Model.Resource>>.SuccessResult)result).Value[0];
+        Assert.AreEqual("http://example.org/fhir/CodeSystem/my-cs", cs.Url,
+            "CodeSystem URL should use /CodeSystem/ segment");
+    }
 }

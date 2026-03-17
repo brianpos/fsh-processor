@@ -842,4 +842,75 @@ public class R4ProfileCompilerTests
         Assert.IsTrue(result.Warnings.Any(w => w.Message.Contains("NonExistentRuleSet")),
             "Warning should mention the missing rule set name");
     }
+
+    // ─── Profile metadata (Status, Abstract, Kind) ───────────────────────────
+
+    [TestMethod]
+    public void ShouldSetStatusActiveOnProfile()
+    {
+        var resources = CompilerTestHelper.CompileDoc(CompilerTestHelper.LeftAlign(@"
+            Profile: MyPatient
+            Parent: Patient
+        "));
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.AreEqual(PublicationStatus.Active, sd.Status,
+            "Profile should have Status = active");
+    }
+
+    [TestMethod]
+    public void ShouldSetAbstractFalseOnProfile()
+    {
+        var resources = CompilerTestHelper.CompileDoc(CompilerTestHelper.LeftAlign(@"
+            Profile: MyPatient
+            Parent: Patient
+        "));
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.IsFalse(sd.Abstract, "Profile should have Abstract = false");
+    }
+
+    [TestMethod]
+    public void ShouldSetKindResourceForProfileOfDomainResource()
+    {
+        var resources = CompilerTestHelper.CompileDoc(CompilerTestHelper.LeftAlign(@"
+            Profile: MyPatient
+            Parent: Patient
+        "));
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.AreEqual(StructureDefinition.StructureDefinitionKind.Resource, sd.Kind,
+            "Profile of a resource should have Kind = resource");
+    }
+
+    [TestMethod]
+    public void ShouldSetKindComplexTypeForProfileOfDatatype()
+    {
+        var resources = CompilerTestHelper.CompileDoc(CompilerTestHelper.LeftAlign(@"
+            Profile: MyAddress
+            Parent: Address
+        "));
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.AreEqual(StructureDefinition.StructureDefinitionKind.ComplexType, sd.Kind,
+            "Profile of a complex datatype should have Kind = complex-type");
+    }
+
+    [TestMethod]
+    public void ShouldUseResourceTypePathSegmentInUrl()
+    {
+        var fsh = CompilerTestHelper.LeftAlign(@"
+            Profile: MyPatient
+            Id: my-patient
+            Parent: Patient
+        ");
+        var doc = FshParser.Parse(fsh);
+        var fshDoc = ((fsh_processor.Models.ParseResult.Success)doc).Document;
+        var opts = new CompilerOptions
+        {
+            CanonicalBase = "http://example.org/fhir",
+            FhirVersion = "4.0.1",
+            Inspector = Hl7.Fhir.Model.ModelInfo.ModelInspector
+        };
+        var result = FshCompiler.Compile(fshDoc, opts);
+        var sd = (StructureDefinition)((CompileResult<List<FhirResource>>.SuccessResult)result).Value[0];
+        Assert.AreEqual("http://example.org/fhir/StructureDefinition/my-patient", sd.Url,
+            "Profile URL should use /StructureDefinition/ segment");
+    }
 }

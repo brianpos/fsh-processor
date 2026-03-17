@@ -130,4 +130,56 @@ public class R4InstanceCompilerTests
         // Profile should still compile
         Assert.AreEqual(1, resources.OfType<StructureDefinition>().Count());
     }
+
+    // ─── Instance metadata (Id, meta.profile, Usage) ─────────────────────────
+
+    [TestMethod]
+    public void ShouldSetInstanceIdFromEntityName()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Instance: ExamplePatient
+            InstanceOf: Patient
+        ");
+        var patient = resources.OfType<Patient>().FirstOrDefault();
+        Assert.IsNotNull(patient, "Patient instance not found");
+        Assert.AreEqual("ExamplePatient", patient.Id,
+            "Instance Id should default to entity Name");
+    }
+
+    [TestMethod]
+    public void ShouldSetMetaProfileFromInstanceOf()
+    {
+        // When InstanceOf is an absolute URL, it should be set as meta.profile.
+        var fsh = CompilerTestHelper.LeftAlign(@"
+            Instance: ExamplePatient
+            InstanceOf: http://hl7.org/fhir/StructureDefinition/Patient
+        ");
+        var doc = fsh_processor.FshParser.Parse(fsh);
+        var fshDoc = ((ParseResult.Success)doc).Document;
+        var result = R4FshCompiler.Compile(fshDoc);
+        var patient = ((CompileResult<List<FhirResource>>.SuccessResult)result).Value
+            .OfType<Patient>().FirstOrDefault();
+        Assert.IsNotNull(patient, "Patient instance should compile from a URL InstanceOf");
+        Assert.IsNotNull(patient.Meta, "Meta should be set");
+        Assert.IsTrue(patient.Meta.Profile.Any(p => p.Contains("Patient")),
+            "meta.profile should contain the InstanceOf URL");
+    }
+
+    [TestMethod]
+    public void ShouldSkipInlineInstance()
+    {
+        // #inline instances MUST NOT be emitted as standalone resources.
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Instance: InlinePatient
+            InstanceOf: Patient
+            Usage: #inline
+
+            Profile: MyProfile
+            Parent: Patient
+        ");
+        var patients = resources.OfType<Patient>().ToList();
+        Assert.AreEqual(0, patients.Count, "#inline instance should not be emitted");
+        Assert.AreEqual(1, resources.OfType<StructureDefinition>().Count(),
+            "Profile should still compile");
+    }
 }
