@@ -28,12 +28,12 @@ many `Assert.Inconclusive` tests in `fsh-tester/Sushi/`.
 
 | ID | Status | Description | Affected tests |
 |----|--------|-------------|----------------|
-| X1 | ❌ | **No semantic validation** — SUSHI reports errors for duplicates, missing required fields, invalid codes, etc. `fsh-processor` is a pure syntax parser and emits no semantic errors. | 66 tests `Inconclusive` |
-| X2 | ❌ | **Single-file only** — SUSHI cross-file alias sharing, multi-file duplicate detection, etc. are not supported. | All "…AcrossFiles" tests `Inconclusive` |
-| X3 | ❌ | **Last-wins vs first-wins for duplicate metadata** — SUSHI uses first-wins; `fsh-processor` uses last-wins. | Several metadata tests `Inconclusive` |
-| X4 | ❌ | **`CardRule` + `FlagRule` not split** — SUSHI splits `0..1 MS` into a `CardRule` and a separate `FlagRule`; `fsh-processor` keeps them combined. | Several card+flag tests `Inconclusive` |
-| X5 | ❌ | **Multi-invariant `ObeysRule` not split** — SUSHI emits one `ObeysRule` per invariant; `fsh-processor` keeps all invariants in a single rule. | Several obeys tests `Inconclusive` |
-| X6 | ❌ | **`ContainsRule` + `CardRule` not split** — SUSHI emits a `ContainsRule` then per-item `CardRule`s; `fsh-processor` combines them. | Several contains tests `Inconclusive` |
+| X1 | ❌ | **No semantic validation** — SUSHI reports errors for duplicates, missing required fields, invalid codes, etc. `fsh-processor` is a pure syntax parser and emits no semantic errors. Intentional design choice; won't implement. | 66 tests `Inconclusive` |
+| X2 | ❌ | **Single-file only** — SUSHI cross-file alias sharing, multi-file duplicate detection, etc. are not supported. Intentional design choice; won't implement. | All "…AcrossFiles" tests `Inconclusive` |
+| X3 | ✅ | **First-wins for duplicate metadata** — All `ProcessXxxMetadata` functions now use `??=` guards so the first declaration of each field wins (matches SUSHI). | All `ShouldOnlyApplyEachMetadataAttribute…` tests now pass. |
+| X4 | ✅ | **`CardRule` + `FlagRule` split** — `SplitCombinedRules` in the visitor splits a `CardRule` that carries flags into a bare `CardRule` followed by a `FlagRule` (matches SUSHI). | All `ShouldParseCardRulesWithFlags` tests updated. |
+| X5 | ✅ | **Multi-invariant `ObeysRule` split** — Same `SplitCombinedRules` helper emits one `ObeysRule` per invariant (matches SUSHI). | All `ShouldParseObeysRuleWithMultipleInvariants` tests updated. |
+| X6 | ❌ | **`ContainsRule` + `CardRule` not split** — The FSH grammar requires a `CARD` token on every `item`; stripping it would break serialization round-trips. `fsh-processor` keeps cardinality inside the `ContainsItem`. | Contains cardinality tests pass with current behavior. |
 
 ---
 
@@ -257,12 +257,12 @@ These are cross-cutting features affecting all entity/rule types.
 
 | ID | Status | Test | Description |
 |----|--------|------|-------------|
-| T1 | ✅ | `ShouldCompileAllSdcIgFilesToFhirResources` | Compile error count is informational only. Should become `Assert.AreEqual(0, compileErrors.Count)` once all gaps are resolved. |
-| T2 | ❌ | `ShouldSerializeCompiledResourcesToValidFhirJson` | Sushi JSON comparison noted as a TODO in the test body. |
-| T3 | ❌ | `ShouldGenerateSnapshotsForStructureDefinitions` | Snapshot may differ when `specification.zip` absent. |
-| T4 | ❌ | `ShouldProduceExpectedResourceTypeCounts` | Sushi resource counts should be confirmed and used as assertions. |
-| T5 | ❌ | `ShouldValidateResourceMetadata` | `Id`/`Url` population assertion is informational pending C-IN1 fix. |
-| T6 | ❌ | `ShouldWriteCompiledResourcesToDiskForManualComparison` | Writes JSON to disk but no automated diff against `TestData/sushi-generated/`. |
+| T1 | ✅ | `ShouldCompileAllSdcIgFilesToFhirResources` | Compile error count is a hard assertion (`Assert.AreEqual(0, compileErrors.Count)`). |
+| T2 | ✅ | `ShouldSerializeCompiledResourcesToValidFhirJson` | JSON round-trip assertion is already hardened (`Assert.AreEqual(0, failures.Count)`). |
+| T3 | ✅ | `ShouldGenerateSnapshotsForStructureDefinitions` | Snapshot error count is already hardened (`Assert.AreEqual(0, snapshotErrors.Count)`). |
+| T4 | ✅ | `ShouldProduceExpectedResourceTypeCounts` | New test added; asserts SD/VS/CS presence and >100 total resources as a regression baseline. |
+| T5 | ✅ | `ShouldHaveRequiredMetadataOnAllResources` | `Id`/`Url` population assertion is hardened. |
+| T6 | ✅ | `ShouldWriteCompiledResourcesToDiskForManualComparison` | Writes JSON to disk + performs key-field spot-check (`resourceType`, `id`, `url`, `name`) against `TestData/sushi-generated/` files for matching resource file names. |
 
 ---
 
@@ -333,3 +333,10 @@ These are cross-cutting features affecting all entity/rule types.
 | C-FP1 | Indented-rule path composition in SD compiler via `ComposeIndentedPaths` | ✅ |
 | C-CS4 | CodeSystem concept-code context propagation from indented `CsCaretValueRule` | ✅ |
 | T1 | `ShouldCompileAllSdcIgFilesToFhirResources` compile error assertion hardened (0 errors confirmed) | ✅ |
+| T2 | `ShouldSerializeCompiledResourcesToValidFhirJson` JSON round-trip already hardened | ✅ |
+| T3 | `ShouldGenerateSnapshotsForStructureDefinitions` snapshot error count already hardened | ✅ |
+| T4 | `ShouldProduceExpectedResourceTypeCounts` new test with regression baseline counts | ✅ |
+| T6 | `ShouldWriteCompiledResourcesToDiskForManualComparison` enhanced with key-field spot-check vs sushi-generated | ✅ |
+| X3 | First-wins metadata: all `ProcessXxxMetadata` functions use `??=` guards | ✅ |
+| X4 | `SplitCombinedRules` in visitor splits `CardRule`+flags → `CardRule` + `FlagRule` | ✅ |
+| X5 | `SplitCombinedRules` splits multi-invariant `ObeysRule` → one rule per invariant | ✅ |

@@ -83,7 +83,7 @@ public class InvariantTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        // X3: first-wins semantics — matches SUSHI behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
             Invariant: obs-1
             Severity: #error
@@ -91,8 +91,8 @@ public class InvariantTests
             Description: ""Second description.""
         ");
         var invariant = SushiTestHelper.GetInvariant(doc, "obs-1");
-        // fsh-processor last-wins: the second declaration overwrites the first.
-        Assert.AreEqual("Second description.", invariant.Description);
+        // First declaration wins; the second is ignored.
+        Assert.AreEqual("First description.", invariant.Description);
     }
 
     [TestMethod]

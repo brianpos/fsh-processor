@@ -87,15 +87,15 @@ public class ExtensionTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        // X3: first-wins semantics — matches SUSHI behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
         Extension: SomeExtension
         Id: first-id
         Id: second-id
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        // fsh-processor last-wins: the second declaration overwrites the first.
-        Assert.AreEqual("second-id", ext.Id);
+        // First declaration wins.
+        Assert.AreEqual("first-id", ext.Id);
     }
 
     [TestMethod]
@@ -141,19 +141,18 @@ public class ExtensionTests
     [TestMethod]
     public void ShouldParseCardRulesWithFlags()
     {
-        // SUSHI splits "* value[x] 1..1 MS N" into a CardRule and a separate FlagRule (3 rules total).
-        // fsh-processor combines cardinality and flags into a single CardRule (2 rules total).
+        // X4: SUSHI splits "* value[x] 1..1 MS N" into a CardRule and a separate FlagRule (3 rules total).
+        // fsh-processor now matches this behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
         Extension: SomeExtension
         * extension 0..0
         * value[x] 1..1 MS N
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(2, ext.Rules.Count);
+        Assert.AreEqual(3, ext.Rules.Count);
         SushiTestHelper.AssertCardRule(ext.Rules[0], "extension", "0..0");
-        var rule = SushiTestHelper.AssertCardRule(ext.Rules[1], "value[x]", "1..1");
-        CollectionAssert.Contains(rule.Flags, "MS");
-        CollectionAssert.Contains(rule.Flags, "N");
+        SushiTestHelper.AssertCardRule(ext.Rules[1], "value[x]", "1..1");
+        SushiTestHelper.AssertFlagRule(ext.Rules[2], "value[x]", "MS", "N");
     }
 
     // ─── #flagRule ───────────────────────────────────────────────────────────
@@ -303,16 +302,16 @@ public class ExtensionTests
     [TestMethod]
     public void ShouldParseAnObeysRuleWithAPathAndMultipleInvariants()
     {
-        // SUSHI splits "* extension obeys inv-1 and inv-2" into two separate ObeysRules.
-        // fsh-processor keeps both invariants in a single ObeysRule.
+        // X5: SUSHI splits "* extension obeys inv-1 and inv-2" into two separate ObeysRules.
+        // fsh-processor now matches this behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
         Extension: SomeExtension
         * extension obeys inv-1 and inv-2
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(1, ext.Rules.Count);
-        var rule = SushiTestHelper.AssertObeysRule(ext.Rules[0], "extension", "inv-1", "inv-2");
-        Assert.AreEqual(2, rule.InvariantNames.Count);
+        Assert.AreEqual(2, ext.Rules.Count);
+        SushiTestHelper.AssertObeysRule(ext.Rules[0], "extension", "inv-1");
+        SushiTestHelper.AssertObeysRule(ext.Rules[1], "extension", "inv-2");
     }
 
     // ─── #insertRule ─────────────────────────────────────────────────────────

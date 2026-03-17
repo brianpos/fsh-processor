@@ -2,9 +2,9 @@
 //
 // Key differences vs SUSHI:
 //  - SUSHI defaults Id to the entity name when not specified; fsh-processor does not.
-//  - SUSHI uses first-wins for duplicate metadata; fsh-processor uses last-wins.
-//  - SUSHI splits combined cardinality+flags into separate CardRule + FlagRule; fsh-processor combines them.
-//  - SUSHI splits multi-invariant obeys into separate ObeysRules; fsh-processor keeps them in one.
+//  - Both SUSHI and fsh-processor use first-wins for duplicate metadata (X3).
+//  - Both SUSHI and fsh-processor split combined cardinality+flags into CardRule + FlagRule (X4).
+//  - Both SUSHI and fsh-processor split multi-invariant obeys into separate ObeysRules (X5).
 //  - fsh-processor stores CaretPath with "^" prefix; SUSHI strips it (normalized in SushiTestHelper).
 //  - fsh-processor stores Strength with "()" wrapping; SUSHI strips them (normalized in SushiTestHelper).
 //  - Resource uses string? properties (not Metadata?) for Parent, Id, Title, Description.
@@ -66,15 +66,15 @@ public class ResourceTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        // X3: first-wins semantics — matches SUSHI behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
             Resource: MyResource
             Id: first-id
             Id: second-id
         ");
         var resource = SushiTestHelper.GetResource(doc, "MyResource");
-        // fsh-processor last-wins: the second declaration overwrites the first.
-        Assert.AreEqual("second-id", resource.Id);
+        // X3: first-wins — the first declaration is kept.
+        Assert.AreEqual("first-id", resource.Id);
     }
 
     [TestMethod]

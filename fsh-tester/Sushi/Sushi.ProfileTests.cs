@@ -2,9 +2,9 @@
 //
 // Key differences vs SUSHI:
 //  - Profile metadata (Parent, Id, Title, Description) are Metadata? objects; use .Value to get the string.
-//  - SUSHI uses first-wins for duplicate metadata; fsh-processor uses last-wins.
-//  - SUSHI splits combined cardinality+flags into separate CardRule + FlagRule; fsh-processor combines them.
-//  - SUSHI splits multi-invariant obeys into separate ObeysRules; fsh-processor keeps them in one.
+//  - Both SUSHI and fsh-processor use first-wins for duplicate metadata (X3).
+//  - Both SUSHI and fsh-processor split combined cardinality+flags into CardRule + FlagRule (X4).
+//  - Both SUSHI and fsh-processor split multi-invariant obeys into separate ObeysRules (X5).
 //  - fsh-processor stores CaretPath with "^" prefix; SUSHI strips it (normalized in SushiTestHelper).
 //  - fsh-processor stores Strength with "()" wrapping; SUSHI strips them (normalized in SushiTestHelper).
 //  - Columns in SourcePosition are 0-based (ANTLR); SUSHI uses 1-based.
@@ -69,7 +69,7 @@ public class ProfileTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        // X3: first-wins semantics — matches SUSHI behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
             Profile: MyObservation
             Parent: Observation
@@ -77,8 +77,8 @@ public class ProfileTests
             Id: second-id
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        // fsh-processor last-wins: the second declaration overwrites the first.
-        Assert.AreEqual("second-id", profile.Id?.Value);
+        // First declaration wins; the second is ignored.
+        Assert.AreEqual("first-id", profile.Id?.Value);
     }
 
     [TestMethod]
@@ -144,17 +144,17 @@ public class ProfileTests
     [TestMethod]
     public void ShouldParseCardRulesWithFlags()
     {
-        // SUSHI splits "* status 1..1 MS" into a CardRule and a separate FlagRule.
-        // fsh-processor combines cardinality and flags into a single CardRule.
+        // X4: SUSHI splits "* status 1..1 MS" into a CardRule and a separate FlagRule.
+        // fsh-processor now matches this behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
             Profile: MyObservation
             Parent: Observation
             * status 1..1 MS
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
-        var rule = SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
-        CollectionAssert.Contains(rule.Flags, "MS");
+        Assert.AreEqual(2, profile.Rules.Count);
+        SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
+        SushiTestHelper.AssertFlagRule(profile.Rules[1], "status", "MS");
     }
 
     // ─── #flagRule ───────────────────────────────────────────────────────────
@@ -389,17 +389,17 @@ public class ProfileTests
     [TestMethod]
     public void ShouldParseObeysRuleWithMultipleInvariants()
     {
-        // SUSHI splits "* obeys obs-1 and obs-2" into two separate ObeysRules.
-        // fsh-processor keeps both invariants in a single ObeysRule.
+        // X5: SUSHI splits "* obeys obs-1 and obs-2" into two separate ObeysRules.
+        // fsh-processor now matches this behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
             Profile: MyObservation
             Parent: Observation
             * obeys obs-1 and obs-2
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
-        var rule = SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1", "obs-2");
-        Assert.AreEqual(2, rule.InvariantNames.Count);
+        Assert.AreEqual(2, profile.Rules.Count);
+        SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1");
+        SushiTestHelper.AssertObeysRule(profile.Rules[1], "", "obs-2");
     }
 
     // ─── #pathRule ───────────────────────────────────────────────────────────

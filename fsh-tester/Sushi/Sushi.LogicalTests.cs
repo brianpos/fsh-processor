@@ -2,7 +2,7 @@
 //
 // Key differences vs SUSHI:
 //  - SUSHI defaults Id to the entity name when not specified; fsh-processor does not.
-//  - SUSHI uses first-wins for duplicate metadata; fsh-processor uses last-wins.
+//  - Both SUSHI and fsh-processor use first-wins for duplicate metadata (X3).
 //  - fsh-processor stores CaretPath with "^" prefix; SUSHI strips it (normalized in SushiTestHelper).
 //  - Logical uses string? properties (not Metadata?) for Parent, Id, Title, Description.
 //  - Logical.Characteristics stores the raw characteristic codes as strings.
@@ -64,15 +64,15 @@ public class LogicalTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        // X3: first-wins semantics — matches SUSHI behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
             Logical: MyModel
             Id: first-id
             Id: second-id
         ");
         var logical = SushiTestHelper.GetLogical(doc, "MyModel");
-        // fsh-processor last-wins: the second declaration overwrites the first.
-        Assert.AreEqual("second-id", logical.Id);
+        // X3: first-wins — the first declaration is kept.
+        Assert.AreEqual("first-id", logical.Id);
     }
 
     [TestMethod]

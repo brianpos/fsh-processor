@@ -314,7 +314,7 @@ public class InstanceTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        // X3: first-wins semantics — matches SUSHI behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
             Instance: MyObservation
             InstanceOf: Observation
@@ -322,8 +322,8 @@ public class InstanceTests
             Description: ""Second description.""
         ");
         var instance = SushiTestHelper.GetInstance(doc, "MyObservation");
-        // fsh-processor last-wins: the second declaration overwrites the first.
-        Assert.AreEqual("Second description.", instance.Description);
+        // X3: first-wins — the first declaration is kept.
+        Assert.AreEqual("First description.", instance.Description);
     }
 
     [TestMethod]
