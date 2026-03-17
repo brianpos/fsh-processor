@@ -45,6 +45,7 @@ public class ExtensionTests
         Assert.AreEqual(1, ext.Contexts.Count);
         Assert.AreEqual("some.fhirpath()", ext.Contexts[0].Value);
         Assert.IsTrue(ext.Contexts[0].IsQuoted);
+        Assert.AreEqual(ContextItemType.Fhirpath, ext.Contexts[0].Type);
     }
 
     [TestMethod]
@@ -76,12 +77,16 @@ public class ExtensionTests
         Assert.AreEqual(4, ext.Contexts.Count);
         Assert.AreEqual("some.fhirpath()", ext.Contexts[0].Value);
         Assert.IsTrue(ext.Contexts[0].IsQuoted);
+        Assert.AreEqual(ContextItemType.Fhirpath, ext.Contexts[0].Type);
         Assert.AreEqual("Observation.component", ext.Contexts[1].Value);
         Assert.IsFalse(ext.Contexts[1].IsQuoted);
+        Assert.AreEqual(ContextItemType.Element, ext.Contexts[1].Type);
         Assert.AreEqual("http://example.org/MyPatient#identifier", ext.Contexts[2].Value);
         Assert.IsFalse(ext.Contexts[2].IsQuoted);
+        Assert.AreEqual(ContextItemType.Extension, ext.Contexts[2].Type);
         Assert.AreEqual("another.fhirpath(var, 0)", ext.Contexts[3].Value);
         Assert.IsTrue(ext.Contexts[3].IsQuoted);
+        Assert.AreEqual(ContextItemType.Fhirpath, ext.Contexts[3].Type);
     }
 
     [TestMethod]
@@ -141,18 +146,18 @@ public class ExtensionTests
     [TestMethod]
     public void ShouldParseCardRulesWithFlags()
     {
-        // X4: SUSHI splits "* value[x] 1..1 MS N" into a CardRule and a separate FlagRule (3 rules total).
-        // fsh-processor now matches this behaviour.
+        // Per the FSH spec grammar (cardRule: STAR path CARD flag*), "* value[x] 1..1 MS N"
+        // is one CardRule with Cardinality and Flags both populated.
         var doc = SushiTestHelper.ParseDoc(@"
         Extension: SomeExtension
         * extension 0..0
         * value[x] 1..1 MS N
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(3, ext.Rules.Count);
+        Assert.AreEqual(2, ext.Rules.Count);
         SushiTestHelper.AssertCardRule(ext.Rules[0], "extension", "0..0");
-        SushiTestHelper.AssertCardRule(ext.Rules[1], "value[x]", "1..1");
-        SushiTestHelper.AssertFlagRule(ext.Rules[2], "value[x]", "MS", "N");
+        var cardRule = SushiTestHelper.AssertCardRule(ext.Rules[1], "value[x]", "1..1");
+        CollectionAssert.AreEqual(new[] { "MS", "N" }, cardRule.Flags.ToArray());
     }
 
     // ─── #flagRule ───────────────────────────────────────────────────────────
@@ -302,16 +307,15 @@ public class ExtensionTests
     [TestMethod]
     public void ShouldParseAnObeysRuleWithAPathAndMultipleInvariants()
     {
-        // X5: SUSHI splits "* extension obeys inv-1 and inv-2" into two separate ObeysRules.
-        // fsh-processor now matches this behaviour.
+        // Per the FSH spec grammar (obeysRule: STAR path? KW_OBEYS name (KW_AND name)*),
+        // multiple invariants on one rule are stored in one ObeysRule.InvariantNames list.
         var doc = SushiTestHelper.ParseDoc(@"
         Extension: SomeExtension
         * extension obeys inv-1 and inv-2
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(2, ext.Rules.Count);
-        SushiTestHelper.AssertObeysRule(ext.Rules[0], "extension", "inv-1");
-        SushiTestHelper.AssertObeysRule(ext.Rules[1], "extension", "inv-2");
+        Assert.AreEqual(1, ext.Rules.Count);
+        SushiTestHelper.AssertObeysRule(ext.Rules[0], "extension", "inv-1", "inv-2");
     }
 
     // ─── #insertRule ─────────────────────────────────────────────────────────

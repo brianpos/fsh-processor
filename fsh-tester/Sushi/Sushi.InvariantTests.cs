@@ -196,18 +196,52 @@ public class InvariantTests
     [TestMethod]
     public void ShouldUseAPathRuleToConstructAFullPath()
     {
-        // SUSHI uses the path rule to prefix nested rules (requirements.id).
-        // Our parser does not implement path composition from indentation;
-        // the child rule retains its own path without the parent prefix.
-        Assert.Inconclusive("Not tested: path composition via indented path rules not implemented in parser");
+        // P-FP1: path composition via indented rules.
+        // Per spec §Indented Rules: the full path of an indented rule SHALL be obtained
+        // by prepending the path from the preceding less-indented rule.
+        var doc = SushiTestHelper.ParseDoc(@"
+            Invariant: inv-path
+            Severity: #error
+            Description: ""Path composition test""
+            * component
+              * code = http://loinc.org#1234
+        ");
+        var invariant = SushiTestHelper.GetInvariant(doc, "inv-path");
+        // PathRule sets context; FixedValueRule gets composed path.
+        Assert.AreEqual(2, invariant.Rules.Count);
+        Assert.IsInstanceOfType<InvariantPathRule>(invariant.Rules[0]);
+        Assert.AreEqual("component", invariant.Rules[0].Path);
+        Assert.IsInstanceOfType<InvariantFixedValueRule>(invariant.Rules[1]);
+        Assert.AreEqual("component.code", invariant.Rules[1].Path);
     }
 
     [TestMethod]
     public void ShouldProperlyHandleSoftIndicesWithPathRules()
     {
-        // SUSHI expands [+] soft indices to [=] for continued paths under the same parent.
-        // Our parser does not implement soft-index expansion or path composition.
-        Assert.Inconclusive("Not tested: soft-index expansion and path composition not implemented in parser");
+        // P-FP1 + P-FP2: path composition combined with soft-index expansion.
+        // Per spec §Soft Indexing: [+] increments the last index, [=] reuses it.
+        var doc = SushiTestHelper.ParseDoc(@"
+            Invariant: inv-soft
+            Severity: #error
+            Description: ""Soft index test""
+            * identifier[+]
+              * system = ""http://example.org/sys1""
+              * value = ""id1""
+            * identifier[+]
+              * system = ""http://example.org/sys2""
+              * value = ""id2""
+        ");
+        var invariant = SushiTestHelper.GetInvariant(doc, "inv-soft");
+        // 6 rules: 2 PathRules + 4 FixedValueRules
+        Assert.AreEqual(6, invariant.Rules.Count);
+        // First [+] → identifier[0]
+        Assert.AreEqual("identifier[0]", invariant.Rules[0].Path);
+        Assert.AreEqual("identifier[0].system", invariant.Rules[1].Path);
+        Assert.AreEqual("identifier[0].value", invariant.Rules[2].Path);
+        // Second [+] → identifier[1]
+        Assert.AreEqual("identifier[1]", invariant.Rules[3].Path);
+        Assert.AreEqual("identifier[1].system", invariant.Rules[4].Path);
+        Assert.AreEqual("identifier[1].value", invariant.Rules[5].Path);
     }
 
     #endregion

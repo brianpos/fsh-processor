@@ -144,17 +144,18 @@ public class ProfileTests
     [TestMethod]
     public void ShouldParseCardRulesWithFlags()
     {
-        // X4: SUSHI splits "* status 1..1 MS" into a CardRule and a separate FlagRule.
-        // fsh-processor now matches this behaviour.
+        // Per the FSH spec and grammar (cardRule: STAR path CARD flag*), a combined cardinality
+        // and flag rule is a single CardRule with both Cardinality and Flags populated.
+        // The spec grammar does not require splitting; SUSHI's split is an internal design choice.
         var doc = SushiTestHelper.ParseDoc(@"
             Profile: MyObservation
             Parent: Observation
             * status 1..1 MS
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(2, profile.Rules.Count);
-        SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
-        SushiTestHelper.AssertFlagRule(profile.Rules[1], "status", "MS");
+        Assert.AreEqual(1, profile.Rules.Count);
+        var cardRule = SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
+        CollectionAssert.AreEqual(new[] { "MS" }, cardRule.Flags.ToArray());
     }
 
     // ─── #flagRule ───────────────────────────────────────────────────────────
@@ -389,17 +390,17 @@ public class ProfileTests
     [TestMethod]
     public void ShouldParseObeysRuleWithMultipleInvariants()
     {
-        // X5: SUSHI splits "* obeys obs-1 and obs-2" into two separate ObeysRules.
-        // fsh-processor now matches this behaviour.
+        // Per the FSH spec and grammar (obeysRule: STAR path? KW_OBEYS name (KW_AND name)*),
+        // multiple invariants on one rule are stored in a single ObeysRule.InvariantNames list.
+        // The spec text also describes this as one rule: "* obeys {Inv1} and {Inv2}..."
         var doc = SushiTestHelper.ParseDoc(@"
             Profile: MyObservation
             Parent: Observation
             * obeys obs-1 and obs-2
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(2, profile.Rules.Count);
-        SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1");
-        SushiTestHelper.AssertObeysRule(profile.Rules[1], "", "obs-2");
+        Assert.AreEqual(1, profile.Rules.Count);
+        SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1", "obs-2");
     }
 
     // ─── #pathRule ───────────────────────────────────────────────────────────

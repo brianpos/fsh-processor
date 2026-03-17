@@ -119,16 +119,14 @@ Description: ""Test profile""
         Console.WriteLine(serialized);
         Console.WriteLine("=== END SERIALIZED OUTPUT ===");
 
-        // Verify key elements are present (X4: combined card+flag is now emitted as two separate rules)
+        // Per spec grammar, "* name 1..1 MS" is one CardRule with both card and flag.
         Assert.IsTrue(serialized.Contains("Profile: MyProfile"));
         Assert.IsTrue(serialized.Contains("Parent: Patient"));
         Assert.IsTrue(serialized.Contains("Id: my-profile"));
         Assert.IsTrue(serialized.Contains("Title: \"My Profile\""));
         Assert.IsTrue(serialized.Contains("Description: \"Test profile\""));
-        Assert.IsTrue(serialized.Contains("* name 1..1"));
-        Assert.IsTrue(serialized.Contains("* name MS"));
-        Assert.IsTrue(serialized.Contains("* identifier 0..*"));
-        Assert.IsTrue(serialized.Contains("* identifier MS"));
+        Assert.IsTrue(serialized.Contains("* name 1..1 MS"));
+        Assert.IsTrue(serialized.Contains("* identifier 0..* MS"));
     }
 
     [TestMethod]
@@ -339,9 +337,10 @@ Characteristics: #can-be-target
         var ruleSet = reparsedDoc.Entities[0] as RuleSet;
         Assert.IsNotNull(ruleSet);
         Assert.AreEqual("CommonRules", ruleSet.Name);
-        // X4: each "* status 1..1 MS" is split into CardRule + FlagRule (2 rules per combined rule)
-        // 3 combined rules × 2 + 1 indented PathRule = 7
-        Assert.AreEqual(7, ruleSet.Rules.Count);
+        // Per spec grammar: "* status 1..1 MS" is one CardRule (no X4 split).
+        // P-FP1 path composition: "* reference 0..1" indented under "* subject 1..1 MS" gets path "subject.reference".
+        // 3 top-level CardRules + 1 composed CardRule = 4
+        Assert.AreEqual(4, ruleSet.Rules.Count);
     }
 
     [TestMethod]
@@ -517,17 +516,16 @@ Id: my-observation
         var profile = reparsedDoc.Entities[0] as Profile;
         Assert.IsNotNull(profile);
 
-        // Verify all rules preserved (after X4 splitting)
-        // "* status 1..1 MS" → CardRule("status","1..1") + FlagRule("status","MS") = 8 rules total
-        Assert.AreEqual(8, profile.Rules.Count);
-        
-        // Verify specific rule types (indices 0-7 after split)
-        Assert.IsInstanceOfType<CardRule>(profile.Rules[0]);   // status 1..1
-        Assert.IsInstanceOfType<FlagRule>(profile.Rules[1]);   // status MS (split from combined)
-        Assert.IsInstanceOfType<ValueSetRule>(profile.Rules[2]);
-        Assert.IsInstanceOfType<CardRule>(profile.Rules[3]);   // value[x] 0..1
-        Assert.IsInstanceOfType<OnlyRule>(profile.Rules[4]);
-        Assert.IsInstanceOfType<ContainsRule>(profile.Rules[5]);
+        // Per spec grammar (cardRule: STAR path CARD flag*), "* status 1..1 MS" is one CardRule.
+        // 7 rules total (no X4 split).
+        Assert.AreEqual(7, profile.Rules.Count);
+
+        // Verify specific rule types
+        Assert.IsInstanceOfType<CardRule>(profile.Rules[0]);    // status 1..1 MS (one CardRule)
+        Assert.IsInstanceOfType<ValueSetRule>(profile.Rules[1]);
+        Assert.IsInstanceOfType<CardRule>(profile.Rules[2]);    // value[x] 0..1
+        Assert.IsInstanceOfType<OnlyRule>(profile.Rules[3]);
+        Assert.IsInstanceOfType<ContainsRule>(profile.Rules[4]);
     }
 
     [TestMethod]

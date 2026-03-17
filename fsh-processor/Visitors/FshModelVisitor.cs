@@ -121,13 +121,14 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         FshRule? previousRule = null;
         foreach (var rule in context.sdRule())
         {
-            foreach (var sdRule in SplitCombinedRules(Visit(rule) as FshRule))
+            if (Visit(rule) is FshRule sdRule)
             {
                 ExtractAndAttachInlineComment(rule, previousRule, sdRule);
                 profile.Rules.Add(sdRule);
                 previousRule = sdRule;
             }
         }
+        PostProcessRules(profile.Rules);
 
         return profile;
     }
@@ -164,13 +165,14 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         FshRule? previousRule = null;
         foreach (var rule in context.sdRule())
         {
-            foreach (var sdRule in SplitCombinedRules(Visit(rule) as FshRule))
+            if (Visit(rule) is FshRule sdRule)
             {
                 ExtractAndAttachInlineComment(rule, previousRule, sdRule);
                 extension.Rules.Add(sdRule);
                 previousRule = sdRule;
             }
         }
+        PostProcessRules(extension.Rules);
 
         return extension;
     }
@@ -204,13 +206,14 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         {
             // lrRule allows sdRule (including caretValueRule, insertRule, etc.) as well as
             // addElementRule and addCRElementRule.  Accept any FshRule, not just LrRule.
-            foreach (var lrRule in SplitCombinedRules(Visit(rule) as FshRule))
+            if (Visit(rule) is FshRule lrRule)
             {
                 ExtractAndAttachInlineComment(rule, previousRule, lrRule);
                 logical.Rules.Add(lrRule);
                 previousRule = lrRule;
             }
         }
+        PostProcessRules(logical.Rules);
 
         return logical;
     }
@@ -240,13 +243,14 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             // addElementRule and addCRElementRule.  We cast to FshRule (not LrRule) so that
             // CaretValueRule and InsertRule (SdRule subclasses) are not silently dropped —
             // this is the fix for P-RS1/P-RS2 (CaretValueRule and InsertRule on Resource).
-            foreach (var lrRule in SplitCombinedRules(Visit(rule) as FshRule))
+            if (Visit(rule) is FshRule lrRule)
             {
                 ExtractAndAttachInlineComment(rule, previousRule, lrRule);
                 resource.Rules.Add(lrRule);
                 previousRule = lrRule;
             }
         }
+        PostProcessRules(resource.Rules);
 
         return resource;
     }
@@ -277,6 +281,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                 instance.Rules.Add(instanceRule);
             }
         }
+        PostProcessRules(instance.Rules);
 
         return instance;
     }
@@ -307,6 +312,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                 invariant.Rules.Add(invariantRule);
             }
         }
+        PostProcessRules(invariant.Rules);
 
         return invariant;
     }
@@ -411,9 +417,10 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             // Process rules
             foreach (var rule in context.ruleSetRule())
             {
-                foreach (var fshRule in SplitCombinedRules(Visit(rule) as FshRule))
+                if (Visit(rule) is FshRule fshRule)
                     ruleSet.Rules.Add(fshRule);
             }
+            PostProcessRules(ruleSet.Rules);
         }
 
         // Capture the unparsed content
@@ -601,6 +608,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                 mapping.Rules.Add(mappingRule);
             }
         }
+        PostProcessRules(mapping.Rules);
 
         return mapping;
     }
@@ -732,17 +740,29 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     {
         // Grammar: context: KW_CONTEXT contextItem (COMMA contextItem)*;
         // Grammar: contextItem: STRING | SEQUENCE | CODE;
+        // P-EX3: the three alternatives map to distinct ContextItemType values.
         var contexts = new List<Context>();
         
         foreach (var item in context.contextItem())
         {
-            var isQuoted = item.STRING() != null;
-            var text = isQuoted
-                ? ExtractString(item.STRING().GetText())
-                : item.SEQUENCE() != null 
-                    ? item.SEQUENCE().GetText()
-                    : item.CODE().GetText();
-            contexts.Add(new Context { Value = text, IsQuoted = isQuoted });
+            string text;
+            ContextItemType type;
+            if (item.STRING() != null)
+            {
+                text = ExtractString(item.STRING().GetText());
+                type = ContextItemType.Fhirpath;
+            }
+            else if (item.SEQUENCE() != null)
+            {
+                text = item.SEQUENCE().GetText();
+                type = ContextItemType.Element;
+            }
+            else
+            {
+                text = item.CODE().GetText();
+                type = ContextItemType.Extension;
+            }
+            contexts.Add(new Context { Value = text, IsQuoted = type == ContextItemType.Fhirpath, Type = type });
         }
 
         if (contexts.Count > 0)
@@ -886,70 +906,107 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
 
     #endregion
 
-    #region SD Rule Visitors
+    #region Path Composition and Soft-Index Expansion (P-FP1, P-FP2)
 
     /// <summary>
-    /// Applies X4 and X5 splitting to a parsed rule:
-    /// <list type="bullet">
-    ///   <item>X4 — A <see cref="CardRule"/> that carries flags is split into a
-    ///     flag-less <see cref="CardRule"/> followed by a <see cref="FlagRule"/>
-    ///     (matches SUSHI behaviour).</item>
-    ///   <item>X5 — An <see cref="ObeysRule"/> with multiple invariant names is
-    ///     expanded into one <see cref="ObeysRule"/> per invariant
-    ///     (matches SUSHI behaviour).</item>
-    /// </list>
-    /// All other rule types pass through unchanged.
+    /// Applies indented-rule path composition (P-FP1) and soft-index expansion (P-FP2)
+    /// to a list of rules in-place, then resets each rule's <see cref="FshRule.Indent"/>
+    /// to <see cref="string.Empty"/>.
+    /// <para>
+    /// Per the FSH spec §Indented Rules: "the full path of the indented rule SHALL be
+    /// obtained by prepending the path from the previous less-indented rule."
+    /// Per the FSH spec §Soft Indexing: "[+] SHALL increment the last referenced index
+    /// by 1, and [=] SHALL reference the same index that was last referenced."
+    /// </para>
     /// </summary>
-    private static IEnumerable<FshRule> SplitCombinedRules(FshRule? rule)
+    private static void PostProcessRules(IEnumerable<FshRule> rules)
     {
-        if (rule is null) yield break;
+        // Stack entries: (indentLength, effectivePath)
+        var pathStack = new Stack<(int IndentLen, string Path)>();
+        // Soft-index state: path prefix → current resolved numeric index
+        var softState = new Dictionary<string, int>(StringComparer.Ordinal);
 
-        // X4: CardRule with flags → bare CardRule + FlagRule
-        if (rule is CardRule cardRule && cardRule.Flags.Count > 0)
+        foreach (var rule in rules)
         {
-            yield return new CardRule
-            {
-                Position = cardRule.Position,
-                LeadingHiddenTokens = cardRule.LeadingHiddenTokens,
-                TrailingHiddenTokens = null,
-                Path = cardRule.Path,
-                Indent = cardRule.Indent,
-                Cardinality = cardRule.Cardinality,
-                Flags = []
-            };
-            yield return new FlagRule
-            {
-                Position = cardRule.Position,
-                LeadingHiddenTokens = null,
-                TrailingHiddenTokens = cardRule.TrailingHiddenTokens,
-                Path = cardRule.Path,
-                Indent = cardRule.Indent,
-                AdditionalPaths = [],
-                Flags = cardRule.Flags
-            };
-            yield break;
-        }
+            var indentLen = rule.Indent.Length;
 
-        // X5: ObeysRule with multiple invariants → one rule per invariant
-        if (rule is ObeysRule obeysRule && obeysRule.InvariantNames.Count > 1)
-        {
-            for (int i = 0; i < obeysRule.InvariantNames.Count; i++)
+            // P-FP1: Pop any ancestor that is at the same or deeper indent level.
+            while (pathStack.Count > 0 && pathStack.Peek().IndentLen >= indentLen)
+                pathStack.Pop();
+
+            var parentPath = pathStack.Count > 0 ? pathStack.Peek().Path : string.Empty;
+
+            // Compose path with parent context.
+            string? composedPath;
+            if (!string.IsNullOrEmpty(parentPath))
             {
-                yield return new ObeysRule
-                {
-                    Position = obeysRule.Position,
-                    LeadingHiddenTokens = i == 0 ? obeysRule.LeadingHiddenTokens : null,
-                    TrailingHiddenTokens = i == obeysRule.InvariantNames.Count - 1 ? obeysRule.TrailingHiddenTokens : null,
-                    Path = obeysRule.Path,
-                    Indent = obeysRule.Indent,
-                    InvariantNames = [obeysRule.InvariantNames[i]]
-                };
+                composedPath = string.IsNullOrEmpty(rule.Path)
+                    ? parentPath                             // caret / obeys rule inherits parent element path
+                    : $"{parentPath}.{rule.Path}";
             }
-            yield break;
+            else
+            {
+                composedPath = rule.Path;
+            }
+
+            // P-FP2: Expand [+] and [=] soft-index tokens to numeric indices.
+            var expandedPath = composedPath != null ? ResolveSoftIndices(composedPath, softState) : null;
+
+            // Push effective path as context for deeper-indented children.
+            if (!string.IsNullOrEmpty(expandedPath))
+                pathStack.Push((indentLen, expandedPath));
+
+            // Apply the composed, expanded path and flatten the indent.
+            rule.Path = expandedPath;
+            rule.Indent = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Resolves <c>[+]</c> and <c>[=]</c> soft-index tokens in a path segment-by-segment,
+    /// updating <paramref name="state"/> as a side-effect.
+    /// </summary>
+    private static string ResolveSoftIndices(string path, Dictionary<string, int> state)
+    {
+        if (!path.Contains("[+]") && !path.Contains("[=]")) return path;
+
+        var segments = path.Split('.');
+        var resolved = new string[segments.Length];
+        var prefix = string.Empty;
+
+        for (int i = 0; i < segments.Length; i++)
+        {
+            var seg = segments[i];
+            if (seg.Contains("[+]"))
+            {
+                var baseName = seg.Replace("[+]", string.Empty);
+                var key = string.IsNullOrEmpty(prefix) ? baseName : $"{prefix}.{baseName}";
+                var idx = state.TryGetValue(key, out var existing) ? existing + 1 : 0;
+                state[key] = idx;
+                resolved[i] = $"{baseName}[{idx}]";
+                prefix = string.IsNullOrEmpty(prefix) ? $"{baseName}[{idx}]" : $"{prefix}.{baseName}[{idx}]";
+            }
+            else if (seg.Contains("[=]"))
+            {
+                var baseName = seg.Replace("[=]", string.Empty);
+                var key = string.IsNullOrEmpty(prefix) ? baseName : $"{prefix}.{baseName}";
+                var idx = state.TryGetValue(key, out var existing) ? existing : 0;
+                resolved[i] = $"{baseName}[{idx}]";
+                prefix = string.IsNullOrEmpty(prefix) ? $"{baseName}[{idx}]" : $"{prefix}.{baseName}[{idx}]";
+            }
+            else
+            {
+                resolved[i] = seg;
+                prefix = string.IsNullOrEmpty(prefix) ? seg : $"{prefix}.{seg}";
+            }
         }
 
-        yield return rule;
+        return string.Join('.', resolved);
     }
+
+    #endregion
+
+    #region SD Rule Visitors
 
     public override object? VisitSdRule([NotNull] FSHParser.SdRuleContext context)
     {

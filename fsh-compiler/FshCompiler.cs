@@ -325,17 +325,18 @@ public static class FshCompiler
 
         sd.Differential.Element.Add(new ElementDefinition("Extension") { Path = "Extension" });
 
-        // Context — determine type from whether the context value is a quoted fhirpath expression
-        // or an unquoted element/extension reference.
+        // Context — determine type from the grammar alternative that was matched (P-EX3).
         if (ext.Contexts.Count > 0)
         {
             sd.Context = ext.Contexts
                 .Select(c => new StructureDefinition.ContextComponent
                 {
-                    // Quoted contexts are fhirpath expressions; unquoted are element (or extension) refs.
-                    Type = c.IsQuoted
-                        ? StructureDefinition.ExtensionContextType.Fhirpath
-                        : StructureDefinition.ExtensionContextType.Element,
+                    Type = c.Type switch
+                    {
+                        ContextItemType.Fhirpath  => StructureDefinition.ExtensionContextType.Fhirpath,
+                        ContextItemType.Extension => StructureDefinition.ExtensionContextType.Extension,
+                        _                         => StructureDefinition.ExtensionContextType.Element,
+                    },
                     Expression = c.Value
                 })
                 .ToList();
