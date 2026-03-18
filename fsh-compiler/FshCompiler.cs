@@ -81,6 +81,7 @@ public static class FshCompiler
 
         // Collect Mapping entities for a second pass (they annotate already-compiled SDs).
         var pendingMappings = new List<(fsh_processor.Models.Mapping Mapping, string EntityName)>();
+        var pendingInstances = new List<fsh_processor.Models.Instance>();
 
         foreach (var doc in docs)
         {
@@ -96,11 +97,12 @@ public static class FshCompiler
                         fsh_processor.Models.Resource fshResource => BuildResource(fshResource, context, opts),
                         fsh_processor.Models.ValueSet vs => BuildValueSet(vs, context, opts),
                         fsh_processor.Models.CodeSystem cs => BuildCodeSystem(cs, context, opts),
-                        fsh_processor.Models.Instance inst => BuildInstance(inst, context, opts),
                         fsh_processor.Models.Mapping => null, // handled in second pass below
                         // Alias, RuleSet, and Invariant produce no FHIR resource
                         _ => null
                     };
+                    if (entity is fsh_processor.Models.Instance instPending)
+                        pendingInstances.Add(instPending);
 
                     if (resource != null)
                     {
@@ -122,6 +124,30 @@ public static class FshCompiler
                         Position = entity.Position
                     });
                 }
+            }
+        }
+
+        // Now that all the canonical stuff is done, create all the instance data
+        foreach (var inst in pendingInstances)
+        {
+            try
+            {
+                FhirResource? resource = BuildInstance(inst, context, opts);
+                if (resource != null)
+                {
+                    resources.Add(resource);
+                    if (resource is StructureDefinition sd)
+                        sdByEntityName.TryAdd(inst.Name, sd);
+                }
+            }
+            catch (Exception ex)
+            {
+                errors.Add(new CompilerError
+                {
+                    EntityName = inst.Name,
+                    Message = ex.Message,
+                    Position = inst.Position
+                });
             }
         }
 

@@ -716,11 +716,18 @@ public class SdcIgCompilerTests
             int matched = 0;
             int mismatches = 0;
             var mismatchDetails = new List<string>();
+            int missing = 0;
+            var missingDetails = new List<string>();
 
             foreach (var sushiFile in sushiFiles)
             {
                 var fileName = Path.GetFileName(sushiFile);
-                if (!compiledFiles.TryGetValue(fileName, out var ourJson)) continue;
+                if (!compiledFiles.TryGetValue(fileName, out var ourJson))
+                {
+                    missing++;
+                    missingDetails.Add($"{sushiFile} missing from compiled output");
+                    continue;
+                }
 
                 try
                 {
@@ -773,11 +780,19 @@ public class SdcIgCompilerTests
                 }
             }
 
-            Console.WriteLine($"  Matched files: {matched}, field mismatches: {mismatches}");
+            Console.WriteLine($"  Matched files: {matched}, field mismatches: {mismatches}, missed files: {missing}");
             if (mismatchDetails.Count > 0)
             {
                 Console.WriteLine("  Mismatches (key-field comparison only):");
                 foreach (var detail in mismatchDetails) //.Take(20))
+                    Console.WriteLine($"    {detail}");
+                //if (mismatchDetails.Count > 20)
+                //    Console.WriteLine($"    ... and {mismatchDetails.Count - 20} more");
+            }
+            if (missingDetails.Count > 0)
+            {
+                Console.WriteLine("  Missing files:");
+                foreach (var detail in missingDetails) //.Take(20))
                     Console.WriteLine($"    {detail}");
                 //if (mismatchDetails.Count > 20)
                 //    Console.WriteLine($"    ... and {mismatchDetails.Count - 20} more");
