@@ -7,10 +7,16 @@
   "status": "active",
   "description": "Defines elements that support auto-population and pre-population of questionnaires using the Observation-based population mechanism",
   "fhirVersion": "4.0.1",
+  "mapping": [
+    {
+      "identity": "ihe-sdc",
+      "name": "IHE SDC"
+    }
+  ],
   "kind": "resource",
   "abstract": false,
   "type": "Questionnaire",
-  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnairecommon",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire",
   "derivation": "constraint",
   "differential": {
     "element": [

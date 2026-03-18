@@ -8,7 +8,7 @@
   },
   "extension": [
     {
-      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
+      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
         "code": "semver",
         "system": "http://hl7.org/fhir/version-algorithm"
@@ -19,6 +19,36 @@
     {
       "item": [
         {
+          "answerOption": [
+            {
+              "valueCoding": {
+                "code": "M1",
+                "system": "http://example.org",
+                "display": "Margins univolved by tumor"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "M2",
+                "system": "http://example.org",
+                "display": "Margin(s) involved by tumor"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "M3",
+                "system": "http://example.org",
+                "display": "Cannot be determined"
+              }
+            },
+            {
+              "valueCoding": {
+                "code": "M4",
+                "system": "http://example.org",
+                "display": "Not applicable"
+              }
+            }
+          ],
           "item": [
             {
               "extension": [
@@ -27,8 +57,34 @@
                   "valueCode": "hidden"
                 }
               ],
+              "enableWhen": [
+                {
+                  "question": "1.1",
+                  "operator": "=",
+                  "answerCoding": {
+                    "code": "M1",
+                    "system": "http://example.org"
+                  }
+                }
+              ],
               "item": [
                 {
+                  "answerOption": [
+                    {
+                      "valueCoding": {
+                        "code": "D1",
+                        "system": "http://example.org",
+                        "display": "Specify (mm)"
+                      }
+                    },
+                    {
+                      "valueCoding": {
+                        "code": "D2",
+                        "system": "http://example.org",
+                        "display": "Cannot be assessed (explain)"
+                      }
+                    }
+                  ],
                   "item": [
                     {
                       "extension": [
@@ -59,28 +115,9 @@
                   ],
                   "linkId": "1.1.1.1",
                   "text": "Distance from Closest Margin",
-                  "type": "choice",
-                  "answerOption": [
-                    {
-                      "valueCoding": {
-                        "code": "D1",
-                        "system": "http://example.org",
-                        "display": "Specify (mm)"
-                      }
-                    },
-                    {
-                      "valueCoding": {
-                        "code": "D2",
-                        "system": "http://example.org",
-                        "display": "Cannot be assessed (explain)"
-                      }
-                    }
-                  ]
+                  "type": "choice"
                 },
                 {
-                  "linkId": "1.1.1.2",
-                  "text": "Specify Margin, if possible",
-                  "type": "choice",
                   "answerOption": [
                     {
                       "valueCoding": {
@@ -110,28 +147,17 @@
                       "type": "string",
                       "required": true
                     }
-                  ]
+                  ],
+                  "linkId": "1.1.1.2",
+                  "text": "Specify Margin, if possible",
+                  "type": "choice"
                 }
               ],
               "linkId": "1.1.1",
               "type": "group",
-              "enableWhen": [
-                {
-                  "question": "1.1",
-                  "operator": "=",
-                  "answerCoding": {
-                    "code": "M1",
-                    "system": "http://example.org"
-                  }
-                }
-              ],
               "required": true
             },
             {
-              "linkId": "1.1.2.1",
-              "text": "Specify Margin(s), if possible",
-              "type": "choice",
-              "required": true,
               "answerOption": [
                 {
                   "valueCoding": {
@@ -161,7 +187,11 @@
                   "type": "string",
                   "required": true
                 }
-              ]
+              ],
+              "linkId": "1.1.2.1",
+              "text": "Specify Margin(s), if possible",
+              "type": "choice",
+              "required": true
             },
             {
               "linkId": "1.1.3.1",
@@ -179,37 +209,7 @@
           "linkId": "1.1",
           "text": "Status of surgical margin involvement by tumor (observable entity)",
           "type": "choice",
-          "required": true,
-          "answerOption": [
-            {
-              "valueCoding": {
-                "code": "M1",
-                "system": "http://example.org",
-                "display": "Margins univolved by tumor"
-              }
-            },
-            {
-              "valueCoding": {
-                "code": "M2",
-                "system": "http://example.org",
-                "display": "Margin(s) involved by tumor"
-              }
-            },
-            {
-              "valueCoding": {
-                "code": "M3",
-                "system": "http://example.org",
-                "display": "Cannot be determined"
-              }
-            },
-            {
-              "valueCoding": {
-                "code": "M4",
-                "system": "http://example.org",
-                "display": "Not applicable"
-              }
-            }
-          ]
+          "required": true
         }
       ],
       "linkId": "1",
@@ -218,15 +218,8 @@
       "required": true
     },
     {
-      "linkId": "2",
-      "text": "ACCESSORY FINDINGS",
-      "type": "group",
-      "required": true,
       "item": [
         {
-          "linkId": "2.1",
-          "text": "Treatment Effect (applicable to carcinomas treated with neoadjuvant therapy)",
-          "type": "choice",
           "answerOption": [
             {
               "valueCoding": {
@@ -269,13 +262,12 @@
               "type": "string",
               "required": true
             }
-          ]
+          ],
+          "linkId": "2.1",
+          "text": "Treatment Effect (applicable to carcinomas treated with neoadjuvant therapy)",
+          "type": "choice"
         },
         {
-          "linkId": "2.2",
-          "text": "Tumor Description",
-          "type": "choice",
-          "repeats": true,
           "answerOption": [
             {
               "valueCoding": {
@@ -308,10 +300,6 @@
           ],
           "item": [
             {
-              "linkId": "2.2.1.1",
-              "text": "??",
-              "type": "choice",
-              "repeats": true,
               "answerOption": [
                 {
                   "valueCoding": {
@@ -342,7 +330,11 @@
                   "type": "string",
                   "required": true
                 }
-              ]
+              ],
+              "linkId": "2.2.1.1",
+              "text": "??",
+              "type": "choice",
+              "repeats": true
             },
             {
               "linkId": "2.2.2.1",
@@ -350,9 +342,17 @@
               "type": "string",
               "required": true
             }
-          ]
+          ],
+          "linkId": "2.2",
+          "text": "Tumor Description",
+          "type": "choice",
+          "repeats": true
         }
-      ]
+      ],
+      "linkId": "2",
+      "text": "ACCESSORY FINDINGS",
+      "type": "group",
+      "required": true
     }
   ],
   "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-cap",

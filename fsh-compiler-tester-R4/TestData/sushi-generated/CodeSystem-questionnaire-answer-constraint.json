@@ -2,7 +2,7 @@
   "resourceType": "CodeSystem",
   "status": "active",
   "content": "complete",
-  "name": "QuestionnaireAnswerConstraint",
+  "name": "QuestionnaireAnswerConstraintCodes",
   "id": "questionnaire-answer-constraint",
   "title": "Questionnaire answer constraint codes",
   "description": "Codes that describe the types of constraints possible on a question item that has a list of permitted answers [Note: This is a clone of QuestionnaireAnswerConstraint codesystem from R5 (adopting R5 capability)]",

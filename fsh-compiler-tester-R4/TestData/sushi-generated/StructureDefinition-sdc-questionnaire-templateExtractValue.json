@@ -34,7 +34,7 @@
         "id": "Extension",
         "path": "Extension",
         "short": "FhirPath expression",
-        "definition": "Provides an expression to evaluate any value(s) to replace in the given template extraction context. If no result is evaluated, the element in the templated resource will be removed, and futher processing of it's children is not required.",
+        "definition": "Provides FHIRPath expression to evaluate any value(s) to replace in the given template extraction context. If no result is evaluated, the element in the templated resource will be removed, and futher processing of it's children is not required.",
         "max": "1"
       },
       {

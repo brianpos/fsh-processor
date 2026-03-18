@@ -36,25 +36,13 @@
       "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-launchContext"
     }
   ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-test-fhirpath-prepop-candexpr",
-  "name": "FhirPathPrepopCandExpr",
-  "title": "Questionnaire Pre-Population with a Candidate Expression",
-  "status": "active",
-  "experimental": true,
   "subjectType": [
     "Patient"
   ],
-  "description": "FhirPath based prepopulation example that includes a Candidate expression",
   "item": [
     {
-      "linkId": "grp",
-      "type": "group",
       "item": [
         {
-          "linkId": "part-details",
-          "text": "Participant details",
-          "type": "group",
-          "repeats": false,
           "item": [
             {
               "linkId": "participant-id",
@@ -64,11 +52,11 @@
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "language": "text/fhirpath",
-                    "expression": "%patient.name.first().family.first()"
-                  }
+                    "expression": "%patient.name.first().family"
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
               "linkId": "family-name",
@@ -78,44 +66,44 @@
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "language": "text/fhirpath",
                     "expression": "%patient.name.first().given.first()"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
               "linkId": "given-names",
               "text": "Given name(s)",
               "type": "string"
             }
-          ]
+          ],
+          "linkId": "part-details",
+          "text": "Participant details",
+          "type": "group",
+          "repeats": false
         },
         {
           "extension": [
             {
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-candidateExpression",
               "valueExpression": {
                 "description": "Set of active Patient contacts",
                 "name": "selectedContact",
                 "language": "application/x-fhir-query",
                 "expression": "RelatedPerson?patient={{%patient.id}}&active=true"
-              }
+              },
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-candidateExpression"
             }
           ],
-          "linkId": "contacts",
-          "text": "Contacts",
-          "type": "group",
-          "repeats": true,
           "item": [
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "language": "text/fhirpath",
-                    "expression": "%selectedContact.name.first().select(text | given.first() & ' ' & family)"
-                  }
+                    "expression": "%selectedContact.name.first().select(text | given.first() & ' ' & family).first()"
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
               "linkId": "cont-name",
@@ -126,11 +114,11 @@
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "language": "text/fhirpath",
                     "expression": "%selectedContact.telecom.where(system='phone').first().value"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
               "linkId": "cont-number",
@@ -138,9 +126,21 @@
               "type": "string",
               "repeats": true
             }
-          ]
+          ],
+          "linkId": "contacts",
+          "text": "Contacts",
+          "type": "group",
+          "repeats": true
         }
-      ]
+      ],
+      "linkId": "grp",
+      "type": "group"
     }
-  ]
+  ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-test-fhirpath-prepop-candexpr",
+  "name": "FhirPathPrepopCandExpr",
+  "title": "Questionnaire Pre-Population with a Candidate Expression",
+  "status": "active",
+  "experimental": true,
+  "description": "FhirPath based prepopulation example that includes a Candidate expression"
 }

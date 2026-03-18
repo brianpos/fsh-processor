@@ -10,16 +10,9 @@
     {
       "resourceType": "ValueSet",
       "id": "ll2654-3",
-      "url": "http://hl7.org/fhir/uv/sdc/ValueSet/LL2654-3",
-      "name": "AhrqMedicationQ1",
-      "title": "AHRQ_Medication_Q1",
-      "status": "active",
-      "description": "The answer list for question 1 on the AHRQ \"Medication or Other Substance\" form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "extension": [
@@ -161,24 +154,24 @@
                 "code": "LA20343-2",
                 "display": "Other substance: PLEASE SPECIFY"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "url": "http://hl7.org/fhir/uv/sdc/ValueSet/LL2654-3",
+      "name": "AhrqMedicationQ1",
+      "title": "AHRQ_Medication_Q1",
+      "status": "active",
+      "description": "The answer list for question 1 on the AHRQ \"Medication or Other Substance\" form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2655-0",
-      "url": "http://example.org/ValueSet/ll2655-0",
-      "name": "AhrqMedicationQ2",
-      "title": "AHRQ_Medication_Q2",
-      "status": "active",
-      "description": "The answer list for question 2 on the AHRQ \"Medication or Other Substance\" form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "extension": [
@@ -236,23 +229,24 @@
                 "code": "LA4489-6",
                 "display": "Unknown"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "url": "http://example.org/ValueSet/ll2655-0",
+      "name": "AhrqMedicationQ2",
+      "title": "AHRQ_Medication_Q2",
+      "status": "active",
+      "description": "The answer list for question 2 on the AHRQ \"Medication or Other Substance\" form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2657-6",
-      "name": "AhrqMedicationQ4",
-      "title": "AHRQ_Medication_Q4",
-      "status": "active",
-      "description": "The answer list for question 4 on the AHRQ \"Medication or Other Substance\" form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA20283-0",
@@ -262,24 +256,23 @@
                 "code": "LA20287-1",
                 "display": "Other biological products (e.g., thrombolytic)"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AhrqMedicationQ4",
+      "title": "AHRQ_Medication_Q4",
+      "status": "active",
+      "description": "The answer list for question 4 on the AHRQ \"Medication or Other Substance\" form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2659-2",
-      "url": "http://example.org/ValueSet/ll2659-2",
-      "name": "AhrqMedicationQ6",
-      "title": "AHRQ_Medication_Q6",
-      "status": "active",
-      "description": "The answer list for question 6 on the AHRQ \"Medication or Other Substance\" form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "extension": [
@@ -351,24 +344,24 @@
                 "code": "LA20318-4",
                 "display": "Other: PLEASE SPECIFY"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "url": "http://example.org/ValueSet/ll2659-2",
+      "name": "AhrqMedicationQ6",
+      "title": "AHRQ_Medication_Q6",
+      "status": "active",
+      "description": "The answer list for question 6 on the AHRQ \"Medication or Other Substance\" form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2660-0",
-      "url": "http://example.org/ValueSet/ll2660-0",
-      "name": "AHRQMedicationQ7",
-      "title": "AHRQ_Medication_Q7",
-      "status": "active",
-      "description": "The answer list for question 7 on the AHRQ 'Medication or Other Substance' form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA20275-6",
@@ -402,23 +395,24 @@
                 "code": "LA4489-6",
                 "display": "Unknown"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "url": "http://example.org/ValueSet/ll2660-0",
+      "name": "AHRQMedicationQ7",
+      "title": "AHRQ_Medication_Q7",
+      "status": "active",
+      "description": "The answer list for question 7 on the AHRQ 'Medication or Other Substance' form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2661-8",
-      "name": "AHRQMedicationQ8",
-      "title": "AHRQ_Medication_Q8",
-      "status": "active",
-      "description": "The answer list for question 8 on the AHRQ 'Medication or Other Substance' form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA20276-4",
@@ -480,23 +474,23 @@
                 "code": "LA20318-4",
                 "display": "Other: PLEASE SPECIFY"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AHRQMedicationQ8",
+      "title": "AHRQ_Medication_Q8",
+      "status": "active",
+      "description": "The answer list for question 8 on the AHRQ 'Medication or Other Substance' form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2662-6",
-      "name": "AHRQMedicationQ9",
-      "title": "AHRQ_Medication_Q9",
-      "status": "active",
-      "description": "The answer list for question 9 on the AHRQ 'Medication or Other Substance' form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA20277-2",
@@ -518,23 +512,23 @@
                 "code": "LA4489-6",
                 "display": "Unknown"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AHRQMedicationQ9",
+      "title": "AHRQ_Medication_Q9",
+      "status": "active",
+      "description": "The answer list for question 9 on the AHRQ 'Medication or Other Substance' form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2663-4",
-      "name": "AHRQMedicationQ10",
-      "title": "AHRQ_Medication_Q10",
-      "status": "active",
-      "description": "The answer list for question 10 on the AHRQ 'Medication or Other Substance' form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA20280-6",
@@ -548,23 +542,23 @@
                 "code": "LA4489-6",
                 "display": "Unknown"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AHRQMedicationQ10",
+      "title": "AHRQ_Medication_Q10",
+      "status": "active",
+      "description": "The answer list for question 10 on the AHRQ 'Medication or Other Substance' form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2664-2",
-      "name": "AHRQMedicationQ11",
-      "title": "AHRQ_Medication_Q11",
-      "status": "active",
-      "description": "The answer list for question 11 on the AHRQ 'Medication or Other Substance' form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA20282-2",
@@ -578,23 +572,23 @@
                 "code": "LA4489-6",
                 "display": "Unknown"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AHRQMedicationQ11",
+      "title": "AHRQ_Medication_Q11",
+      "status": "active",
+      "description": "The answer list for question 11 on the AHRQ 'Medication or Other Substance' form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2665-9",
-      "name": "AHRQMedicationQ12",
-      "title": "AHRQ_Medication_Q12",
-      "status": "active",
-      "description": "The answer list for question 12 on the AHRQ 'Medication or Other Substance' form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA20281-4",
@@ -608,23 +602,23 @@
                 "code": "LA4489-6",
                 "display": "Unknown"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AHRQMedicationQ12",
+      "title": "AHRQ_Medication_Q12",
+      "status": "active",
+      "description": "The answer list for question 12 on the AHRQ 'Medication or Other Substance' form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2817-6",
-      "name": "AhrqYNUnk",
-      "title": "AHRQ_Y/N/UNK",
-      "status": "active",
-      "description": "AHRQ Common Format Answer list for Yes (A15), No (A18), Unknown (UNK)",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA33-6",
@@ -638,23 +632,23 @@
                 "code": "LA4489-6",
                 "display": "Unknown"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AhrqYNUnk",
+      "title": "AHRQ_Y/N/UNK",
+      "status": "active",
+      "description": "AHRQ Common Format Answer list for Yes (A15), No (A18), Unknown (UNK)",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2668-3",
-      "name": "AHRQMedicationQ15",
-      "title": "AHRQ_Medication_Q15",
-      "status": "active",
-      "description": "The answer list for question 15 on the AHRQ 'Medication or Other Substance' form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA20274-9",
@@ -672,23 +666,23 @@
                 "code": "LA20318-4",
                 "display": "Other: PLEASE SPECIFY"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AHRQMedicationQ15",
+      "title": "AHRQ_Medication_Q15",
+      "status": "active",
+      "description": "The answer list for question 15 on the AHRQ 'Medication or Other Substance' form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2669-1",
-      "name": "AHRQMedicationQ16",
-      "title": "AHRQ_Medication_Q16",
-      "status": "active",
-      "description": "The answer list for question 16 on the AHRQ 'Medication or Other Substance' form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA20279-8",
@@ -730,23 +724,23 @@
                 "code": "LA20318-4",
                 "display": "Other: PLEASE SPECIFY"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AHRQMedicationQ16",
+      "title": "AHRQ_Medication_Q16",
+      "status": "active",
+      "description": "The answer list for question 16 on the AHRQ 'Medication or Other Substance' form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2828-3",
-      "name": "AhrqYN",
-      "title": "AHRQ_Y/N",
-      "status": "active",
-      "description": "AHRQ Common Format Answer list for Yes (A15) and No (A18)",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA33-6",
@@ -756,23 +750,23 @@
                 "code": "LA32-8",
                 "display": "No"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AhrqYN",
+      "title": "AHRQ_Y/N",
+      "status": "active",
+      "description": "AHRQ Common Format Answer list for Yes (A15) and No (A18)",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     },
     {
       "resourceType": "ValueSet",
       "id": "ll2682-4",
-      "name": "AHRQMedicationQ28Q29",
-      "title": "AHRQ_Medication_Q28_Q29",
-      "status": "active",
-      "description": "The answer list for questions 28 and 29 on the AHRQ 'Medication or Other Substance' form",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
-            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA20272-3",
@@ -838,10 +832,16 @@
                 "code": "LA20318-4",
                 "display": "Other: PLEASE SPECIFY"
               }
-            ]
+            ],
+            "system": "http://loinc.org"
           }
         ]
-      }
+      },
+      "name": "AHRQMedicationQ28Q29",
+      "title": "AHRQ_Medication_Q28_Q29",
+      "status": "active",
+      "description": "The answer list for questions 28 and 29 on the AHRQ 'Medication or Other Substance' form",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
     }
   ],
   "extension": [
@@ -853,33 +853,19 @@
       }
     },
     {
-      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-preferredTerminologyServer",
+      "url": "http://hl7.org/fhir/StructureDefinition/preferredTerminologyServer",
       "valueUrl": "https://tx.fhir.org/r4"
     }
   ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-loinc",
-  "identifier": [
+  "code": [
     {
-      "system": "http://loinc.org/vs",
-      "value": "74080-3"
+      "code": "74080-3",
+      "system": "http://loinc.org"
     }
   ],
-  "name": "MedicationorOtherSubstance",
-  "title": "Medication or Other Substance",
-  "_title": {
-    "extension": [
-      {
-        "url": "http://hl7.org/fhir/StructureDefinition/rendering-style",
-        "valueString": "color:#0000FF"
-      }
-    ]
-  },
-  "status": "active",
   "subjectType": [
     "Patient"
   ],
-  "date": "2012-04-01",
-  "publisher": "Agency for Healthcare Research and Quality (AHRQ)",
   "item": [
     {
       "extension": [
@@ -895,8 +881,6 @@
           }
         }
       ],
-      "linkId": "Medication/header",
-      "type": "group",
       "item": [
         {
           "extension": [
@@ -928,12 +912,11 @@
           "type": "string",
           "required": true
         }
-      ]
+      ],
+      "linkId": "Medication/header",
+      "type": "group"
     },
     {
-      "linkId": "Medication/SEC00",
-      "text": "Medication or Other Substance",
-      "type": "group",
       "item": [
         {
           "linkId": "Medication/SEC00.0",
@@ -949,9 +932,6 @@
           "type": "display"
         },
         {
-          "linkId": "Medication/SEC01/74080-3",
-          "type": "group",
-          "required": true,
           "item": [
             {
               "extension": [
@@ -960,13 +940,12 @@
                   "valueInteger": 1
                 }
               ],
-              "linkId": "74080-3/74076-1",
-              "definition": "http://loinc.org/74076-1",
-              "prefix": "1.",
-              "text": "What type of medication/substance was involved?",
-              "type": "choice",
-              "required": true,
-              "answerValueSet": "#ll2654-3",
+              "code": [
+                {
+                  "code": "74076-1",
+                  "system": "http://loinc.org"
+                }
+              ],
               "item": [
                 {
                   "extension": [
@@ -975,11 +954,12 @@
                       "valueInteger": 7
                     }
                   ],
-                  "linkId": "74080-3/74075-3",
-                  "definition": "http://loinc.org/vs/74075-3",
-                  "prefix": "2.",
-                  "text": "What type of medication?",
-                  "type": "choice",
+                  "code": [
+                    {
+                      "code": "74075-3",
+                      "system": "http://loinc.org"
+                    }
+                  ],
                   "enableWhen": [
                     {
                       "question": "74080-3/74076-1",
@@ -991,8 +971,6 @@
                       }
                     }
                   ],
-                  "required": true,
-                  "answerValueSet": "#ll2655-0",
                   "item": [
                     {
                       "extension": [
@@ -1001,11 +979,12 @@
                           "valueInteger": 0
                         }
                       ],
-                      "linkId": "74080-3/74077-9-q",
-                      "definition": "http://loinc.org/74077-9",
-                      "prefix": "3.",
-                      "text": "Please list all ingredients:",
-                      "type": "string",
+                      "code": [
+                        {
+                          "code": "74077-9",
+                          "system": "http://loinc.org"
+                        }
+                      ],
                       "enableWhen": [
                         {
                           "question": "74080-3/74075-3",
@@ -1017,10 +996,20 @@
                           }
                         }
                       ],
+                      "linkId": "74080-3/74077-9-q",
+                      "prefix": "3.",
+                      "text": "Please list all ingredients:",
+                      "type": "string",
                       "required": true,
                       "repeats": true
                     }
-                  ]
+                  ],
+                  "linkId": "74080-3/74075-3",
+                  "prefix": "2.",
+                  "text": "What type of medication?",
+                  "type": "choice",
+                  "required": true,
+                  "answerValueSet": "#ll2655-0"
                 },
                 {
                   "extension": [
@@ -1029,10 +1018,6 @@
                       "valueInteger": 8
                     }
                   ],
-                  "linkId": "74080-3/74074-6",
-                  "prefix": "4.",
-                  "text": "What type of biological product?",
-                  "type": "choice",
                   "enableWhen": [
                     {
                       "question": "74080-3/74076-1",
@@ -1044,13 +1029,8 @@
                       }
                     }
                   ],
-                  "answerValueSet": "#ll2657-6",
                   "item": [
                     {
-                      "linkId": "74080-3/30959-1",
-                      "prefix": "5.",
-                      "text": "What was the lot number of the vaccine?",
-                      "type": "string",
                       "enableWhen": [
                         {
                           "question": "74080-3/74074-6",
@@ -1062,15 +1042,20 @@
                           }
                         }
                       ],
+                      "linkId": "74080-3/30959-1",
+                      "prefix": "5.",
+                      "text": "What was the lot number of the vaccine?",
+                      "type": "string",
                       "required": true
                     }
-                  ]
+                  ],
+                  "linkId": "74080-3/74074-6",
+                  "prefix": "4.",
+                  "text": "What type of biological product?",
+                  "type": "choice",
+                  "answerValueSet": "#ll2657-6"
                 },
                 {
-                  "linkId": "74080-3/74073-8",
-                  "prefix": "6.",
-                  "text": "What type of nutritional product?",
-                  "type": "choice",
                   "enableWhen": [
                     {
                       "question": "74080-3/74076-1",
@@ -1082,12 +1067,8 @@
                       }
                     }
                   ],
-                  "required": true,
-                  "answerValueSet": "#ll2659-2",
                   "item": [
                     {
-                      "linkId": "74080-3/74073-8/Other/Specify",
-                      "type": "string",
                       "enableWhen": [
                         {
                           "question": "74080-3/74073-8",
@@ -1099,13 +1080,19 @@
                           }
                         }
                       ],
+                      "linkId": "74080-3/74073-8/Other/Specify",
+                      "type": "string",
                       "required": true
                     }
-                  ]
+                  ],
+                  "linkId": "74080-3/74073-8",
+                  "prefix": "6.",
+                  "text": "What type of nutritional product?",
+                  "type": "choice",
+                  "required": true,
+                  "answerValueSet": "#ll2659-2"
                 },
                 {
-                  "linkId": "74080-3/74076-1/Other/Specify",
-                  "type": "string",
                   "enableWhen": [
                     {
                       "question": "74080-3/74076-1",
@@ -1117,15 +1104,19 @@
                       }
                     }
                   ],
+                  "linkId": "74080-3/74076-1/Other/Specify",
+                  "type": "string",
                   "required": true
                 }
-              ]
+              ],
+              "linkId": "74080-3/74076-1",
+              "prefix": "1.",
+              "text": "What type of medication/substance was involved?",
+              "type": "choice",
+              "required": true,
+              "answerValueSet": "#ll2654-3"
             },
             {
-              "linkId": "74080-3/74072-0",
-              "prefix": "7.",
-              "text": "Which of the following best characterizes the event?",
-              "type": "choice",
               "enableWhen": [
                 {
                   "question": "74080-3/74076-1",
@@ -1155,15 +1146,15 @@
                   }
                 }
               ],
+              "linkId": "74080-3/74072-0",
+              "prefix": "7.",
+              "text": "Which of the following best characterizes the event?",
+              "type": "choice",
               "enableBehavior": "all",
               "required": true,
               "answerValueSet": "#ll2660-0"
             },
             {
-              "linkId": "74080-3/74071-2",
-              "prefix": "8.",
-              "text": "What was the incorrect action?",
-              "type": "choice",
               "enableWhen": [
                 {
                   "question": "74080-3/74072-0",
@@ -1175,13 +1166,8 @@
                   }
                 }
               ],
-              "answerValueSet": "#ll2661-8",
               "item": [
                 {
-                  "linkId": "74080-3/74070-4",
-                  "prefix": "9.",
-                  "text": "Which best describes the incorrect dose(s)?",
-                  "type": "choice",
                   "enableWhen": [
                     {
                       "question": "74080-3/74071-2",
@@ -1193,14 +1179,14 @@
                       }
                     }
                   ],
+                  "linkId": "74080-3/74070-4",
+                  "prefix": "9.",
+                  "text": "Which best describes the incorrect dose(s)?",
+                  "type": "choice",
                   "required": true,
                   "answerValueSet": "#ll2662-6"
                 },
                 {
-                  "linkId": "Medication/74069-6",
-                  "prefix": "10.",
-                  "text": "Which best describes the incorrect timing?",
-                  "type": "choice",
                   "enableWhen": [
                     {
                       "question": "74080-3/74071-2",
@@ -1212,14 +1198,14 @@
                       }
                     }
                   ],
+                  "linkId": "Medication/74069-6",
+                  "prefix": "10.",
+                  "text": "Which best describes the incorrect timing?",
+                  "type": "choice",
                   "required": true,
                   "answerValueSet": "#ll2663-4"
                 },
                 {
-                  "linkId": "74080-3/74068-8",
-                  "prefix": "11.",
-                  "text": "Which best describes the incorrect rate?",
-                  "type": "choice",
                   "enableWhen": [
                     {
                       "question": "74080-3/74071-2",
@@ -1231,14 +1217,14 @@
                       }
                     }
                   ],
+                  "linkId": "74080-3/74068-8",
+                  "prefix": "11.",
+                  "text": "Which best describes the incorrect rate?",
+                  "type": "choice",
                   "required": true,
                   "answerValueSet": "#ll2664-2"
                 },
                 {
-                  "linkId": "Medication/74067-0",
-                  "prefix": "12.",
-                  "text": "Which best describes the incorrect strength or concentration?",
-                  "type": "choice",
                   "enableWhen": [
                     {
                       "question": "74080-3/74071-2",
@@ -1250,14 +1236,14 @@
                       }
                     }
                   ],
+                  "linkId": "Medication/74067-0",
+                  "prefix": "12.",
+                  "text": "Which best describes the incorrect strength or concentration?",
+                  "type": "choice",
                   "required": true,
                   "answerValueSet": "#ll2665-9"
                 },
                 {
-                  "linkId": "Medication/74066-2",
-                  "prefix": "13.",
-                  "text": "What was the expiration date?",
-                  "type": "string",
                   "enableWhen": [
                     {
                       "question": "74080-3/74071-2",
@@ -1269,13 +1255,13 @@
                       }
                     }
                   ],
+                  "linkId": "Medication/74066-2",
+                  "prefix": "13.",
+                  "text": "What was the expiration date?",
+                  "type": "string",
                   "required": true
                 },
                 {
-                  "linkId": "Medication/74065-4",
-                  "prefix": "14.",
-                  "text": "Was there a documented history of allergies or sensitivities to the medication/substance administered?",
-                  "type": "choice",
                   "enableWhen": [
                     {
                       "question": "74080-3/74071-2",
@@ -1287,14 +1273,14 @@
                       }
                     }
                   ],
+                  "linkId": "Medication/74065-4",
+                  "prefix": "14.",
+                  "text": "Was there a documented history of allergies or sensitivities to the medication/substance administered?",
+                  "type": "choice",
                   "required": true,
                   "answerValueSet": "#ll2817-6"
                 },
                 {
-                  "linkId": "Medication/74064-7",
-                  "prefix": "15.",
-                  "text": "What was the contraindication (potential or actual interaction)?",
-                  "type": "choice",
                   "enableWhen": [
                     {
                       "question": "74080-3/74071-2",
@@ -1306,12 +1292,8 @@
                       }
                     }
                   ],
-                  "required": true,
-                  "answerValueSet": "#ll2668-3",
                   "item": [
                     {
-                      "linkId": "Medication/74064-7/Other/Specify",
-                      "type": "string",
                       "enableWhen": [
                         {
                           "question": "Medication/74064-7",
@@ -1323,13 +1305,19 @@
                           }
                         }
                       ],
+                      "linkId": "Medication/74064-7/Other/Specify",
+                      "type": "string",
                       "required": true
                     }
-                  ]
+                  ],
+                  "linkId": "Medication/74064-7",
+                  "prefix": "15.",
+                  "text": "What was the contraindication (potential or actual interaction)?",
+                  "type": "choice",
+                  "required": true,
+                  "answerValueSet": "#ll2668-3"
                 },
                 {
-                  "linkId": "74080-3/74071-2/Other/Specify",
-                  "type": "string",
                   "enableWhen": [
                     {
                       "question": "74080-3/74071-2",
@@ -1341,15 +1329,18 @@
                       }
                     }
                   ],
+                  "linkId": "74080-3/74071-2/Other/Specify",
+                  "type": "string",
                   "required": true
                 }
-              ]
+              ],
+              "linkId": "74080-3/74071-2",
+              "prefix": "8.",
+              "text": "What was the incorrect action?",
+              "type": "choice",
+              "answerValueSet": "#ll2661-8"
             },
             {
-              "linkId": "74080-3/74063-9",
-              "prefix": "16.",
-              "text": "At what stage in the process did the event originate, regardless of the stage at which it was discovered?",
-              "type": "choice",
               "enableWhen": [
                 {
                   "question": "74080-3/74072-0",
@@ -1361,12 +1352,8 @@
                   }
                 }
               ],
-              "required": true,
-              "answerValueSet": "#ll2669-1",
               "item": [
                 {
-                  "linkId": "74080-3/74063-9/Other/Specify",
-                  "type": "string",
                   "enableWhen": [
                     {
                       "question": "74080-3/74063-9",
@@ -1378,11 +1365,22 @@
                       }
                     }
                   ],
+                  "linkId": "74080-3/74063-9/Other/Specify",
+                  "type": "string",
                   "required": true
                 }
-              ]
+              ],
+              "linkId": "74080-3/74063-9",
+              "prefix": "16.",
+              "text": "At what stage in the process did the event originate, regardless of the stage at which it was discovered?",
+              "type": "choice",
+              "required": true,
+              "answerValueSet": "#ll2669-1"
             }
-          ]
+          ],
+          "linkId": "Medication/SEC01/74080-3",
+          "type": "group",
+          "required": true
         },
         {
           "linkId": "74080-3/74078-7.0",
@@ -1390,9 +1388,6 @@
           "type": "display"
         },
         {
-          "linkId": "74080-3/74078-x",
-          "text": "For an near miss, omit question 27",
-          "type": "display",
           "enableWhen": [
             {
               "question": "74080-3/74072-0",
@@ -1403,7 +1398,10 @@
                 "display": "Unsafe condition"
               }
             }
-          ]
+          ],
+          "linkId": "74080-3/74078-x",
+          "text": "For an near miss, omit question 27",
+          "type": "display"
         },
         {
           "extension": [
@@ -1412,8 +1410,6 @@
               "valueInteger": 5
             }
           ],
-          "linkId": "74080-3/74078-7",
-          "type": "group",
           "enableWhen": [
             {
               "question": "74080-3/74072-0",
@@ -1452,9 +1448,6 @@
               }
             }
           ],
-          "enableBehavior": "all",
-          "repeats": true,
-          "required": true,
           "item": [
             {
               "extension": [
@@ -1565,29 +1558,25 @@
               "type": "string"
             },
             {
+              "enableWhen": [
+                {
+                  "question": "74080-3/74072-0",
+                  "operator": "!=",
+                  "answerCoding": {
+                    "code": "LA20314-3",
+                    "system": "http://loinc.org",
+                    "display": "Unsafe condition"
+                  }
+                }
+              ],
               "linkId": "74080-3/74078-7/74053-0",
               "prefix": "26.",
               "text": "Was this medication/substance prescribed for this patient?",
               "type": "choice",
-              "enableWhen": [
-                {
-                  "question": "74080-3/74072-0",
-                  "operator": "!=",
-                  "answerCoding": {
-                    "code": "LA20314-3",
-                    "system": "http://loinc.org",
-                    "display": "Unsafe condition"
-                  }
-                }
-              ],
               "required": true,
               "answerValueSet": "#ll2828-3"
             },
             {
-              "linkId": "Medication/74052-2",
-              "prefix": "27.",
-              "text": "Was this medication/substance given to this patient?",
-              "type": "choice",
               "enableWhen": [
                 {
                   "question": "74080-3/74072-0",
@@ -1599,14 +1588,21 @@
                   }
                 }
               ],
+              "linkId": "Medication/74052-2",
+              "prefix": "27.",
+              "text": "Was this medication/substance given to this patient?",
+              "type": "choice",
               "required": true,
               "answerValueSet": "#ll2828-3"
             }
-          ]
+          ],
+          "linkId": "74080-3/74078-7",
+          "type": "group",
+          "enableBehavior": "all",
+          "repeats": true,
+          "required": true
         },
         {
-          "linkId": "Medication/SEC03",
-          "type": "group",
           "enableWhen": [
             {
               "question": "74080-3/74072-0",
@@ -1620,16 +1616,8 @@
           ],
           "item": [
             {
-              "linkId": "74080-3/74051-4",
-              "prefix": "28.",
-              "text": "What was the intended route of administration?",
-              "type": "choice",
-              "required": true,
-              "answerValueSet": "#ll2682-4",
               "item": [
                 {
-                  "linkId": "74080-3/74051-4/Other/Specify",
-                  "type": "string",
                   "enableWhen": [
                     {
                       "question": "74080-3/74051-4",
@@ -1641,21 +1629,21 @@
                       }
                     }
                   ],
+                  "linkId": "74080-3/74051-4/Other/Specify",
+                  "type": "string",
                   "required": true
                 }
-              ]
-            },
-            {
-              "linkId": "74080-3/74050-6",
-              "prefix": "29.",
-              "text": "What was the actual route of administration (attempted or completed)?",
+              ],
+              "linkId": "74080-3/74051-4",
+              "prefix": "28.",
+              "text": "What was the intended route of administration?",
               "type": "choice",
               "required": true,
-              "answerValueSet": "#ll2682-4",
+              "answerValueSet": "#ll2682-4"
+            },
+            {
               "item": [
                 {
-                  "linkId": "74080-3/74050-6/Other/Specify",
-                  "type": "string",
                   "enableWhen": [
                     {
                       "question": "74080-3/74050-6",
@@ -1667,25 +1655,38 @@
                       }
                     }
                   ],
+                  "linkId": "74080-3/74050-6/Other/Specify",
+                  "type": "string",
                   "required": true
                 }
-              ]
+              ],
+              "linkId": "74080-3/74050-6",
+              "prefix": "29.",
+              "text": "What was the actual route of administration (attempted or completed)?",
+              "type": "choice",
+              "required": true,
+              "answerValueSet": "#ll2682-4"
             }
-          ]
+          ],
+          "linkId": "Medication/SEC03",
+          "type": "group"
         },
         {
-          "linkId": "Medication/SEC04",
-          "text": "Thank you for completing these questions.",
-          "type": "group",
           "item": [
             {
               "linkId": "Medication/SEC04.0",
               "text": "OMB No. 0935-0143 Exp. Date 10/31/2014 Public reporting burden for the collection of information is estimated to average 10 minutes per response. An agency may not conduct or sponsor, and a person is not required to respond to, a collection of information unless it displays a currently valid OMB control number. Send comments regarding this burden estimate or any other aspect of this collection of information, including suggestions for reducing this burden, to: AHRQ Reports Clearance Officer, Attention: PRA, Paperwork Reduction Project (0935-0143), AHRQ, 540 Gaither Road, Room #5036, Rockville, MD 20850.",
               "type": "display"
             }
-          ]
+          ],
+          "linkId": "Medication/SEC04",
+          "text": "Thank you for completing these questions.",
+          "type": "group"
         }
-      ]
+      ],
+      "linkId": "Medication/SEC00",
+      "text": "Medication or Other Substance",
+      "type": "group"
     },
     {
       "extension": [
@@ -1694,9 +1695,6 @@
           "valueBoolean": true
         }
       ],
-      "linkId": "Reporting",
-      "text": "Reporting information",
-      "type": "group",
       "item": [
         {
           "linkId": "Reporting/who",
@@ -1708,7 +1706,10 @@
           "text": "Reported date:",
           "type": "date"
         }
-      ]
+      ],
+      "linkId": "Reporting",
+      "text": "Reporting information",
+      "type": "group"
     },
     {
       "extension": [
@@ -1724,15 +1725,29 @@
           }
         }
       ],
-      "linkId": "Medication/footer",
-      "type": "group",
       "item": [
         {
           "linkId": "Medication/footer.0",
           "text": "AHRQ Common Formats - Hospital Version 1.2 - 2012 Medication or Other Substance",
           "type": "display"
         }
-      ]
+      ],
+      "linkId": "Medication/footer",
+      "type": "group"
     }
-  ]
+  ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-loinc",
+  "name": "MedicationorOtherSubstance",
+  "title": "Medication or Other Substance",
+  "_title": {
+    "extension": [
+      {
+        "url": "http://hl7.org/fhir/StructureDefinition/rendering-style",
+        "valueString": "color:#0000FF"
+      }
+    ]
+  },
+  "status": "active",
+  "date": "2012-04-01",
+  "publisher": "Agency for Healthcare Research and Quality (AHRQ)"
 }

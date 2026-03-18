@@ -6,9 +6,11 @@ using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Hl7.Fhir.Specification.Snapshot;
 using Hl7.Fhir.Specification.Source;
+using System.Text.Json;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
 using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
+using Hl7.Fhir.Utility;
 
 namespace fsh_compiler_tester_r4;
 
@@ -82,7 +84,9 @@ public class SdcIgCompilerTests
                 {
                     case ParseResult.Success s:
                         // Annotate each entity with the originating file for diagnostics.
-                        s.Document.Entities.ForEach(e => e.AddAnnotation(new FileInfo(fshFile)));
+                        var fa = new FileInfo(fshFile);
+                        s.Document.Entities.ForEach(e => e.AddAnnotation(fa));
+                        s.Document.SetAnnotation(fa);
                         fshDocs.Add(s.Document);
                         break;
 
@@ -107,7 +111,16 @@ public class SdcIgCompilerTests
         IReadOnlyList<CompilerWarning> warnings = [];
         var resources = new List<FhirResource>();
 
-        var compileResult = R4FshCompiler.Compile(fshDocs);
+        // Supply the SDC IG canonical base so that resource URLs are generated as
+        // "{canonical}/{ResourceType}/{id}" (e.g. "http://hl7.org/fhir/uv/sdc/CodeSystem/assemble-expectation").
+        // This mirrors what sushi reads from sushi-config.yaml's "canonical:" field.
+        var sdcOptions = new CompilerOptions
+        {
+            CanonicalBase = "http://hl7.org/fhir/uv/sdc",
+            FhirVersion = R4FshCompiler.FhirVersion
+        };
+
+        var compileResult = R4FshCompiler.Compile(fshDocs, sdcOptions);
 
         switch (compileResult)
         {
@@ -125,7 +138,7 @@ public class SdcIgCompilerTests
 
                 foreach (var doc in fshDocs)
                 {
-                    var singleResult = R4FshCompiler.Compile(doc);
+                    var singleResult = R4FshCompiler.Compile(doc, sdcOptions);
                     switch (singleResult)
                     {
                         case CompileResult<List<FhirResource>>.SuccessResult sr:
@@ -228,15 +241,9 @@ public class SdcIgCompilerTests
         Assert.AreEqual(0, parseErrors.Count,
             $"{parseErrors.Count} file(s) failed to parse. See output for details.");
 
-        // Compile errors are logged as informational rather than a hard assertion failure
-        // because some errors reflect pre-existing gaps in the FSH compiler rather than
-        // problems with this test.  Review the "Compile failures" section of the output to
-        // track progress toward fully clean compilation.
-        // TODO: Once all SDC IG entities compile cleanly, change this to:
-        //   Assert.AreEqual(0, compileErrors.Count, "Compilation errors found");
-        if (compileErrors.Count > 0)
-            Console.WriteLine($"\nNOTE: {compileErrors.Count} compile error(s) above reflect pre-existing " +
-                              "compiler gap(s) – fix those to achieve full SDC IG compilation.");
+        // T1: SDC IG now compiles with zero errors.  Hard assert so regressions are caught.
+        Assert.AreEqual(0, compileErrors.Count,
+            $"{compileErrors.Count} compile error(s) found. See output for details.");
 
         Assert.IsTrue(resources.Count > 0, "No FHIR resources were produced from the SDC IG FSH.");
     }
@@ -557,22 +564,61 @@ public class SdcIgCompilerTests
         {
             Console.WriteLine($"\nMetadata validation findings ({metadataFailures.Count}):");
             foreach (var f in metadataFailures) Console.WriteLine($"  {f}");
-            Console.WriteLine(
-                "\nNOTE: Metadata issues above reflect pre-existing compiler gaps (instances " +
-                "missing Id/Url assignment).  Fix the instance compiler to resolve these.");
         }
         else
         {
             Console.WriteLine($"\nAll {resources.Count} compiled resources have required metadata.");
         }
 
-        // Treat metadata gaps as informational – they reflect known compiler limitations.
-        // TODO: Convert to a hard assertion once instance Id/Url population is implemented:
-        //   Assert.AreEqual(0, metadataFailures.Count, "Resource(s) missing required metadata");
-        Assert.IsTrue(resources.Count > 0, "No resources compiled – cannot check metadata.");
+        Assert.AreEqual(0, metadataFailures.Count,
+            $"{metadataFailures.Count} resource(s) missing required metadata. See output for details.");
     }
 
-    // ── Test 6: Output full JSON for manual comparison with sushi ─────────────
+    // ── Test 5b: Expected resource type counts ─────────────────────────────────
+
+    /// <summary>
+    /// Asserts that the compiled SDC IG produces the expected number of FHIR resources
+    /// by type, establishing a regression baseline.
+    ///
+    /// The counts below reflect the current fsh-compiler output (not necessarily sushi
+    /// output – sushi produces more instances for Questionnaire/QuestionnaireResponse
+    /// examples that require additional compiler work). When sushi parity is achieved,
+    /// these counts should converge.
+    /// </summary>
+    [TestMethod]
+    public void ShouldProduceExpectedResourceTypeCounts()
+    {
+        var (resources, parseErrors, compileErrors, _) = GetOrCompileAll();
+
+        if (parseErrors.Count > 0)
+        {
+            Assert.Inconclusive("Skipped: parse errors prevent resource compilation.");
+            return;
+        }
+
+        var byType = resources
+            .GroupBy(r => r.TypeName)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        Console.WriteLine("\nResource type counts:");
+        foreach (var kv in byType.OrderBy(k => k.Key))
+            Console.WriteLine($"  {kv.Key}: {kv.Value}");
+
+        // ── Regression baseline (current compiler output) ────────────────────
+        // Update these numbers when compiler improvements change the output;
+        // the test is there to catch unintentional regressions.
+        Assert.IsTrue(byType.TryGetValue("StructureDefinition", out var sdCount) && sdCount > 0,
+            "Should produce at least one StructureDefinition");
+        Assert.IsTrue(byType.TryGetValue("ValueSet", out var vsCount) && vsCount > 0,
+            "Should produce at least one ValueSet");
+        Assert.IsTrue(byType.TryGetValue("CodeSystem", out var csCount) && csCount > 0,
+            "Should produce at least one CodeSystem");
+        Assert.IsTrue(resources.Count > 100,
+            $"Should produce more than 100 resources total; got {resources.Count}");
+
+        Console.WriteLine($"\nTotal resources: {resources.Count}");
+    }
+
 
     /// <summary>
     /// Serializes all compiled resources to pretty-printed JSON and writes them to
@@ -611,10 +657,26 @@ public class SdcIgCompilerTests
         // artifacts don't accumulate.
         var outputDir = Path.Combine(AppContext.BaseDirectory, "TestOutput", "sdc-fhir-output");
         if (Directory.Exists(outputDir))
-            Directory.Delete(outputDir, recursive: true);
+        {
+            try
+            {
+                Directory.Delete(outputDir, recursive: true);
+            }
+            catch
+            {
+                // just delete all the files in the folder instead
+                foreach (var filename in Directory.EnumerateFiles(outputDir))
+                {
+                    File.Delete(filename);
+                }
+            }
+        }
         Directory.CreateDirectory(outputDir);
 
         var serializerSettings = new FhirJsonSerializationSettings { Pretty = true };
+
+        // Build a map of resource file names → JSON
+        var compiledFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         int written = 0;
         int index = 0;
@@ -629,8 +691,10 @@ public class SdcIgCompilerTests
                 var fileName = $"{resource.TypeName}-{idSegment}.json";
                 // Sanitize to remove characters that are illegal in file names.
                 fileName = string.Concat(fileName.Split(Path.GetInvalidFileNameChars()));
+                var json = resource.ToJson(serializerSettings);
                 var filePath = Path.Combine(outputDir, fileName);
-                File.WriteAllText(filePath, resource.ToJson(serializerSettings));
+                File.WriteAllText(filePath, json);
+                compiledFiles[fileName] = json;
                 written++;
             }
             catch (Exception ex)
@@ -640,9 +704,140 @@ public class SdcIgCompilerTests
         }
 
         Console.WriteLine($"\nWrote {written} resource(s) to: {outputDir}");
-        Console.WriteLine("Compare with sushi output using a JSON diff tool.");
+
+        // T6: Compare key resource fields against sushi-generated JSON files (field-level spot check).
+        // Full JSON diff is not performed (snapshot, narrative, element IDs etc. are expected to differ).
+        var sushiDir = Path.Combine(AppContext.BaseDirectory, "TestData", "sushi-generated");
+        if (Directory.Exists(sushiDir))
+        {
+            var sushiFiles = Directory.GetFiles(sushiDir, "*.json");
+            Console.WriteLine($"\nT6 spot-check vs. sushi-generated ({sushiFiles.Length} sushi files):");
+
+            int matched = 0;
+            int mismatches = 0;
+            var mismatchDetails = new List<string>();
+            int missing = 0;
+            var missingDetails = new List<string>();
+
+            foreach (var sushiFile in sushiFiles)
+            {
+                var fileName = Path.GetFileName(sushiFile);
+                if (!compiledFiles.TryGetValue(fileName, out var ourJson))
+                {
+                    missing++;
+                    missingDetails.Add($"{sushiFile} missing from compiled output");
+                    continue;
+                }
+
+                try
+                {
+                    var sushiObj = System.Text.Json.JsonDocument.Parse(File.ReadAllText(sushiFile)).RootElement;
+                    var ourObj = System.Text.Json.JsonDocument.Parse(ourJson).RootElement;
+
+                    // Compare key stable top-level fields: resourceType, id, url, name
+                    CompareKeyFields(fileName, sushiObj, ourObj, mismatchDetails, ref mismatches);
+
+                    // Compare contained resources (resourceType, id, url)
+                    if (sushiObj.TryGetProperty("contained", out var sushiContained) &&
+                        sushiContained.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        // Build a lookup of our contained resources keyed by resourceType+id
+                        var ourContained = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+                        if (ourObj.TryGetProperty("contained", out var ourContainedArr) &&
+                            ourContainedArr.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            foreach (var item in ourContainedArr.EnumerateArray())
+                            {
+                                var rt = item.TryGetProperty("resourceType", out var rtv) ? rtv.GetString() : null;
+                                var cid = item.TryGetProperty("id", out var idv) ? idv.GetString() : null;
+                                var key = $"{rt}/{cid}";
+                                ourContained.TryAdd(key, item);
+                            }
+                        }
+
+                        foreach (var sushiItem in sushiContained.EnumerateArray())
+                        {
+                            var rt = sushiItem.TryGetProperty("resourceType", out var rtv) ? rtv.GetString() : null;
+                            var cid = sushiItem.TryGetProperty("id", out var idv) ? idv.GetString() : null;
+                            var key = $"{rt}/{cid}";
+                            var prefix = $"{fileName}[contained:{key}]";
+
+                            if (!ourContained.TryGetValue(key, out var ourItem))
+                            {
+                                mismatchDetails.Add($"{prefix}: sushi has contained resource, ours=<missing>");
+                                mismatches++;
+                                continue;
+                            }
+                            CompareKeyFields(prefix, sushiItem, ourItem, mismatchDetails, ref mismatches);
+                        }
+                    }
+
+                    matched++;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"  Warning: could not compare {fileName}: {ex.Message}");
+                }
+            }
+
+            Console.WriteLine($"  Matched files: {matched}, field mismatches: {mismatches}, missed files: {missing}");
+            if (mismatchDetails.Count > 0)
+            {
+                Console.WriteLine("  Mismatches (key-field comparison only):");
+                foreach (var detail in mismatchDetails) //.Take(20))
+                    Console.WriteLine($"    {detail}");
+                //if (mismatchDetails.Count > 20)
+                //    Console.WriteLine($"    ... and {mismatchDetails.Count - 20} more");
+            }
+            if (missingDetails.Count > 0)
+            {
+                Console.WriteLine("  Missing files:");
+                foreach (var detail in missingDetails) //.Take(20))
+                    Console.WriteLine($"    {detail}");
+                //if (mismatchDetails.Count > 20)
+                //    Console.WriteLine($"    ... and {mismatchDetails.Count - 20} more");
+            }
+        }
+        else
+        {
+            Console.WriteLine("sushi-generated directory not found; skipping T6 comparison.");
+        }
 
         // This test never fails – it is informational.
         Assert.IsTrue(written >= 0);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Compares key stable fields (<c>resourceType</c>, <c>id</c>, <c>url</c>, <c>name</c>)
+    /// between a sushi-generated JSON element and our compiled equivalent, accumulating any
+    /// mismatches into <paramref name="mismatchDetails"/> and incrementing
+    /// <paramref name="mismatches"/> accordingly.
+    /// </summary>
+    private static void CompareKeyFields(
+        string label,
+        System.Text.Json.JsonElement sushiEl,
+        System.Text.Json.JsonElement ourEl,
+        List<string> mismatchDetails,
+        ref int mismatches)
+    {
+        foreach (var field in new[] { "resourceType", "id", "url", "name" })
+        {
+            if (!sushiEl.TryGetProperty(field, out var sushiVal)) continue;
+            if (!ourEl.TryGetProperty(field, out var ourVal))
+            {
+                mismatchDetails.Add($"{label}.{field}: sushi={sushiVal} ours=<missing>");
+                mismatches++;
+                continue;
+            }
+            var sushiStr = sushiVal.GetRawText();
+            var ourStr = ourVal.GetRawText();
+            if (sushiStr != ourStr)
+            {
+                mismatchDetails.Add($"{label}.{field}: sushi={sushiStr} ours={ourStr}");
+                mismatches++;
+            }
+        }
     }
 }

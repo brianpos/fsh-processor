@@ -114,18 +114,21 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             ProcessSdMetadata(profile, metadata);
         }
 
+        // P-PR1: SUSHI defaults Id to the entity Name when not specified.
+        profile.Id ??= new Metadata { Value = profile.Name };
+
         // Process rules
         FshRule? previousRule = null;
         foreach (var rule in context.sdRule())
         {
-            var sdRule = Visit(rule) as FshRule;
-            if (sdRule != null)
+            if (Visit(rule) is FshRule sdRule)
             {
                 ExtractAndAttachInlineComment(rule, previousRule, sdRule);
                 profile.Rules.Add(sdRule);
                 previousRule = sdRule;
             }
         }
+        PostProcessRules(profile.Rules);
 
         return profile;
     }
@@ -147,6 +150,11 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             ProcessSdMetadata(extension, metadata);
         }
 
+        // P-EX1/P-EX2: Apply defaults when metadata is not explicitly specified.
+        // SUSHI defaults Parent to "Extension" and Id to the entity Name.
+        extension.Parent ??= "Extension";
+        extension.Id ??= extension.Name;
+
         // Process context
         foreach (var ctx in context.context())
         {
@@ -157,14 +165,14 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         FshRule? previousRule = null;
         foreach (var rule in context.sdRule())
         {
-            var sdRule = Visit(rule) as FshRule;
-            if (sdRule != null)
+            if (Visit(rule) is FshRule sdRule)
             {
                 ExtractAndAttachInlineComment(rule, previousRule, sdRule);
                 extension.Rules.Add(sdRule);
                 previousRule = sdRule;
             }
         }
+        PostProcessRules(extension.Rules);
 
         return extension;
     }
@@ -196,14 +204,16 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         FshRule? previousRule = null;
         foreach (var rule in context.lrRule())
         {
-            var lrRule = Visit(rule) as LrRule;
-            if (lrRule != null)
+            // lrRule allows sdRule (including caretValueRule, insertRule, etc.) as well as
+            // addElementRule and addCRElementRule.  Accept any FshRule, not just LrRule.
+            if (Visit(rule) is FshRule lrRule)
             {
                 ExtractAndAttachInlineComment(rule, previousRule, lrRule);
                 logical.Rules.Add(lrRule);
                 previousRule = lrRule;
             }
         }
+        PostProcessRules(logical.Rules);
 
         return logical;
     }
@@ -229,14 +239,18 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         FshRule? previousRule = null;
         foreach (var rule in context.lrRule())
         {
-            var lrRule = Visit(rule) as LrRule;
-            if (lrRule != null)
+            // lrRule allows sdRule (including caretValueRule, insertRule, etc.) as well as
+            // addElementRule and addCRElementRule.  We cast to FshRule (not LrRule) so that
+            // CaretValueRule and InsertRule (SdRule subclasses) are not silently dropped —
+            // this is the fix for P-RS1/P-RS2 (CaretValueRule and InsertRule on Resource).
+            if (Visit(rule) is FshRule lrRule)
             {
                 ExtractAndAttachInlineComment(rule, previousRule, lrRule);
                 resource.Rules.Add(lrRule);
                 previousRule = lrRule;
             }
         }
+        PostProcessRules(resource.Rules);
 
         return resource;
     }
@@ -267,6 +281,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                 instance.Rules.Add(instanceRule);
             }
         }
+        PostProcessRules(instance.Rules);
 
         return instance;
     }
@@ -297,6 +312,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                 invariant.Rules.Add(invariantRule);
             }
         }
+        PostProcessRules(invariant.Rules);
 
         return invariant;
     }
@@ -317,6 +333,9 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         {
             ProcessVsMetadata(valueSet, metadata);
         }
+
+        // C-VS2: SUSHI defaults Id to the entity Name when not specified.
+        valueSet.Id ??= valueSet.Name;
 
         // Process rules
         foreach (var rule in context.vsRule())
@@ -347,6 +366,9 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         {
             ProcessCsMetadata(codeSystem, metadata);
         }
+
+        // P-CS1: SUSHI defaults Id to the entity Name when not specified.
+        codeSystem.Id ??= codeSystem.Name;
 
         // Process rules
         foreach (var rule in context.csRule())
@@ -395,12 +417,10 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             // Process rules
             foreach (var rule in context.ruleSetRule())
             {
-                var fshRule = Visit(rule) as FshRule;
-                if (fshRule != null)
-                {
+                if (Visit(rule) is FshRule fshRule)
                     ruleSet.Rules.Add(fshRule);
-                }
             }
+            PostProcessRules(ruleSet.Rules);
         }
 
         // Capture the unparsed content
@@ -588,6 +608,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                 mapping.Rules.Add(mappingRule);
             }
         }
+        PostProcessRules(mapping.Rules);
 
         return mapping;
     }
@@ -599,9 +620,10 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     private void ProcessSdMetadata(Profile profile, FSHParser.SdMetadataContext context)
     {
         // Grammar: sdMetadata: parent | id | title | description;
+        // X3: first-wins semantics — only set if not already set (matches SUSHI behaviour).
         if (context.parent() != null)
         {
-            profile.Parent = new Metadata() 
+            profile.Parent ??= new Metadata() 
             {
                 Value = context.parent().name().GetText(),
                 TrailingHiddenTokens = GetTrailingHiddenTokens(context.parent().name()),
@@ -610,7 +632,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         }
         if (context.id() != null)
         {
-            profile.Id = new Metadata()
+            profile.Id ??= new Metadata()
             {
                 Value = context.id().name().GetText(),
                 TrailingHiddenTokens = GetTrailingHiddenTokens(context.id().name()),
@@ -619,7 +641,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         }
         if (context.title() != null)
         {
-            profile.Title = new Metadata()
+            profile.Title ??= new Metadata()
             {
                 Value = ExtractString(context.title().STRING().GetText()),
                 TrailingHiddenTokens = GetTrailingHiddenTokens(context.title()),
@@ -627,7 +649,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             return;
         }
         var desc = context.description();
-        if (desc != null)
+        if (desc != null && profile.Description == null)
         {
             string value;
             if (context.description().STRING() != null)
@@ -647,19 +669,20 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
 
     private void ProcessSdMetadata(Extension extension, FSHParser.SdMetadataContext context)
     {
+        // X3: first-wins semantics.
         if (context.parent() != null)
         {
-            extension.Parent = context.parent().name().GetText();
+            extension.Parent ??= context.parent().name().GetText();
         }
         else if (context.id() != null)
         {
-            extension.Id = context.id().name().GetText();
+            extension.Id ??= context.id().name().GetText();
         }
         else if (context.title() != null)
         {
-            extension.Title = ExtractString(context.title().STRING().GetText());
+            extension.Title ??= ExtractString(context.title().STRING().GetText());
         }
-        else if (context.description() != null)
+        else if (context.description() != null && extension.Description == null)
         {
             extension.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
@@ -669,19 +692,20 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
 
     private void ProcessSdMetadata(Logical logical, FSHParser.SdMetadataContext context)
     {
+        // X3: first-wins semantics.
         if (context.parent() != null)
         {
-            logical.Parent = context.parent().name().GetText();
+            logical.Parent ??= context.parent().name().GetText();
         }
         else if (context.id() != null)
         {
-            logical.Id = context.id().name().GetText();
+            logical.Id ??= context.id().name().GetText();
         }
         else if (context.title() != null)
         {
-            logical.Title = ExtractString(context.title().STRING().GetText());
+            logical.Title ??= ExtractString(context.title().STRING().GetText());
         }
-        else if (context.description() != null)
+        else if (context.description() != null && logical.Description == null)
         {
             logical.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
@@ -691,19 +715,20 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
 
     private void ProcessSdMetadata(Resource resource, FSHParser.SdMetadataContext context)
     {
+        // X3: first-wins semantics.
         if (context.parent() != null)
         {
-            resource.Parent = context.parent().name().GetText();
+            resource.Parent ??= context.parent().name().GetText();
         }
         else if (context.id() != null)
         {
-            resource.Id = context.id().name().GetText();
+            resource.Id ??= context.id().name().GetText();
         }
         else if (context.title() != null)
         {
-            resource.Title = ExtractString(context.title().STRING().GetText());
+            resource.Title ??= ExtractString(context.title().STRING().GetText());
         }
-        else if (context.description() != null)
+        else if (context.description() != null && resource.Description == null)
         {
             resource.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
@@ -715,17 +740,29 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     {
         // Grammar: context: KW_CONTEXT contextItem (COMMA contextItem)*;
         // Grammar: contextItem: STRING | SEQUENCE | CODE;
+        // P-EX3: the three alternatives map to distinct ContextItemType values.
         var contexts = new List<Context>();
         
         foreach (var item in context.contextItem())
         {
-            var isQuoted = item.STRING() != null;
-            var text = isQuoted
-                ? ExtractString(item.STRING().GetText())
-                : item.SEQUENCE() != null 
-                    ? item.SEQUENCE().GetText()
-                    : item.CODE().GetText();
-            contexts.Add(new Context { Value = text, IsQuoted = isQuoted });
+            string text;
+            ContextItemType type;
+            if (item.STRING() != null)
+            {
+                text = ExtractString(item.STRING().GetText());
+                type = ContextItemType.Fhirpath;
+            }
+            else if (item.SEQUENCE() != null)
+            {
+                text = item.SEQUENCE().GetText();
+                type = ContextItemType.Element;
+            }
+            else
+            {
+                text = item.CODE().GetText();
+                type = ContextItemType.Extension;
+            }
+            contexts.Add(new Context { Value = text, IsQuoted = type == ContextItemType.Fhirpath, Type = type });
         }
 
         if (contexts.Count > 0)
@@ -754,15 +791,16 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     private void ProcessInstanceMetadata(Instance instance, FSHParser.InstanceMetadataContext context)
     {
         // Grammar: instanceMetadata: instanceOf | title | description | usage;
+        // X3: first-wins semantics.
         if (context.instanceOf() != null)
         {
-            instance.InstanceOf = context.instanceOf().name().GetText();
+            instance.InstanceOf ??= context.instanceOf().name().GetText();
         }
         else if (context.title() != null)
         {
-            instance.Title = ExtractString(context.title().STRING().GetText());
+            instance.Title ??= ExtractString(context.title().STRING().GetText());
         }
-        else if (context.description() != null)
+        else if (context.description() != null && instance.Description == null)
         {
             instance.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
@@ -770,14 +808,15 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         }
         else if (context.usage() != null)
         {
-            instance.Usage = context.usage().CODE().GetText();
+            instance.Usage ??= context.usage().CODE().GetText();
         }
     }
 
     private void ProcessInvariantMetadata(Invariant invariant, FSHParser.InvariantMetadataContext context)
     {
         // Grammar: invariantMetadata: description | expression | xpath | severity;
-        if (context.description() != null)
+        // X3: first-wins semantics.
+        if (context.description() != null && invariant.Description == null)
         {
             invariant.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
@@ -785,30 +824,31 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         }
         else if (context.expression() != null)
         {
-            invariant.Expression = ExtractString(context.expression().STRING().GetText());
+            invariant.Expression ??= ExtractString(context.expression().STRING().GetText());
         }
         else if (context.xpath() != null)
         {
-            invariant.XPath = ExtractString(context.xpath().STRING().GetText());
+            invariant.XPath ??= ExtractString(context.xpath().STRING().GetText());
         }
         else if (context.severity() != null)
         {
-            invariant.Severity = context.severity().CODE().GetText();
+            invariant.Severity ??= context.severity().CODE().GetText();
         }
     }
 
     private void ProcessVsMetadata(ValueSet valueSet, FSHParser.VsMetadataContext context)
     {
         // Grammar: vsMetadata: id | title | description;
+        // X3: first-wins semantics.
         if (context.id() != null)
         {
-            valueSet.Id = context.id().name().GetText();
+            valueSet.Id ??= context.id().name().GetText();
         }
         else if (context.title() != null)
         {
-            valueSet.Title = ExtractString(context.title().STRING().GetText());
+            valueSet.Title ??= ExtractString(context.title().STRING().GetText());
         }
-        else if (context.description() != null)
+        else if (context.description() != null && valueSet.Description == null)
         {
             valueSet.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
@@ -819,15 +859,16 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     private void ProcessCsMetadata(CodeSystem codeSystem, FSHParser.CsMetadataContext context)
     {
         // Grammar: csMetadata: id | title | description;
+        // X3: first-wins semantics.
         if (context.id() != null)
         {
-            codeSystem.Id = context.id().name().GetText();
+            codeSystem.Id ??= context.id().name().GetText();
         }
         else if (context.title() != null)
         {
-            codeSystem.Title = ExtractString(context.title().STRING().GetText());
+            codeSystem.Title ??= ExtractString(context.title().STRING().GetText());
         }
-        else if (context.description() != null)
+        else if (context.description() != null && codeSystem.Description == null)
         {
             codeSystem.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
@@ -838,28 +879,129 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     private void ProcessMappingMetadata(Mapping mapping, FSHParser.MappingMetadataContext context)
     {
         // Grammar: mappingMetadata: id | source | target | description | title;
+        // X3: first-wins semantics.
         if (context.id() != null)
         {
-            mapping.Id = context.id().name().GetText();
+            mapping.Id ??= context.id().name().GetText();
         }
         else if (context.source() != null)
         {
-            mapping.Source = context.source().name().GetText();
+            mapping.Source ??= context.source().name().GetText();
         }
         else if (context.target() != null)
         {
-            mapping.Target = ExtractString(context.target().STRING().GetText());
+            mapping.Target ??= ExtractString(context.target().STRING().GetText());
         }
         else if (context.title() != null)
         {
-            mapping.Title = ExtractString(context.title().STRING().GetText());
+            mapping.Title ??= ExtractString(context.title().STRING().GetText());
         }
-        else if (context.description() != null)
+        else if (context.description() != null && mapping.Description == null)
         {
             mapping.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
         }
+    }
+
+    #endregion
+
+    #region Path Composition and Soft-Index Expansion (P-FP1, P-FP2)
+
+    /// <summary>
+    /// Applies indented-rule path composition (P-FP1) and soft-index expansion (P-FP2)
+    /// to a list of rules in-place, then resets each rule's <see cref="FshRule.Indent"/>
+    /// to <see cref="string.Empty"/>.
+    /// <para>
+    /// Per the FSH spec §Indented Rules: "the full path of the indented rule SHALL be
+    /// obtained by prepending the path from the previous less-indented rule."
+    /// Per the FSH spec §Soft Indexing: "[+] SHALL increment the last referenced index
+    /// by 1, and [=] SHALL reference the same index that was last referenced."
+    /// </para>
+    /// </summary>
+    private static void PostProcessRules(IEnumerable<FshRule> rules)
+    {
+        // Stack entries: (indentLength, effectivePath)
+        var pathStack = new Stack<(int IndentLen, string Path)>();
+        // Soft-index state: path prefix → current resolved numeric index
+        var softState = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var rule in rules)
+        {
+            var indentLen = rule.Indent.Length;
+
+            // P-FP1: Pop any ancestor that is at the same or deeper indent level.
+            while (pathStack.Count > 0 && pathStack.Peek().IndentLen >= indentLen)
+                pathStack.Pop();
+
+            var parentPath = pathStack.Count > 0 ? pathStack.Peek().Path : string.Empty;
+
+            // Compose path with parent context.
+            string? composedPath;
+            if (!string.IsNullOrEmpty(parentPath))
+            {
+                composedPath = string.IsNullOrEmpty(rule.Path)
+                    ? parentPath                             // caret / obeys rule inherits parent element path
+                    : $"{parentPath}.{rule.Path}";
+            }
+            else
+            {
+                composedPath = rule.Path;
+            }
+
+            // P-FP2: Expand [+] and [=] soft-index tokens to numeric indices.
+            var expandedPath = composedPath != null ? ResolveSoftIndices(composedPath, softState) : null;
+
+            // Push effective path as context for deeper-indented children.
+            if (!string.IsNullOrEmpty(expandedPath))
+                pathStack.Push((indentLen, expandedPath));
+
+            // Apply the composed, expanded path and flatten the indent.
+            rule.Path = expandedPath;
+            rule.Indent = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Resolves <c>[+]</c> and <c>[=]</c> soft-index tokens in a path segment-by-segment,
+    /// updating <paramref name="state"/> as a side-effect.
+    /// </summary>
+    private static string ResolveSoftIndices(string path, Dictionary<string, int> state)
+    {
+        if (!path.Contains("[+]") && !path.Contains("[=]")) return path;
+
+        var segments = path.Split('.');
+        var resolved = new string[segments.Length];
+        var prefix = string.Empty;
+
+        for (int i = 0; i < segments.Length; i++)
+        {
+            var seg = segments[i];
+            if (seg.Contains("[+]"))
+            {
+                var baseName = seg.Replace("[+]", string.Empty);
+                var key = string.IsNullOrEmpty(prefix) ? baseName : $"{prefix}.{baseName}";
+                var idx = state.TryGetValue(key, out var existing) ? existing + 1 : 0;
+                state[key] = idx;
+                resolved[i] = $"{baseName}[{idx}]";
+                prefix = string.IsNullOrEmpty(prefix) ? $"{baseName}[{idx}]" : $"{prefix}.{baseName}[{idx}]";
+            }
+            else if (seg.Contains("[=]"))
+            {
+                var baseName = seg.Replace("[=]", string.Empty);
+                var key = string.IsNullOrEmpty(prefix) ? baseName : $"{prefix}.{baseName}";
+                var idx = state.TryGetValue(key, out var existing) ? existing : 0;
+                resolved[i] = $"{baseName}[{idx}]";
+                prefix = string.IsNullOrEmpty(prefix) ? $"{baseName}[{idx}]" : $"{prefix}.{baseName}[{idx}]";
+            }
+            else
+            {
+                resolved[i] = seg;
+                prefix = string.IsNullOrEmpty(prefix) ? seg : $"{prefix}.{seg}";
+            }
+        }
+
+        return string.Join('.', resolved);
     }
 
     #endregion
@@ -2030,10 +2172,17 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
 
     private static string ExtractMulitLineString(string quotedString)
     {
-        // Remove quotes from strings
+        // Remove triple-quote delimiters.
         if (quotedString.StartsWith("\"\"\"") && quotedString.EndsWith("\"\"\"") && quotedString.Length >= 6)
         {
-            return quotedString[3..^3];
+            var content = quotedString[3..^3];
+            // P-CS2: SUSHI trims a single leading newline when the content starts on the line
+            // immediately after the opening triple-quote.  E.g. `"""\n  text\n"""` → `  text\n`.
+            if (content.StartsWith("\r\n"))
+                content = content[2..];
+            else if (content.StartsWith("\n"))
+                content = content[1..];
+            return content;
         }
         return quotedString;
     }

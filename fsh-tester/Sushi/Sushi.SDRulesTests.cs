@@ -64,8 +64,8 @@ public class SDRulesTests
     [TestMethod]
     public void ShouldParseCardRuleWithCombinedFlags()
     {
-        // SUSHI splits "* status 1..1 MS" into a CardRule + a separate FlagRule.
-        // fsh-processor combines cardinality and flags into a single CardRule.
+        // Per the FSH spec grammar (cardRule: STAR path CARD flag*), a combined rule is
+        // stored as one CardRule with both Cardinality and Flags populated.
         var doc = SushiTestHelper.ParseDoc(@"
             Profile: MyObservation
             Parent: Observation
@@ -73,8 +73,8 @@ public class SDRulesTests
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
         Assert.AreEqual(1, profile.Rules.Count);
-        var rule = SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
-        CollectionAssert.Contains(rule.Flags, "MS");
+        var cardRule = SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
+        CollectionAssert.AreEqual(new[] { "MS" }, cardRule.Flags.ToArray());
     }
 
     [TestMethod]
@@ -421,8 +421,8 @@ public class SDRulesTests
     [TestMethod]
     public void ShouldParseObeysRuleWithMultipleInvariants()
     {
-        // SUSHI splits "* obeys obs-1 and obs-2" into two separate ObeysRules.
-        // fsh-processor keeps both invariants in a single ObeysRule.
+        // Per the FSH spec grammar (obeysRule: STAR path? KW_OBEYS name (KW_AND name)*),
+        // multiple invariants in one rule are stored in a single ObeysRule.
         var doc = SushiTestHelper.ParseDoc(@"
             Profile: MyObservation
             Parent: Observation
@@ -430,8 +430,7 @@ public class SDRulesTests
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
         Assert.AreEqual(1, profile.Rules.Count);
-        var rule = SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1", "obs-2");
-        Assert.AreEqual(2, rule.InvariantNames.Count);
+        SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1", "obs-2");
     }
 
     // ─── #pathRule ───────────────────────────────────────────────────────────

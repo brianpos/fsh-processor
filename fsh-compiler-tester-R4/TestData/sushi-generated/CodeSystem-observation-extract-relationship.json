@@ -2,24 +2,34 @@
   "resourceType": "CodeSystem",
   "status": "active",
   "content": "complete",
-  "name": "ObservationExtractRelationship",
+  "name": "ObservationExtractRelationshipCodes",
   "id": "observation-extract-relationship",
   "title": "Observation Extract Relationship Codes",
   "description": "Defines the codes used to specify the relationship type in the ObservationExtractExtension.",
   "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/observation-extract-relationship",
   "concept": [
     {
-      "code": "member",
-      "display": "Member",
-      "definition": "Indicates that the extracted Observation is a member of a grouped parent Observation."
-    },
-    {
       "code": "component",
       "display": "Component",
-      "definition": "Indicates that the extracted Observation is a component of a parent Observation."
+      "definition": "The child item will be extracted as a component of the parent observation"
+    },
+    {
+      "code": "member",
+      "display": "Member",
+      "definition": "The child item will be extracted as a separate Observation and the parent Observation will point to it as a hasMember"
+    },
+    {
+      "code": "derived",
+      "display": "Derived",
+      "definition": "The child item will be extracted as a separate Observation and the child will have a derivedFrom relationship to the parent.  (Typically the child answer will be a calculated value in this case.)"
+    },
+    {
+      "code": "independent",
+      "display": "Independent",
+      "definition": "The child item will be extracted as a separate Observation and there will be no relationship asserted between parent and child"
     }
   ],
   "experimental": false,
   "caseSensitive": true,
-  "count": 2
+  "count": 4
 }

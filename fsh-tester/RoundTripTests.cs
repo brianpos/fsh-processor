@@ -119,7 +119,7 @@ Description: ""Test profile""
         Console.WriteLine(serialized);
         Console.WriteLine("=== END SERIALIZED OUTPUT ===");
 
-        // Verify key elements are present
+        // Per spec grammar, "* name 1..1 MS" is one CardRule with both card and flag.
         Assert.IsTrue(serialized.Contains("Profile: MyProfile"));
         Assert.IsTrue(serialized.Contains("Parent: Patient"));
         Assert.IsTrue(serialized.Contains("Id: my-profile"));
@@ -337,6 +337,9 @@ Characteristics: #can-be-target
         var ruleSet = reparsedDoc.Entities[0] as RuleSet;
         Assert.IsNotNull(ruleSet);
         Assert.AreEqual("CommonRules", ruleSet.Name);
+        // Per spec grammar: "* status 1..1 MS" is one CardRule (no X4 split).
+        // P-FP1 path composition: "* reference 0..1" indented under "* subject 1..1 MS" gets path "subject.reference".
+        // 3 top-level CardRules + 1 composed CardRule = 4
         Assert.AreEqual(4, ruleSet.Rules.Count);
     }
 
@@ -513,13 +516,14 @@ Id: my-observation
         var profile = reparsedDoc.Entities[0] as Profile;
         Assert.IsNotNull(profile);
 
-        // Verify all rules preserved
+        // Per spec grammar (cardRule: STAR path CARD flag*), "* status 1..1 MS" is one CardRule.
+        // 7 rules total (no X4 split).
         Assert.AreEqual(7, profile.Rules.Count);
-        
+
         // Verify specific rule types
-        Assert.IsInstanceOfType<CardRule>(profile.Rules[0]);
+        Assert.IsInstanceOfType<CardRule>(profile.Rules[0]);    // status 1..1 MS (one CardRule)
         Assert.IsInstanceOfType<ValueSetRule>(profile.Rules[1]);
-        Assert.IsInstanceOfType<CardRule>(profile.Rules[2]);
+        Assert.IsInstanceOfType<CardRule>(profile.Rules[2]);    // value[x] 0..1
         Assert.IsInstanceOfType<OnlyRule>(profile.Rules[3]);
         Assert.IsInstanceOfType<ContainsRule>(profile.Rules[4]);
     }

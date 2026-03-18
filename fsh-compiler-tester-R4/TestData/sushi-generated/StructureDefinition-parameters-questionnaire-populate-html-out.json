@@ -1,10 +1,24 @@
 {
   "resourceType": "StructureDefinition",
   "id": "parameters-questionnaire-populate-html-out",
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
+      "valueCode": "deprecated",
+      "_valueCode": {
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status-reason",
+            "valueMarkdown": "The $populate-html and $populate-link operations are deprecated due to the lack of known real-world implementations since their introduction, and the adaptive questionnaires possibly having been used instead."
+          }
+        ]
+      }
+    }
+  ],
   "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/parameters-questionnaire-populate-html-out",
   "name": "SDCParametersQuestionnairePopulateHtmlOut",
   "title": "Populate-html operation output parameters",
-  "status": "active",
+  "status": "retired",
   "description": "Profile used to validate the parameters that are the output of the [$populate-link](OperationDefinition-Questionnaire-populatehtml.html) questionnaire operation",
   "fhirVersion": "4.0.1",
   "kind": "resource",

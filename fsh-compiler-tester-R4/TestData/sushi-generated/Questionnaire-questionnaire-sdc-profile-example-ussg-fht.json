@@ -9,7 +9,7 @@
   },
   "extension": [
     {
-      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
+      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
         "code": "date",
         "system": "http://hl7.org/fhir/version-algorithm"
@@ -20,15 +20,9 @@
     {
       "resourceType": "ValueSet",
       "id": "length",
-      "name": "LengthUnits",
-      "title": "Length Units",
-      "status": "active",
-      "description": "Length units",
-      "immutable": true,
       "compose": {
         "include": [
           {
-            "system": "http://unitsofmeasure.org",
             "concept": [
               {
                 "code": "[in_i]",
@@ -38,23 +32,23 @@
                 "code": "cm",
                 "display": "centimeters"
               }
-            ]
+            ],
+            "system": "http://unitsofmeasure.org"
           }
         ]
-      }
+      },
+      "name": "LengthUnits",
+      "title": "Length Units",
+      "status": "active",
+      "description": "Length units",
+      "immutable": true
     },
     {
       "resourceType": "ValueSet",
       "id": "weight",
-      "name": "WeightUnits",
-      "title": "Weight Units",
-      "status": "active",
-      "description": "Weight units",
-      "immutable": true,
       "compose": {
         "include": [
           {
-            "system": "http://unitsofmeasure.org",
             "concept": [
               {
                 "code": "[lb_av]",
@@ -64,29 +58,27 @@
                 "code": "kg",
                 "display": "kilograms"
               }
-            ]
+            ],
+            "system": "http://unitsofmeasure.org"
           }
         ]
-      }
+      },
+      "name": "WeightUnits",
+      "title": "Weight Units",
+      "status": "active",
+      "description": "Weight units",
+      "immutable": true
     }
   ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-ussg-fht",
   "identifier": [
     {
       "system": "http://example.org/panel-id",
       "value": "54127-6"
     }
   ],
-  "version": "2015",
-  "name": "USSurgeonGeneralFamilyHealthPortrait",
-  "title": "US Surgeon General - Family Health Portrait",
-  "status": "active",
-  "experimental": true,
   "subjectType": [
     "Patient"
   ],
-  "date": "2015",
-  "publisher": "Regenstrief Institute, Inc and the LOINC Committee",
   "contact": [
     {
       "telecom": [
@@ -97,7 +89,6 @@
       ]
     }
   ],
-  "description": "This represents an implementation of the \"US Surgeon General family health portrait\" form found at https://lforms-demo.nlm.nih.gov",
   "useContext": [
     {
       "code": {
@@ -125,10 +116,6 @@
       ]
     }
   ],
-  "purpose": "Captures basic family history information",
-  "copyright": "(c) 2015 Regenstrief Institute",
-  "approvalDate": "2015-10-31",
-  "lastReviewDate": "2017-03-15",
   "code": [
     {
       "code": "54127-6",
@@ -138,8 +125,6 @@
   ],
   "item": [
     {
-      "linkId": "0",
-      "type": "group",
       "item": [
         {
           "linkId": "0.1",
@@ -161,24 +146,19 @@
           "text": "Comment",
           "type": "string"
         }
-      ]
+      ],
+      "linkId": "0",
+      "type": "group"
     },
     {
-      "linkId": "1",
-      "definition": "http://loinc.org/fhir/DataElement/54126-8",
       "code": [
         {
           "code": "54126-8",
           "system": "http://loinc.org"
         }
       ],
-      "text": "Your health information",
-      "type": "group",
-      "required": true,
       "item": [
         {
-          "linkId": "1.1",
-          "type": "group",
           "item": [
             {
               "extension": [
@@ -191,14 +171,13 @@
                   }
                 }
               ],
-              "linkId": "1.1.1",
-              "definition": "http://loinc.org/fhir/DataElement/54125-0",
               "code": [
                 {
                   "code": "54125-0",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "1.1.1",
               "text": "Name",
               "type": "string",
               "maxLength": 200
@@ -214,23 +193,14 @@
                   }
                 }
               ],
-              "linkId": "1.1.2",
-              "definition": "http://loinc.org/fhir/DataElement/54131-8",
               "code": [
                 {
                   "code": "54131-8",
                   "system": "http://loinc.org"
                 }
               ],
-              "text": "Gender",
-              "type": "choice",
-              "required": true,
-              "answerValueSet": "http://loinc.org/vs/LL1-9",
               "item": [
                 {
-                  "linkId": "1.1.2.1.1",
-                  "text": "Please specify",
-                  "type": "string",
                   "enableWhen": [
                     {
                       "question": "1.1.2",
@@ -241,9 +211,17 @@
                       }
                     }
                   ],
+                  "linkId": "1.1.2.1.1",
+                  "text": "Please specify",
+                  "type": "string",
                   "required": true
                 }
-              ]
+              ],
+              "linkId": "1.1.2",
+              "text": "Gender",
+              "type": "choice",
+              "required": true,
+              "answerValueSet": "http://loinc.org/vs/LL1-9"
             },
             {
               "extension": [
@@ -256,14 +234,13 @@
                   }
                 }
               ],
-              "linkId": "1.1.3",
-              "definition": "http://loinc.org/fhir/DataElement/21112-8",
               "code": [
                 {
                   "code": "21112-8",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "1.1.3",
               "text": "Date of Birth",
               "type": "date"
             },
@@ -278,17 +255,12 @@
                   }
                 }
               ],
-              "linkId": "1.1.4",
-              "definition": "http://loinc.org/fhir/DataElement/54132-6",
               "code": [
                 {
                   "code": "54132-6",
                   "system": "http://loinc.org"
                 }
               ],
-              "text": "Were you born a twin?",
-              "type": "choice",
-              "answerValueSet": "http://loinc.org/vs/LL623-0",
               "initial": [
                 {
                   "valueCoding": {
@@ -297,7 +269,11 @@
                     "display": "No"
                   }
                 }
-              ]
+              ],
+              "linkId": "1.1.4",
+              "text": "Were you born a twin?",
+              "type": "choice",
+              "answerValueSet": "http://loinc.org/vs/LL623-0"
             },
             {
               "extension": [
@@ -310,14 +286,13 @@
                   }
                 }
               ],
-              "linkId": "1.1.5",
-              "definition": "http://loinc.org/fhir/DataElement/54128-4",
               "code": [
                 {
                   "code": "54128-4",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "1.1.5",
               "text": "Were you adopted?",
               "type": "choice",
               "answerValueSet": "http://loinc.org/vs/LL361-7"
@@ -333,14 +308,13 @@
                   }
                 }
               ],
-              "linkId": "1.1.6",
-              "definition": "http://loinc.org/fhir/DataElement/54135-9",
               "code": [
                 {
                   "code": "54135-9",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "1.1.6",
               "text": "Are your parents related to each other in any way other than marriage?",
               "type": "choice",
               "answerValueSet": "http://loinc.org/vs/LL361-7"
@@ -356,17 +330,12 @@
                   }
                 }
               ],
-              "linkId": "1.1.7",
-              "definition": "http://loinc.org/fhir/DataElement/8302-2",
               "code": [
                 {
                   "code": "8302-2",
                   "system": "http://loinc.org"
                 }
               ],
-              "text": "Height",
-              "type": "decimal",
-              "required": true,
               "item": [
                 {
                   "linkId": "1.1.7.1.1",
@@ -374,7 +343,11 @@
                   "type": "choice",
                   "answerValueSet": "#length"
                 }
-              ]
+              ],
+              "linkId": "1.1.7",
+              "text": "Height",
+              "type": "decimal",
+              "required": true
             },
             {
               "extension": [
@@ -387,16 +360,12 @@
                   }
                 }
               ],
-              "linkId": "1.1.8",
-              "definition": "http://loinc.org/fhir/DataElement/29463-7",
               "code": [
                 {
                   "code": "29463-7",
                   "system": "http://loinc.org"
                 }
               ],
-              "text": "Weight",
-              "type": "decimal",
               "item": [
                 {
                   "linkId": "1.1.8.1.1",
@@ -404,17 +373,19 @@
                   "type": "choice",
                   "answerValueSet": "#weight"
                 }
-              ]
+              ],
+              "linkId": "1.1.8",
+              "text": "Weight",
+              "type": "decimal"
             },
             {
-              "linkId": "1.1.9",
-              "definition": "http://loinc.org/fhir/DataElement/39156-5",
               "code": [
                 {
                   "code": "39156-5",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "1.1.9",
               "text": "Body mass index (BMI) [Ratio]",
               "type": "decimal",
               "readOnly": true
@@ -430,14 +401,13 @@
                   }
                 }
               ],
-              "linkId": "1.1.10",
-              "definition": "http://loinc.org/fhir/DataElement/54134-2",
               "code": [
                 {
                   "code": "54134-2",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "1.1.10",
               "text": "Race",
               "type": "choice",
               "required": true,
@@ -454,33 +424,29 @@
                   }
                 }
               ],
-              "linkId": "1.1.11",
-              "definition": "http://loinc.org/fhir/DataElement/54133-4",
               "code": [
                 {
                   "code": "54133-4",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "1.1.11",
               "text": "Ethnicity",
               "type": "choice",
               "repeats": true,
               "answerValueSet": "http://loinc.org/vs/LL628-9"
             }
-          ]
+          ],
+          "linkId": "1.1",
+          "type": "group"
         },
         {
-          "linkId": "1.2",
-          "definition": "http://loinc.org/fhir/DataElement/54137-5",
           "code": [
             {
               "code": "54137-5",
               "system": "http://loinc.org"
             }
           ],
-          "text": "Your diseases history",
-          "type": "group",
-          "repeats": true,
           "item": [
             {
               "extension": [
@@ -493,14 +459,13 @@
                   }
                 }
               ],
-              "linkId": "1.2.1",
-              "definition": "http://loinc.org/fhir/DataElement/54140-9",
               "code": [
                 {
                   "code": "54140-9",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "1.2.1",
               "text": "Disease or Condition",
               "type": "choice",
               "answerValueSet": "http://loinc.org/vs/LL626-3"
@@ -516,38 +481,38 @@
                   }
                 }
               ],
-              "linkId": "1.2.2",
-              "definition": "http://loinc.org/fhir/DataElement/54130-0",
               "code": [
                 {
                   "code": "54130-0",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "1.2.2",
               "text": "Age at Diagnosis",
               "type": "choice",
               "answerValueSet": "http://loinc.org/vs/LL619-8"
             }
-          ]
+          ],
+          "linkId": "1.2",
+          "text": "Your diseases history",
+          "type": "group",
+          "repeats": true
         }
-      ]
+      ],
+      "linkId": "1",
+      "text": "Your health information",
+      "type": "group",
+      "required": true
     },
     {
-      "linkId": "2",
-      "definition": "http://loinc.org/fhir/DataElement/54114-4",
       "code": [
         {
           "code": "54114-4",
           "system": "http://loinc.org"
         }
       ],
-      "text": "Family member health information",
-      "type": "group",
-      "repeats": true,
       "item": [
         {
-          "linkId": "2.1.1",
-          "type": "group",
           "item": [
             {
               "extension": [
@@ -560,14 +525,13 @@
                   }
                 }
               ],
-              "linkId": "2.1.1.1",
-              "definition": "http://loinc.org/fhir/DataElement/54136-7",
               "code": [
                 {
                   "code": "54136-7",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "2.1.1.1",
               "text": "Relationship to you",
               "type": "choice",
               "answerValueSet": "http://loinc.org/vs/LL621-4"
@@ -583,14 +547,13 @@
                   }
                 }
               ],
-              "linkId": "2.1.1.2",
-              "definition": "http://loinc.org/fhir/DataElement/54138-3",
               "code": [
                 {
                   "code": "54138-3",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "2.1.1.2",
               "text": "Name",
               "type": "string"
             },
@@ -605,22 +568,14 @@
                   }
                 }
               ],
-              "linkId": "2.1.1.3",
-              "definition": "http://loinc.org/fhir/DataElement/54123-5",
               "code": [
                 {
                   "code": "54123-5",
                   "system": "http://loinc.org"
                 }
               ],
-              "text": "Gender",
-              "type": "choice",
-              "answerValueSet": "http://loinc.org/vs/LL1-9",
               "item": [
                 {
-                  "linkId": "2.1.1.3.1.1",
-                  "text": "Please specify",
-                  "type": "string",
                   "enableWhen": [
                     {
                       "question": "2.1.1.3",
@@ -631,9 +586,16 @@
                       }
                     }
                   ],
+                  "linkId": "2.1.1.3.1.1",
+                  "text": "Please specify",
+                  "type": "string",
                   "required": true
                 }
-              ]
+              ],
+              "linkId": "2.1.1.3",
+              "text": "Gender",
+              "type": "choice",
+              "answerValueSet": "http://loinc.org/vs/LL1-9"
             },
             {
               "extension": [
@@ -646,21 +608,14 @@
                   }
                 }
               ],
-              "linkId": "2.1.1.4",
-              "definition": "http://loinc.org/fhir/DataElement/54139-1",
               "code": [
                 {
                   "code": "54139-1",
                   "system": "http://loinc.org"
                 }
               ],
-              "text": "Living?",
-              "type": "choice",
-              "answerValueSet": "http://loinc.org/vs/LL361-7",
               "item": [
                 {
-                  "linkId": "2.1.1.4.1",
-                  "type": "group",
                   "item": [
                     {
                       "extension": [
@@ -673,22 +628,14 @@
                           }
                         }
                       ],
-                      "linkId": "2.1.1.4.1.1",
-                      "definition": "http://loinc.org/fhir/DataElement/54112-8",
                       "code": [
                         {
                           "code": "54112-8",
                           "system": "http://loinc.org"
                         }
                       ],
-                      "text": "Cause of Death",
-                      "type": "choice",
-                      "answerValueSet": "http://loinc.org/vs/LL627-1",
                       "item": [
                         {
-                          "linkId": "2.1.1.4.1.1.1",
-                          "text": "Please specify",
-                          "type": "string",
                           "enableWhen": [
                             {
                               "question": "2.1.1.4.1.1",
@@ -698,9 +645,16 @@
                                 "system": "http://loinc.org"
                               }
                             }
-                          ]
+                          ],
+                          "linkId": "2.1.1.4.1.1.1",
+                          "text": "Please specify",
+                          "type": "string"
                         }
-                      ]
+                      ],
+                      "linkId": "2.1.1.4.1.1",
+                      "text": "Cause of Death",
+                      "type": "choice",
+                      "answerValueSet": "http://loinc.org/vs/LL627-1"
                     },
                     {
                       "extension": [
@@ -713,23 +667,22 @@
                           }
                         }
                       ],
-                      "linkId": "2.1.1.4.1.2",
-                      "definition": "http://loinc.org/fhir/DataElement/54113-6",
                       "code": [
                         {
                           "code": "54113-6",
                           "system": "http://loinc.org"
                         }
                       ],
+                      "linkId": "2.1.1.4.1.2",
                       "text": "Age at Death",
                       "type": "choice",
                       "answerValueSet": "http://loinc.org/vs/LL619-8"
                     }
-                  ]
+                  ],
+                  "linkId": "2.1.1.4.1",
+                  "type": "group"
                 },
                 {
-                  "linkId": "2.1.1.4.2",
-                  "type": "group",
                   "item": [
                     {
                       "extension": [
@@ -742,14 +695,13 @@
                           }
                         }
                       ],
-                      "linkId": "2.1.1.4.2.1",
-                      "definition": "http://loinc.org/fhir/DataElement/54124-3",
                       "code": [
                         {
                           "code": "54124-3",
                           "system": "http://loinc.org"
                         }
                       ],
+                      "linkId": "2.1.1.4.2.1",
                       "text": "Date of Birth",
                       "type": "date"
                     },
@@ -764,20 +716,25 @@
                           }
                         }
                       ],
-                      "linkId": "2.1.1.4.2.2",
-                      "definition": "http://loinc.org/fhir/DataElement/54141-7",
                       "code": [
                         {
                           "code": "54141-7",
                           "system": "http://loinc.org"
                         }
                       ],
+                      "linkId": "2.1.1.4.2.2",
                       "text": "Age",
                       "type": "decimal"
                     }
-                  ]
+                  ],
+                  "linkId": "2.1.1.4.2",
+                  "type": "group"
                 }
-              ]
+              ],
+              "linkId": "2.1.1.4",
+              "text": "Living?",
+              "type": "choice",
+              "answerValueSet": "http://loinc.org/vs/LL361-7"
             },
             {
               "extension": [
@@ -790,14 +747,13 @@
                   }
                 }
               ],
-              "linkId": "2.1.1.5",
-              "definition": "http://loinc.org/fhir/DataElement/54121-9",
               "code": [
                 {
                   "code": "54121-9",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "2.1.1.5",
               "text": "Was this person born a twin?",
               "type": "choice",
               "answerValueSet": "http://loinc.org/vs/LL623-0"
@@ -813,14 +769,13 @@
                   }
                 }
               ],
-              "linkId": "2.1.1.6",
-              "definition": "http://loinc.org/fhir/DataElement/54122-7",
               "code": [
                 {
                   "code": "54122-7",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "2.1.1.6",
               "text": "Was this person adopted?",
               "type": "choice",
               "answerValueSet": "http://loinc.org/vs/LL623-0"
@@ -836,14 +791,13 @@
                   }
                 }
               ],
-              "linkId": "2.1.1.7",
-              "definition": "http://loinc.org/fhir/DataElement/54119-3",
               "code": [
                 {
                   "code": "54119-3",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "2.1.1.7",
               "text": "Race",
               "type": "choice",
               "repeats": true,
@@ -860,33 +814,29 @@
                   }
                 }
               ],
-              "linkId": "2.1.1.8",
-              "definition": "http://loinc.org/fhir/DataElement/54120-1",
               "code": [
                 {
                   "code": "54120-1",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "2.1.1.8",
               "text": "Ethnicity",
               "type": "choice",
               "repeats": true,
               "answerValueSet": "http://loinc.org/vs/LL628-9"
             }
-          ]
+          ],
+          "linkId": "2.1.1",
+          "type": "group"
         },
         {
-          "linkId": "2.1.2",
-          "definition": "http://loinc.org/fhir/DataElement/54117-7",
           "code": [
             {
               "code": "54117-7",
               "system": "http://loinc.org"
             }
           ],
-          "text": "This family member's history of disease",
-          "type": "group",
-          "repeats": true,
           "item": [
             {
               "extension": [
@@ -899,14 +849,13 @@
                   }
                 }
               ],
-              "linkId": "2.1.2.1",
-              "definition": "http://loinc.org/fhir/DataElement/54116-9",
               "code": [
                 {
                   "code": "54116-9",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "2.1.2.1",
               "text": "Disease or Condition",
               "type": "choice",
               "required": true,
@@ -923,14 +872,13 @@
                   }
                 }
               ],
-              "linkId": "2.1.2.2",
-              "definition": "http://loinc.org/fhir/DataElement/54115-1",
               "code": [
                 {
                   "code": "54115-1",
                   "system": "http://loinc.org"
                 }
               ],
+              "linkId": "2.1.2.2",
               "text": "Age at Diagnosis",
               "type": "choice",
               "answerValueSet": "http://loinc.org/vs/LL619-8"
@@ -950,9 +898,30 @@
               "text": "Mock-up item: BMI",
               "type": "decimal"
             }
-          ]
+          ],
+          "linkId": "2.1.2",
+          "text": "This family member's history of disease",
+          "type": "group",
+          "repeats": true
         }
-      ]
+      ],
+      "linkId": "2",
+      "text": "Family member health information",
+      "type": "group",
+      "repeats": true
     }
-  ]
+  ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-ussg-fht",
+  "version": "2015",
+  "name": "USSurgeonGeneralFamilyHealthPortrait",
+  "title": "US Surgeon General - Family Health Portrait",
+  "status": "active",
+  "experimental": true,
+  "date": "2015",
+  "publisher": "Regenstrief Institute, Inc and the LOINC Committee",
+  "description": "This represents an implementation of the \"US Surgeon General family health portrait\" form found at https://lforms-demo.nlm.nih.gov",
+  "purpose": "Captures basic family history information",
+  "copyright": "(c) 2015 Regenstrief Institute",
+  "approvalDate": "2015-10-31",
+  "lastReviewDate": "2017-03-15"
 }

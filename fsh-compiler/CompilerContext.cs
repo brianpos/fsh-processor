@@ -1,4 +1,6 @@
 using fsh_processor.Models;
+using Hl7.Fhir.Introspection;
+using Hl7.Fhir.Model;
 
 namespace fsh_compiler;
 
@@ -26,6 +28,22 @@ public class CompilerContext
     public Dictionary<string, Invariant> Invariants { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Instance name → <see cref="Instance"/> entity, collected from all <c>Instance</c> entities.
+    /// Used to resolve <c>* contained = &lt;name&gt;</c> cross-instance references, where the
+    /// named instance is embedded into the host resource's <c>contained[]</c> list.
+    /// </summary>
+    public Dictionary<string, Instance> Instances { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// StructureDefinitions compiled so far, indexed by multiple keys so that a profile-based
+    /// <c>InstanceOf</c> can be resolved to its underlying FHIR base resource type.
+    /// Keys include: the FSH entity name, the last path segment of the SD's canonical URL, and
+    /// the SD's <c>id</c> field.
+    /// </summary>
+    public Dictionary<string, StructureDefinition> CompiledStructureDefinitions { get; } =
+        new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Non-fatal warnings accumulated during compilation.  Populated by rule processors when
     /// a rule is silently skipped or an unresolved reference is encountered.
     /// </summary>
@@ -51,6 +69,9 @@ public class CompilerContext
                 case Invariant inv when !string.IsNullOrEmpty(inv.Name):
                     ctx.Invariants[inv.Name] = inv;
                     break;
+                case Instance inst when !string.IsNullOrEmpty(inst.Name):
+                    ctx.Instances[inst.Name] = inst;
+                    break;
             }
         }
         return ctx;
@@ -75,6 +96,9 @@ public class CompilerContext
                 case Invariant inv when !string.IsNullOrEmpty(inv.Name):
                     Invariants.TryAdd(inv.Name, inv);
                     break;
+                case Instance inst when !string.IsNullOrEmpty(inst.Name):
+                    Instances.TryAdd(inst.Name, inst);
+                    break;
             }
         }
     }
@@ -85,4 +109,72 @@ public class CompilerContext
     /// </summary>
     public string ResolveAlias(string nameOrUrl) =>
         Aliases.TryGetValue(nameOrUrl, out var resolved) ? resolved : nameOrUrl;
+
+    /// <summary>
+    /// Registers a compiled <see cref="StructureDefinition"/> in <see cref="CompiledStructureDefinitions"/>
+    /// under multiple keys: the FSH entity name, the last path-segment of <c>sd.Url</c>, and
+    /// <c>sd.Id</c>. This enables profile-based <c>InstanceOf</c> lookup by any of these names.
+    /// </summary>
+    public void RegisterStructureDefinition(string entityName, StructureDefinition sd)
+    {
+        CompiledStructureDefinitions.TryAdd(entityName, sd);
+        if (!string.IsNullOrEmpty(sd.Url))
+        {
+            var lastSlash = sd.Url.LastIndexOf('/');
+            var urlSegment = lastSlash >= 0 ? sd.Url[(lastSlash + 1)..] : sd.Url;
+            CompiledStructureDefinitions.TryAdd(urlSegment, sd);
+        }
+        if (!string.IsNullOrEmpty(sd.Id))
+            CompiledStructureDefinitions.TryAdd(sd.Id, sd);
+    }
+
+    /// <summary>
+    /// When <paramref name="typeName"/> is a profile identifier rather than a bare FHIR resource
+    /// type name, walks the <see cref="CompiledStructureDefinitions"/> chain to find the underlying
+    /// FHIR base resource type, then returns the corresponding <see cref="ClassMapping"/> from
+    /// <paramref name="inspector"/>.
+    /// </summary>
+    /// <param name="typeName">The type/profile name to resolve.</param>
+    /// <param name="inspector">Version-specific model inspector.</param>
+    /// <returns>
+    /// A <see cref="ClassMapping"/> for the resolved FHIR resource type, or <c>null</c> when
+    /// the type cannot be resolved.
+    /// </returns>
+    public ClassMapping? ResolveClassMappingForProfile(string typeName, ModelInspector inspector)
+    {
+        if (!CompiledStructureDefinitions.TryGetValue(typeName, out var sd))
+            return null;
+
+        var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
+
+        while (sd is not null)
+        {
+            // sd.Type is the FHIR base resource type (e.g. "Library", "ValueSet").
+            if (!string.IsNullOrEmpty(sd.Type))
+            {
+                var cm = inspector.FindClassMapping(sd.Type);
+                if (cm is not null && cm.IsResource)
+                    return cm;
+            }
+
+            // Walk the BaseDefinition chain for multi-level profile hierarchies.
+            if (string.IsNullOrEmpty(sd.BaseDefinition))
+                break;
+
+            var lastSlash = sd.BaseDefinition.LastIndexOf('/');
+            var baseName = lastSlash >= 0 ? sd.BaseDefinition[(lastSlash + 1)..] : sd.BaseDefinition;
+
+            // Try the base name directly as a FHIR type first.
+            var baseCm = inspector.FindClassMapping(baseName);
+            if (baseCm is not null && baseCm.IsResource)
+                return baseCm;
+
+            if (!visited.Add(baseName))
+                break; // cycle guard
+
+            CompiledStructureDefinitions.TryGetValue(baseName, out sd);
+        }
+
+        return null;
+    }
 }

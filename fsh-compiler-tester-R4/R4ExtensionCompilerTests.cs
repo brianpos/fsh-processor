@@ -90,17 +90,27 @@ public class R4ExtensionCompilerTests
     /// an entry to the list, so the resulting collection has one entry per rule.
     /// </summary>
     [TestMethod]
-    public void ShouldAppendMultipleContextInvariantCaretRules()
+    public void ShouldComposeIndentedRulePathsForExtension()
     {
+        // C-FP1: Indented rules should have their paths composed from parent rules.
+        // * extension[option]           ← PathRule: path = "extension[option]"
+        //   * value[x] 1..1             ← should compose to "extension[option].value[x]"
         var resources = CompilerTestHelper.CompileDoc(@"
-            Extension: MyExtension
-            * ^contextInvariant = ""invariant-one""
-            * ^contextInvariant = ""invariant-two""
+            Extension: ToggleExtension
+            * extension contains option 1..*
+            * extension[option]
+              * value[x] 1..1
+              * value[x] only Coding
         ");
-        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyExtension");
-        Assert.IsNotNull(sd.ContextInvariantElement);
-        Assert.AreEqual(2, sd.ContextInvariantElement.Count, "Expected two contextInvariant entries");
-        Assert.AreEqual("invariant-one", sd.ContextInvariantElement[0].Value);
-        Assert.AreEqual("invariant-two", sd.ContextInvariantElement[1].Value);
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "ToggleExtension");
+        Assert.IsNotNull(sd, "Extension should compile");
+        var elements = sd.Differential.Element;
+        // extension:option should be in the differential (as slice element)
+        var optionElem = elements.FirstOrDefault(e => e.SliceName == "option");
+        Assert.IsNotNull(optionElem, "extension:option should be in the differential");
+        // There should be an element for extension[option].value[x] with path containing value[x]
+        // (the indented value[x] rules should be resolved to extension.value[x] under the slice)
+        var hasValueXElem = elements.Any(e => e.Path != null && e.Path.EndsWith("value[x]"));
+        Assert.IsTrue(hasValueXElem, "Indented value[x] rule should be composed to extension.value[x]");
     }
 }

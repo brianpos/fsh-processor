@@ -5,7 +5,7 @@
   "name": "SDCCodeSystem",
   "title": "SDC Code System",
   "status": "active",
-  "description": "Defines how CodeSystem is used to reflect code lists found in data element defintions and form definitions to be used within the ONC's Structured Data Capture standard.",
+  "description": "Defines how CodeSystem is used to reflect code lists found in data element defintions and form definitions.",
   "fhirVersion": "4.0.1",
   "mapping": [
     {
@@ -24,12 +24,60 @@
         "id": "CodeSystem",
         "path": "CodeSystem",
         "definition": "Sets expectations for SDC-conformant systems around value set support for representing permitted question answers.",
+        "constraint": [
+          {
+            "key": "sdc-2",
+            "severity": "error",
+            "human": "If version is present, versionAlgorithm must be present.",
+            "expression": "version.exists() implies extension.where(url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]').exists()",
+            "xpath": "not(exists(f:version)) or exists(f:extension[@url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]'])",
+            "source": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem"
+          },
+          {
+            "key": "sdc-3",
+            "severity": "warning",
+            "human": "Semver is the preferred version algorithm - package machinery doesn't work well with artifacts using alternate versioning schemes",
+            "expression": "extension.where(url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]').all(value.ofType(Coding).where(system='http://hl7.org/fhir/version-algorithm' and code='semver').exists())",
+            "xpath": "not(f:extension[@url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]' and not(exists(f:valueCoding[f:system/@value='http://hl7.org/fhir/version-algorithm' and f:code/@value='semver'])))",
+            "source": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem"
+          }
+        ],
         "mapping": [
           {
             "identity": "ihesdc",
             "map": "Form_Package//list_field"
           }
         ]
+      },
+      {
+        "id": "CodeSystem.extension",
+        "path": "CodeSystem.extension",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "url"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "CodeSystem.extension:versionAlgorithm",
+        "path": "CodeSystem.extension",
+        "sliceName": "versionAlgorithm",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D"
+            ]
+          }
+        ],
+        "mustSupport": true
       },
       {
         "id": "CodeSystem.modifierExtension",
@@ -70,6 +118,11 @@
       {
         "id": "CodeSystem.url",
         "path": "CodeSystem.url",
+        "mustSupport": true
+      },
+      {
+        "id": "CodeSystem.version",
+        "path": "CodeSystem.version",
         "mustSupport": true
       },
       {
@@ -207,6 +260,21 @@
         ]
       },
       {
+        "id": "CodeSystem.concept.display.extension:conceptDisplayLabel-markdown",
+        "path": "CodeSystem.concept.display.extension",
+        "sliceName": "conceptDisplayLabel-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
+            ]
+          }
+        ]
+      },
+      {
         "id": "CodeSystem.concept.display.extension:conceptDisplayLabel-xhtml",
         "path": "CodeSystem.concept.display.extension",
         "sliceName": "conceptDisplayLabel-xhtml",
@@ -263,6 +331,21 @@
             "code": "Extension",
             "profile": [
               "http://hl7.org/fhir/StructureDefinition/rendering-style"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "CodeSystem.concept.designation.value.extension:conceptDisplayLabel-markdown",
+        "path": "CodeSystem.concept.designation.value.extension",
+        "sliceName": "conceptDisplayLabel-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
             ]
           }
         ]

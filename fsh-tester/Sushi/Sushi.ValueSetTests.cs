@@ -2,7 +2,7 @@
 //
 // Key differences vs SUSHI:
 //  - SUSHI defaults Id to the entity name when not specified; fsh-processor does not.
-//  - SUSHI uses first-wins for duplicate metadata; fsh-processor uses last-wins.
+//  - Both SUSHI and fsh-processor use first-wins for duplicate metadata (X3).
 //  - fsh-processor stores CaretPath with "^" prefix; SUSHI strips it (normalized in SushiTestHelper).
 //  - fsh-processor stores Strength with "()" wrapping; SUSHI strips them (normalized in SushiTestHelper).
 //  - ConceptCode.Value in VsComponentRule retains the "#" prefix (e.g. "#lion"), matching parser output.
@@ -68,8 +68,8 @@ public class ValueSetTests
         Id: second-id
         ");
         var vs = SushiTestHelper.GetValueSet(doc, "MyVS");
-        // fsh-processor last-wins: the second declaration overwrites the first.
-        Assert.AreEqual("second-id", vs.Id);
+        // X3: first-wins — the first declaration is kept.
+        Assert.AreEqual("first-id", vs.Id);
     }
 
     [TestMethod]

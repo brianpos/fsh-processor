@@ -76,15 +76,15 @@ public class MappingTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        // X3: first-wins semantics — matches SUSHI behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
             Mapping: MyMapping
             Id: first-id
             Id: second-id
         ");
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
-        // fsh-processor last-wins: the second declaration overwrites the first.
-        Assert.AreEqual("second-id", mapping.Id);
+        // X3: first-wins — the first declaration is kept.
+        Assert.AreEqual("first-id", mapping.Id);
     }
 
     [TestMethod]

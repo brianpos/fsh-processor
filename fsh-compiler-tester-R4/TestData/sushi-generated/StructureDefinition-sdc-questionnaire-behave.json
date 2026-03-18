@@ -16,7 +16,7 @@
   "kind": "resource",
   "abstract": false,
   "type": "Questionnaire",
-  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnairecommon",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire",
   "derivation": "constraint",
   "differential": {
     "element": [
@@ -146,6 +146,22 @@
             ]
           }
         ]
+      },
+      {
+        "id": "Questionnaire.extension:assembleDefinitionRoot",
+        "path": "Questionnaire.extension",
+        "sliceName": "assembleDefinitionRoot",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-assembleDefinitionRoot"
+            ]
+          }
+        ],
+        "mustSupport": true
       },
       {
         "id": "Questionnaire.modifierExtension",
@@ -412,28 +428,6 @@
         ]
       },
       {
-        "id": "Questionnaire.item.extension:regex",
-        "path": "Questionnaire.item.extension",
-        "sliceName": "regex",
-        "min": 0,
-        "max": "1",
-        "type": [
-          {
-            "code": "Extension",
-            "profile": [
-              "http://hl7.org/fhir/StructureDefinition/regex"
-            ]
-          }
-        ],
-        "mustSupport": true,
-        "mapping": [
-          {
-            "identity": "ihe-sdc",
-            "map": "./*_Field/datatype/string/reg_ex"
-          }
-        ]
-      },
-      {
         "id": "Questionnaire.item.extension:minValue",
         "path": "Questionnaire.item.extension",
         "sliceName": "minValue",
@@ -470,7 +464,7 @@
           {
             "code": "Extension",
             "profile": [
-              "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue"
+              "http://hl7.org/fhir/StructureDefinition/cqf-expression"
             ]
           }
         ]
@@ -512,7 +506,7 @@
           {
             "code": "Extension",
             "profile": [
-              "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue"
+              "http://hl7.org/fhir/StructureDefinition/cqf-expression"
             ]
           }
         ]
@@ -548,7 +542,7 @@
           {
             "code": "Extension",
             "profile": [
-              "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue"
+              "http://hl7.org/fhir/StructureDefinition/cqf-expression"
             ]
           }
         ]
@@ -584,7 +578,7 @@
           {
             "code": "Extension",
             "profile": [
-              "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue"
+              "http://hl7.org/fhir/StructureDefinition/cqf-expression"
             ]
           }
         ]
@@ -800,6 +794,12 @@
               "http://hl7.org/fhir/StructureDefinition/targetConstraint"
             ]
           }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "./*_Field/datatype/string/reg_ex"
+          }
         ]
       },
       {
@@ -862,6 +862,27 @@
             ]
           }
         ]
+      },
+      {
+        "id": "Questionnaire.item.extension:assembleDefinitionRoot",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "assembleDefinitionRoot",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-assembleDefinitionRoot"
+            ]
+          }
+        ],
+        "mustSupport": true
+      },
+      {
+        "id": "Questionnaire.item.enableWhen",
+        "path": "Questionnaire.item.enableWhen",
+        "mustSupport": true
       },
       {
         "id": "Questionnaire.item.enableWhen.question",
@@ -1022,8 +1043,7 @@
               "http://hl7.org/fhir/StructureDefinition/cqf-expression"
             ]
           }
-        ],
-        "mustSupport": true
+        ]
       },
       {
         "id": "Questionnaire.item.answerOption.extension",

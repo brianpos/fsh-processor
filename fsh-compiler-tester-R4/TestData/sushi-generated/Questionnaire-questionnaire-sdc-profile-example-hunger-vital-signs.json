@@ -15,55 +15,49 @@
       }
     },
     {
-      "url": "http://hl7.org/fhir/StructureDefinition/variable",
       "valueExpression": {
         "name": "worriedAnsCode",
         "language": "text/fhirpath",
         "expression": "%resource.item.where(linkId='/88122-7').answer.value.code"
-      }
+      },
+      "url": "http://hl7.org/fhir/StructureDefinition/variable"
     },
     {
-      "url": "http://hl7.org/fhir/StructureDefinition/variable",
       "valueExpression": {
         "name": "ranOutAnsCode",
         "language": "text/fhirpath",
         "expression": "%resource.item.where(linkId='/88123-5').answer.value.code"
-      }
+      },
+      "url": "http://hl7.org/fhir/StructureDefinition/variable"
     },
     {
-      "url": "http://hl7.org/fhir/StructureDefinition/variable",
       "valueExpression": {
         "name": "riskCodes",
         "language": "text/fhirpath",
         "expression": "'LA28397-0'.combine('LA6729-3')"
-      }
+      },
+      "url": "http://hl7.org/fhir/StructureDefinition/variable"
     },
     {
-      "url": "http://hl7.org/fhir/StructureDefinition/variable",
       "valueExpression": {
         "name": "riskStatus",
         "language": "text/fhirpath",
         "expression": "%riskCodes contains %worriedAnsCode or %riskCodes contains %ranOutAnsCode"
-      }
+      },
+      "url": "http://hl7.org/fhir/StructureDefinition/variable"
     },
     {
-      "url": "http://hl7.org/fhir/StructureDefinition/variable",
       "valueExpression": {
         "name": "answeredEitherQ",
         "language": "text/fhirpath",
         "expression": "%worriedAnsCode.exists() or %ranOutAnsCode.exists()"
-      }
+      },
+      "url": "http://hl7.org/fhir/StructureDefinition/variable"
     }
   ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-hunger-vital-signs",
-  "name": "QuestionnaireSdcProfileExampleHungerVitalSigns",
-  "title": "Hunger Vital Sign [HVS]",
-  "status": "active",
-  "experimental": true,
   "subjectType": [
     "Patient"
   ],
-  "description": "A hunger vital signs form (showing calculatedExpression selecting a value from a list).",
   "code": [
     {
       "code": "88121-9",
@@ -75,7 +69,6 @@
     {
       "extension": [
         {
-          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
           "valueCodeableConcept": {
             "coding": [
               {
@@ -85,10 +78,10 @@
               }
             ],
             "text": "Drop down"
-          }
+          },
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
         }
       ],
-      "linkId": "/88122-7",
       "code": [
         {
           "code": "88122-7",
@@ -96,9 +89,6 @@
           "display": "Within the past 12 months we worried whether our food would run out before we got money to buy more [U.S. FSS]"
         }
       ],
-      "text": "Within the past 12Mo we worried whether our food would run out before we got money to buy more",
-      "type": "choice",
-      "required": false,
       "answerOption": [
         {
           "valueCoding": {
@@ -128,12 +118,15 @@
             "display": "Don't know/refused"
           }
         }
-      ]
+      ],
+      "linkId": "/88122-7",
+      "text": "Within the past 12Mo we worried whether our food would run out before we got money to buy more",
+      "type": "choice",
+      "required": false
     },
     {
       "extension": [
         {
-          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
           "valueCodeableConcept": {
             "coding": [
               {
@@ -143,10 +136,10 @@
               }
             ],
             "text": "Drop down"
-          }
+          },
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
         }
       ],
-      "linkId": "/88123-5",
       "code": [
         {
           "code": "88123-5",
@@ -154,9 +147,6 @@
           "display": "Within the past 12 months the food we bought just didn't last and we didn't have money to get more [U.S. FSS]"
         }
       ],
-      "text": "Within the past 12Mo the food we bought just didn't last and we didn't have money to get more [U.S. FSS]",
-      "type": "choice",
-      "required": false,
       "answerOption": [
         {
           "valueCoding": {
@@ -186,12 +176,15 @@
             "display": "Don't know/refused"
           }
         }
-      ]
+      ],
+      "linkId": "/88123-5",
+      "text": "Within the past 12Mo the food we bought just didn't last and we didn't have money to get more [U.S. FSS]",
+      "type": "choice",
+      "required": false
     },
     {
       "extension": [
         {
-          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
           "valueCodeableConcept": {
             "coding": [
               {
@@ -201,42 +194,42 @@
               }
             ],
             "text": "Drop down"
-          }
+          },
+          "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
         },
         {
-          "url": "http://hl7.org/fhir/StructureDefinition/variable",
           "valueExpression": {
             "name": "thisItem",
             "language": "text/fhirpath",
             "expression": "%questionnaire.item.where(linkId = '/88124-3')"
-          }
+          },
+          "url": "http://hl7.org/fhir/StructureDefinition/variable"
         },
         {
-          "url": "http://hl7.org/fhir/StructureDefinition/variable",
           "valueExpression": {
             "name": "atRiskCoding",
             "language": "text/fhirpath",
             "expression": "%thisItem.answerOption.value.where(code='LA19952-3')"
-          }
+          },
+          "url": "http://hl7.org/fhir/StructureDefinition/variable"
         },
         {
-          "url": "http://hl7.org/fhir/StructureDefinition/variable",
           "valueExpression": {
             "name": "noRiskCoding",
             "language": "text/fhirpath",
             "expression": "%thisItem.answerOption.value.where(code='LA19983-8')"
-          }
+          },
+          "url": "http://hl7.org/fhir/StructureDefinition/variable"
         },
         {
-          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
           "valueExpression": {
             "description": "risk determination",
             "language": "text/fhirpath",
             "expression": "iif(%answeredEitherQ, iif(%riskStatus, %atRiskCoding, %noRiskCoding), {})"
-          }
+          },
+          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression"
         }
       ],
-      "linkId": "/88124-3",
       "code": [
         {
           "code": "88124-3",
@@ -244,10 +237,6 @@
           "display": "Food insecurity risk [HVS]"
         }
       ],
-      "text": "Food insecurity risk",
-      "type": "choice",
-      "required": false,
-      "readOnly": true,
       "answerOption": [
         {
           "valueCoding": {
@@ -268,7 +257,6 @@
         {
           "extension": [
             {
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
@@ -278,14 +266,26 @@
                   }
                 ],
                 "text": "Help-Button"
-              }
+              },
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
             }
           ],
           "linkId": "/88124-3-help",
           "text": "An answer of \"often true\" or \"sometimes true\" to either or both of the Hunger Vital Sign™ questions identifies a patient as at risk for food insecurity (FI).",
           "type": "display"
         }
-      ]
+      ],
+      "linkId": "/88124-3",
+      "text": "Food insecurity risk",
+      "type": "choice",
+      "required": false,
+      "readOnly": true
     }
-  ]
+  ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-hunger-vital-signs",
+  "name": "QuestionnaireSdcProfileExampleHungerVitalSigns",
+  "title": "Hunger Vital Sign [HVS]",
+  "status": "active",
+  "experimental": true,
+  "description": "A hunger vital signs form (showing calculatedExpression selecting a value from a list)."
 }

@@ -24,8 +24,7 @@
         "id": "Extension",
         "path": "Extension",
         "short": "Identifies subQuestionnaires used in the assembly process",
-        "definition": "This extension will appear on the root of an assembled Questionnaire and identifies the subQuestionnaires (including version) that were used as part of the assembly process.",
-        "max": "1"
+        "definition": "This extension will appear on the root of an assembled Questionnaire and identifies the subQuestionnaires (including version) that were used as part of the assembly process."
       },
       {
         "id": "Extension.extension",

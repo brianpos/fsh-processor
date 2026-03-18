@@ -7,10 +7,16 @@
   "status": "active",
   "description": "Defines additional capabilities for controlling the rendering of the questionnaire.",
   "fhirVersion": "4.0.1",
+  "mapping": [
+    {
+      "identity": "ihe-sdc",
+      "name": "IHE SDC"
+    }
+  ],
   "kind": "resource",
   "abstract": false,
   "type": "Questionnaire",
-  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnairecommon",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire",
   "derivation": "constraint",
   "differential": {
     "element": [
@@ -19,6 +25,16 @@
         "path": "Questionnaire",
         "short": "Advanced Rendering Questionnaire",
         "definition": "Defines additional capabilities for controlling the rendering of the questionnaire.",
+        "constraint": [
+          {
+            "key": "sdc-rend-2",
+            "severity": "error",
+            "human": "If a questionnaire has child items with a controlType of page, then all items must have a type of page, header or footer.",
+            "expression": "item.where(extension('http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl').value.coding.where(system='http://hl7.org/fhir/questionnaire-item-control' and code='page').exists()).exists() implies item.all(extension('http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl').value.coding.where(system='http://hl7.org/fhir/questionnaire-item-control' and (code='page' or code='header' or code='footer')).exists())",
+            "xpath": "not(exists(f:item[f:extension[@url='http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl' and f:valueCodeableConcept/f:coding[f:system/@value='' and f:code/@value='page']]])) or count(f:item) = count(f:item[f:extension[@url='http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl' and f:valueCodeableConcept/f:coding[f:system/@value='' and f:code[@value='page' or @value='header' or @value='footer']]]])",
+            "source": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-render"
+          }
+        ],
         "mapping": [
           {
             "identity": "ihe-sdc",
@@ -98,6 +114,21 @@
         ]
       },
       {
+        "id": "Questionnaire.title.extension:title-markdown",
+        "path": "Questionnaire.title.extension",
+        "sliceName": "title-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
+            ]
+          }
+        ]
+      },
+      {
         "id": "Questionnaire.title.extension:title-xhtml",
         "path": "Questionnaire.title.extension",
         "sliceName": "title-xhtml",
@@ -119,6 +150,31 @@
         ]
       },
       {
+        "id": "Questionnaire.item",
+        "path": "Questionnaire.item",
+        "constraint": [
+          {
+            "key": "sdc-rend-1",
+            "severity": "error",
+            "human": "Items with a controlType of 'page' can only appear in root-level items.",
+            "expression": "extension('http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl').value.coding.where(system='http://hl7.org/fhir/questionnaire-item-control' and code='page').exists() implies %resource.item.where(linkId=%context.linkId).exists()",
+            "xpath": "not(exists(f:extension[@url='http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl']/f:valueCodeableConcept/f:coding[f:system/@value='' and f:code/@value='page'])) or not(exists(parent::f:item))",
+            "source": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-render"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:itemOptionalDisplay",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "itemOptionalDisplay",
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "N/A (new requirement)"
+          }
+        ]
+      },
+      {
         "id": "Questionnaire.item.extension:itemMedia",
         "path": "Questionnaire.item.extension",
         "sliceName": "itemMedia",
@@ -130,27 +186,6 @@
             "profile": [
               "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemMedia"
             ]
-          }
-        ]
-      },
-      {
-        "id": "Questionnaire.item.extension:itemOptionalDisplay",
-        "path": "Questionnaire.item.extension",
-        "sliceName": "itemOptionalDisplay",
-        "min": 0,
-        "max": "1",
-        "type": [
-          {
-            "code": "Extension",
-            "profile": [
-              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-optionalDisplay"
-            ]
-          }
-        ],
-        "mapping": [
-          {
-            "identity": "ihe-sdc",
-            "map": "N/A (new requirement)"
           }
         ]
       },
@@ -244,16 +279,16 @@
         ]
       },
       {
-        "id": "Questionnaire.item.extension:supportLink",
+        "id": "Questionnaire.item.extension:supportHyperlink",
         "path": "Questionnaire.item.extension",
-        "sliceName": "supportLink",
+        "sliceName": "supportHyperlink",
         "min": 0,
         "max": "*",
         "type": [
           {
             "code": "Extension",
             "profile": [
-              "http://hl7.org/fhir/StructureDefinition/questionnaire-supportLink"
+              "http://hl7.org/fhir/StructureDefinition/questionnaire-supportHyperlink"
             ]
           }
         ]
@@ -412,6 +447,21 @@
         ]
       },
       {
+        "id": "Questionnaire.item.prefix.extension:itemLabel-markdown",
+        "path": "Questionnaire.item.prefix.extension",
+        "sliceName": "itemLabel-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
+            ]
+          }
+        ]
+      },
+      {
         "id": "Questionnaire.item.prefix.extension:itemLabel-xhtml",
         "path": "Questionnaire.item.prefix.extension",
         "sliceName": "itemLabel-xhtml",
@@ -464,6 +514,21 @@
           {
             "identity": "ihe-sdc",
             "map": "../style"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.text.extension:groupText-markdown",
+        "path": "Questionnaire.item.text.extension",
+        "sliceName": "groupText-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
+            ]
           }
         ]
       },
@@ -611,6 +676,21 @@
         ]
       },
       {
+        "id": "Questionnaire.item.answerOption.value[x]:valueString.extension:optionString-markdown",
+        "path": "Questionnaire.item.answerOption.value[x].extension",
+        "sliceName": "optionString-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
+            ]
+          }
+        ]
+      },
+      {
         "id": "Questionnaire.item.answerOption.value[x]:valueString.extension:optionString-xhtml",
         "path": "Questionnaire.item.answerOption.value[x].extension",
         "sliceName": "optionString-xhtml",
@@ -675,6 +755,21 @@
           {
             "identity": "ihe-sdc",
             "map": "../style"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.answerOption.value[x]:valueCoding.display.extension:optionDisplay-markdown",
+        "path": "Questionnaire.item.answerOption.value[x].display.extension",
+        "sliceName": "optionDisplay-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
+            ]
           }
         ]
       },

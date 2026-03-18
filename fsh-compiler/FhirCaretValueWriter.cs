@@ -157,7 +157,7 @@ public static class FhirCaretValueWriter
             FshCode c        => CreatePrimitive(targetType, c.Value.TrimStart('#')),
             BooleanValue bv  => targetType == typeof(FhirBoolean) ? new FhirBoolean(bv.Value) : null,
             NumberValue nv   => CreateNumericPrimitive(targetType, nv.Value),
-            _                => FhirValueMapper.ToDataType(fshValue, inspector)
+            _                => AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector), targetType)
         };
     }
 
@@ -198,4 +198,27 @@ public static class FhirCaretValueWriter
             FshCode c      => c.Value.TrimStart('#'),
             _              => null
         };
+
+    /// <summary>
+    /// Returns <paramref name="converted"/> when it is already assignment-compatible with
+    /// <paramref name="targetType"/>.  When the types differ but both are string-backed FHIR
+    /// primitive types (e.g. <see cref="Canonical"/> → <see cref="FhirUri"/>), the raw string
+    /// value is extracted and used to construct the correct target primitive.  Returns
+    /// <c>null</c> when no adaptation is possible.
+    /// </summary>
+    private static object? AdaptToTargetType(DataType? converted, Type targetType)
+    {
+        if (converted is null) return null;
+        if (targetType.IsAssignableFrom(converted.GetType())) return converted;
+
+        // Both sides are string-backed FHIR primitives — extract the raw value and
+        // create the correct target type (e.g. Canonical → FhirUri, FhirUrl → FhirString).
+        if (converted is PrimitiveType primitive && primitive.ObjectValue is string rawValue)
+        {
+            var ctor = targetType.GetConstructor([typeof(string)]);
+            if (ctor != null) return ctor.Invoke([rawValue]);
+        }
+
+        return null;
+    }
 }

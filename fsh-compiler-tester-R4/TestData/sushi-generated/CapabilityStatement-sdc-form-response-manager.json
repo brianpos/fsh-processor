@@ -3,11 +3,27 @@
   "id": "sdc-form-response-manager",
   "url": "http://hl7.org/fhir/uv/sdc/CapabilityStatement/sdc-form-response-manager",
   "title": "SDC Form Response Manager",
-  "description": "This profile defines the expected capabilities of the ''SDC Form Response Manager'' role when conforming to the S&I Framework's [[index.html|Structured Data Capture FHIR implementation guide]].  This role is responsible for providing read/write access to QuestionnaireResponses.  This is typically to support light-weight clients that want to be able to complete forms but do not have local storage to save work in progress.",
+  "description": "This profile defines the expected capabilities of the *SDC Form Response Manager* role when conforming to this implementation guide.  This role is responsible for providing read/write access to QuestionnaireResponses.  This is typically to support light-weight clients that want to be able to complete forms but do not have local storage to save work in progress.",
+  "instantiates": [
+    "http://hl7.org/fhir/uv/sdc/CapabilityStatement/sdc-form-manager"
+  ],
+  "format": [
+    "xml",
+    "json"
+  ],
   "rest": [
     {
+      "security": {
+        "description": "Implementations must meet the [general security requirements](security.html) documented in this implementation guide.html.  Systems may wish to ensure that QuestionnaireResponse instances are only accessible to the user (or at least the organization) who was responsible for creating them."
+      },
       "resource": [
         {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+              "valueCode": "SHALL"
+            }
+          ],
           "interaction": [
             {
               "extension": [
@@ -70,38 +86,142 @@
               "documentation": "This allows a user to look at previous versions of a response.  It supports identifying what changes were made and potentially retrieving an older version to use as a starting point in the event that data has accidentally been removed or changed"
             }
           ],
+          "operation": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "MAY"
+                }
+              ],
+              "name": "extract",
+              "definition": "http://hl7.org/fhir/uv/sdc/OperationDefinition/QuestionnaireResponse-extract",
+              "documentation": "This is needed if extraction isn't handled locally"
+            }
+          ],
+          "searchParam": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "name": "questionnaire",
+              "definition": "http://hl7.org/fhir/SearchParameter/QuestionnaireResponse-questionnaire",
+              "type": "reference"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "name": "status",
+              "definition": "http://hl7.org/fhir/SearchParameter/QuestionnaireResponse-status",
+              "type": "token"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "name": "subject",
+              "definition": "http://hl7.org/fhir/SearchParameter/QuestionnaireResponse-subject",
+              "type": "reference"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "name": "authored",
+              "definition": "http://hl7.org/fhir/SearchParameter/QuestionnaireResponse-authored",
+              "type": "date"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHALL"
+                }
+              ],
+              "name": "author",
+              "definition": "http://hl7.org/fhir/SearchParameter/QuestionnaireResponse-author",
+              "type": "reference"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHOULD"
+                }
+              ],
+              "name": "identifier",
+              "definition": "http://hl7.org/fhir/SearchParameter/QuestionnaireResponse-identifier",
+              "type": "token"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHOULD"
+                }
+              ],
+              "name": "based-on",
+              "definition": "http://hl7.org/fhir/SearchParameter/QuestionnaireResponse-based-on",
+              "type": "reference"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHOULD"
+                }
+              ],
+              "name": "encounter",
+              "definition": "http://hl7.org/fhir/SearchParameter/QuestionnaireResponse-encounter",
+              "type": "reference"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "SHOULD"
+                }
+              ],
+              "name": "part-of",
+              "definition": "http://hl7.org/fhir/SearchParameter/QuestionnaireResponse-part-of",
+              "type": "reference"
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+                  "valueCode": "MAY"
+                }
+              ],
+              "name": "source",
+              "definition": "http://hl7.org/fhir/SearchParameter/QuestionnaireResponse-source",
+              "type": "reference"
+            }
+          ],
           "type": "QuestionnaireResponse",
           "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse",
-          "documentation": "This allows QuestionnaireResponses to be created, updated and retrieved.  Note that storing a QuestionnaireResponse does not imply any execution of behavior on the basis of the stored data."
+          "documentation": "This allows QuestionnaireResponses to be created, updated, and retrieved.  Note that storing a QuestionnaireResponse does not imply any execution of behavior on the basis of the stored data."
         }
       ],
-      "mode": "server",
-      "security": {
-        "description": "Implementations must meet the general security requirements documented in the [[security.html|SDC implementation guide]].  Systems may wish to ensure that QuestionnaireResponse instances are only accessible to the user (or at least the organization) who was responsible for creating them."
-      }
+      "mode": "server"
     }
   ],
   "name": "SDCFormResponseManager",
   "status": "active",
   "date": "2014-07-06",
-  "publisher": "HL7 International - FHIR Infrastructure",
-  "contact": [
-    {
-      "telecom": [
-        {
-          "system": "other",
-          "value": "http://wiki.siframework.org/Structured+Data+Capture+Initiative"
-        }
-      ]
-    }
-  ],
   "kind": "requirements",
-  "instantiates": [
-    "http://hl7.org/fhir/uv/sdc/CapabilityStatement/sdc-form-manager"
-  ],
-  "fhirVersion": "1.0.0",
-  "format": [
-    "xml",
-    "json"
-  ]
+  "fhirVersion": "4.0.1"
 }

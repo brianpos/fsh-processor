@@ -16,7 +16,7 @@
     }
   ],
   "url": "http://hl7.org/fhir/uv/sdc/ImplementationGuide/hl7.fhir.uv.sdc",
-  "version": "4.0.0-ballot",
+  "version": "4.0.0",
   "name": "StructuredDataCapture",
   "title": "Structured Data Capture",
   "status": "active",
@@ -66,9 +66,9 @@
     },
     {
       "id": "ext",
-      "packageId": "hl7.fhir.uv.extensions",
-      "version": "current",
-      "uri": "http://hl7.org/fhir/extensions/ImplementationGuide/hl7.fhir.uv.extensions"
+      "packageId": "hl7.fhir.uv.extensions.r4",
+      "uri": "http://hl7.org/fhir/extensions/ImplementationGuide/hl7.fhir.uv.extensions",
+      "version": "5.3.0-ballot-tc1"
     }
   ],
   "definition": {
@@ -102,7 +102,7 @@
           "reference": "StructureDefinition/sdc-questionnaireresponse-adapt"
         },
         "name": "Adaptive Questionnaire Response",
-        "description": "Defines how the questionnaire response resource is used to reflect form data within the ONC's Structured Data Capture standard.",
+        "description": "Defines how the questionnaire response resource is used to reflect form data within the Structured Data Capture standard.",
         "exampleBoolean": false
       },
       {
@@ -149,8 +149,16 @@
         "reference": {
           "reference": "StructureDefinition/sdc-questionnaire-assembleContext"
         },
-        "name": "Assemble Context extension",
+        "name": "Assemble Context",
         "description": "This extension, used on a subQuestionnaire, indicates a FHIRPath variable that must be present in context when the subQuestionnaire is referenced.",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "StructureDefinition/sdc-questionnaire-assembleDefinitionRoot"
+        },
+        "name": "Assemble Definition Root",
+        "description": "Indicates that the assembly process SHALL only use definitions that have the specified URI as their root. Can also be set to false to disable assembly.",
         "exampleBoolean": false
       },
       {
@@ -187,6 +195,14 @@
       },
       {
         "reference": {
+          "reference": "CodeSystem/AustralianStateCodes"
+        },
+        "name": "Australian State Codes",
+        "description": "Example code system of Australian state codes",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
           "reference": "ValueSet/sdc-question-library-states"
         },
         "name": "Australian States - example value set",
@@ -207,6 +223,14 @@
         },
         "name": "Candidate Answers Expression",
         "description": "A FHIRPath or CQL Expression, or FHIR Query that resolves to a list of candidate answers (usually based on other answers in the questionnaire or based on information within the health record) for the question item or that establishes context for a group item",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "SearchParameter/canonical-experimental"
+        },
+        "name": "Canonical Experimental Search Parameter",
+        "description": "Allows searching by 'experimental' for the canonical resources SDC cares about.  (Official search param should appear in R6 core)",
         "exampleBoolean": false
       },
       {
@@ -328,6 +352,14 @@
         "name": "Entry Mode",
         "description": "Defines mechanisms of capturing data in a QuestionnaireResponse",
         "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "Parameters/sdc-assemble-request"
+        },
+        "name": "Example $assemble operation request",
+        "description": "Shows the initiation of a $assemble operation on the [modular-root](Questionnaire-sdc-modular-root.html) questionnaire",
+        "exampleCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/parameters-questionnaire-assemble-in"
       },
       {
         "reference": {
@@ -579,18 +611,18 @@
       },
       {
         "reference": {
-          "reference": "StructureDefinition/sdc-questionnaire-keyboard"
+          "reference": "CodeSystem/keyboardType"
         },
-        "name": "Keyboard Type",
-        "description": "For string or text items, indicates the 'keyboard type' that should be used by the user interface to guide entry. It does not dictate any specific functionality, it is only used as a hint to input devices that may have special keyboard modes available.",
+        "name": "Keyboard Type Codes",
+        "description": "For string or text items, indicates the 'keyboard type' that should be used by the user interface to guide entry.",
         "exampleBoolean": false
       },
       {
         "reference": {
-          "reference": "CodeSystem/keyboardType"
+          "reference": "StructureDefinition/sdc-questionnaire-keyboard"
         },
-        "name": "Keyboard Type",
-        "description": "For string or text items, indicates the 'keyboard type' that should be used by the user interface to guide entry.",
+        "name": "Keyboard Type Extension",
+        "description": "For string or text items, indicates the 'keyboard type' that should be used by the user interface to guide entry. It does not dictate any specific functionality, it is only used as a hint to input devices that may have special keyboard modes available.",
         "exampleBoolean": false
       },
       {
@@ -683,6 +715,14 @@
       },
       {
         "reference": {
+          "reference": "StructureDefinition/sdc-questionnaire-observationExtractEntry"
+        },
+        "name": "Observation Extract Entry",
+        "description": "Allows defining the expectations for the Observation entry to allow cross-referencing across extracted resources.",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
           "reference": "CodeSystem/observation-extract-relationship"
         },
         "name": "Observation Extract Relationship Codes",
@@ -766,7 +806,7 @@
           "reference": "StructureDefinition/parameters-questionnaire-populate-in"
         },
         "name": "Populate operation input parameters",
-        "description": "Profile used to validate the parameters that are the input of the [$populate](OperationDefinition-Questionnaire-populate.html), [$populate-html](OperationDefinition-Questionnaire-populatehtml.html), and [$populate-link](OperationDefinition-Questionnaire-populatelink.html) questionnaire operations",
+        "description": "Profile used to validate the parameters that are the input of the [$populate](OperationDefinition-Questionnaire-populate.html) questionnaire operations",
         "exampleBoolean": false
       },
       {
@@ -867,6 +907,14 @@
       },
       {
         "reference": {
+          "reference": "StructureDefinition/parameters-questionnaire-assemble-in"
+        },
+        "name": "Questionnaire assemble input Parameters profile",
+        "description": "Profile used to validate the parameters that are the input of the 'assemble' questionnaire operation",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
           "reference": "StructureDefinition/parameters-questionnaire-assemble-out"
         },
         "name": "Questionnaire assemble output Parameters profile",
@@ -875,10 +923,34 @@
       },
       {
         "reference": {
-          "reference": "SearchParameter/questionnaire-assembledFrom"
+          "reference": "SearchParameter/questionnaire-assembled-from"
         },
         "name": "Questionnaire Assembled From Search Parameter",
         "description": "Allows searching by 'assembledFrom' extension on a Questionnaire",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "CodeSystem/questionnaire-behavior-condition"
+        },
+        "name": "Questionnaire behavior condition codes",
+        "description": "Example codes used in the form behavior examples",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "SearchParameter/Questionnaire-questionnaire-code"
+        },
+        "name": "Questionnaire Code Search Parameter",
+        "description": "Allows searching by the questionnaire.code element.  (Official search param appears in R5 core)",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "SearchParameter/Questionnaire-combo-code"
+        },
+        "name": "Questionnaire Combined Code and Item Code Search Parameter",
+        "description": "Allows searching by the questionnaire.code and questionnaire.item.code element simultaneously.  (Official search param appears in R5 core)",
         "exampleBoolean": false
       },
       {
@@ -907,6 +979,14 @@
       },
       {
         "reference": {
+          "reference": "ValueSet/formBehaviorConditions"
+        },
+        "name": "Questionnaire Form Behavior Conditions",
+        "description": "Defines example codes for use in the Form Behavior examples",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
           "reference": "SearchParameter/questionnaire-assemble-expectation"
         },
         "name": "Questionnaire Is Modular Search Parameter",
@@ -919,14 +999,6 @@
         },
         "name": "Questionnaire Item Collapsible",
         "description": "Defines mechanisms of displaying child items in collapsible form",
-        "exampleBoolean": false
-      },
-      {
-        "reference": {
-          "reference": "SearchParameter/questionnaire-definition"
-        },
-        "name": "Questionnaire Item definition",
-        "description": "Allows searching by 'definition' element within a Questionnaire's items",
         "exampleBoolean": false
       },
       {
@@ -987,6 +1059,14 @@
       },
       {
         "reference": {
+          "reference": "SearchParameter/Questionnaire-subject-type"
+        },
+        "name": "Questionnaire Subject Type Parameter",
+        "description": "Allows searching by the questionnaire.subjectType element.  (Official search param appears in R5 core)",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
           "reference": "StructureMap/QuestionnairePopulationTransform"
         },
         "description": "An example of a StructureMap used to support population of a QuestionnaireResponse from a search bundle",
@@ -1030,8 +1110,24 @@
           "reference": "StructureDefinition/sdc-codesystem"
         },
         "name": "SDC Code System",
-        "description": "Defines how CodeSystem is used to reflect code lists found in data element defintions and form definitions to be used within the ONC's Structured Data Capture standard.",
+        "description": "Defines how CodeSystem is used to reflect code lists found in data element defintions and form definitions.",
         "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "Questionnaire/sdc-derivation-child"
+        },
+        "name": "SDC Derivation Child",
+        "description": "Example of a child questionnaire based on a parent",
+        "exampleCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire"
+      },
+      {
+        "reference": {
+          "reference": "Questionnaire/sdc-derivation-parent"
+        },
+        "name": "SDC Derivation Parent",
+        "description": "Example of a parent questionnaire that sets derivation expectations",
+        "exampleCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire"
       },
       {
         "reference": {
@@ -1047,6 +1143,14 @@
         },
         "name": "SDC Form Designer",
         "description": "SDC Form authoring system",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "CapabilityStatement/sdc-form-fill-manager"
+        },
+        "name": "SDC Form Fill Manager",
+        "description": "SDC Repository for form retrieval",
         "exampleBoolean": false
       },
       {
@@ -1086,7 +1190,7 @@
           "reference": "StructureDefinition/sdc-library"
         },
         "name": "SDC Library",
-        "description": "Defines how a Library is used as a logic computable library within the ONC's Structured Data Capture standard.",
+        "description": "Defines how a Library is used as a logic computable library.",
         "exampleBoolean": false
       },
       {
@@ -1238,7 +1342,7 @@
           "reference": "StructureDefinition/sdc-valueset"
         },
         "name": "SDC Value Set",
-        "description": "Defines how ValueSet is used to reflect code lists found in data element defintions and form definitions to be used within the ONC's Structured Data Capture standard.",
+        "description": "Defines how ValueSet is used to reflect code lists found in data element defintions and form definitions to be used within the Structured Data Capture standard.",
         "exampleBoolean": false
       },
       {
@@ -1343,7 +1447,7 @@
         },
         "name": "SDC-PHQ9",
         "description": "Patient Health Questionnaire (9 Item) including contained value sets and calculatedExpression",
-        "exampleCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire"
+        "exampleBoolean": true
       },
       {
         "reference": {
@@ -1359,6 +1463,14 @@
         },
         "name": "SDC-Response to Adaptive PHQ9",
         "description": "Example response to the Adaptive SDC-PHQ9 questionnaire",
+        "exampleCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse-adapt"
+      },
+      {
+        "reference": {
+          "reference": "QuestionnaireResponse/adaptive-questionnaireresponse-sdc-example-phq9-start"
+        },
+        "name": "SDC-Response to Adaptive PHQ9 - Start",
+        "description": "Example response to the Adaptive SDC-PHQ9 questionnaire before it has been completed",
         "exampleCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse-adapt"
       },
       {
@@ -1408,6 +1520,14 @@
         "name": "SDC-Weight and Height Tracking Panel",
         "description": "A weight and height panel (from LOINC) with a FHIRPath rule for calculating the BMI.",
         "exampleCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire"
+      },
+      {
+        "reference": {
+          "reference": "StructureDefinition/sdc-usagecontext-questionnaire-library"
+        },
+        "name": "SDCUsageContext: Questionnaire Library",
+        "description": "Indicates that a Questionnaire is intended to be used as a library of reusable items (e.g., questions, groups, displays) during modular form assembly.",
+        "exampleBoolean": false
       },
       {
         "reference": {
@@ -1463,6 +1583,22 @@
         },
         "name": "Source structure map",
         "description": "StructureMaps that produce QuestionnaireResponses for this Questionnaire as 'target' - i.e. that can be used to create QuestionnaireResponses that are valid against this Questionnaire.",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "SearchParameter/StructureMap-source"
+        },
+        "name": "StructureMap Source Structure",
+        "description": "Allows searching by the StructureMap.structure.url for the source model.  (Official search param should appears in R6 core)",
+        "exampleBoolean": false
+      },
+      {
+        "reference": {
+          "reference": "SearchParameter/StructureMap-target"
+        },
+        "name": "StructureMap Target Structure",
+        "description": "Allows searching by the StructureMap.structure.url for the target model.  (Official search param should appears in R6 core)",
         "exampleBoolean": false
       },
       {
@@ -1535,13 +1671,8 @@
           "generation": "html"
         },
         {
-          "nameUrl": "security.html",
-          "title": "Security Details",
-          "generation": "html"
-        },
-        {
-          "nameUrl": "expressions.html",
-          "title": "Using Expressions",
+          "nameUrl": "workflow.html",
+          "title": "Basic SDC workflow",
           "generation": "html",
           "extension": [
             {
@@ -1551,8 +1682,8 @@
           ]
         },
         {
-          "nameUrl": "workflow.html",
-          "title": "Basic SDC workflow",
+          "nameUrl": "expressions.html",
+          "title": "Using Expressions",
           "generation": "html",
           "extension": [
             {
@@ -1586,6 +1717,17 @@
         {
           "nameUrl": "behavior.html",
           "title": "Form Behavior and Calculation",
+          "generation": "html",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
+              "valueCode": "trial-use"
+            }
+          ]
+        },
+        {
+          "nameUrl": "derive.html",
+          "title": "Form Derivation",
           "generation": "html",
           "extension": [
             {
@@ -1639,6 +1781,28 @@
           ]
         },
         {
+          "nameUrl": "conformance.html",
+          "title": "Conformance Expectations",
+          "generation": "html",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
+              "valueCode": "trial-use"
+            }
+          ]
+        },
+        {
+          "nameUrl": "security.html",
+          "title": "Security Details",
+          "generation": "html",
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
+              "valueCode": "trial-use"
+            }
+          ]
+        },
+        {
           "nameUrl": "artifacts.html",
           "title": "Artifact List",
           "generation": "html"
@@ -1667,7 +1831,7 @@
       },
       {
         "code": "releaselabel",
-        "value": "STU 4 ballot"
+        "value": "STU 4"
       },
       {
         "code": "auto-oid-root",
@@ -1684,6 +1848,10 @@
       {
         "code": "globals-in-artifacts",
         "value": "true"
+      },
+      {
+        "code": "pin-canonicals",
+        "value": "pin-multiples"
       },
       {
         "code": "show-inherited-invariants",

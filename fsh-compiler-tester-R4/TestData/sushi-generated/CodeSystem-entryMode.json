@@ -2,7 +2,7 @@
   "resourceType": "CodeSystem",
   "status": "active",
   "content": "complete",
-  "name": "EntryMode",
+  "name": "EntryModeCodes",
   "id": "entryMode",
   "title": "Entry Mode",
   "description": "Defines mechanisms of capturing data in a QuestionnaireResponse",

@@ -5,7 +5,7 @@
   "name": "SDCParametersQuestionnairePopulateIn",
   "title": "Populate operation input parameters",
   "status": "active",
-  "description": "Profile used to validate the parameters that are the input of the [$populate](OperationDefinition-Questionnaire-populate.html), [$populate-html](OperationDefinition-Questionnaire-populatehtml.html), and [$populate-link](OperationDefinition-Questionnaire-populatelink.html) questionnaire operations",
+  "description": "Profile used to validate the parameters that are the input of the [$populate](OperationDefinition-Questionnaire-populate.html) questionnaire operations",
   "fhirVersion": "4.0.1",
   "kind": "resource",
   "abstract": false,
@@ -151,7 +151,7 @@
         "path": "Parameters.parameter",
         "sliceName": "context",
         "min": 0,
-        "max": "1"
+        "max": "*"
       },
       {
         "id": "Parameters.parameter:context.name",
@@ -248,6 +248,76 @@
       {
         "id": "Parameters.parameter:context.part:content.part",
         "path": "Parameters.parameter.part.part",
+        "max": "0"
+      },
+      {
+        "id": "Parameters.parameter:dataEndpoint",
+        "path": "Parameters.parameter",
+        "sliceName": "dataEndpoint",
+        "min": 0,
+        "max": "1"
+      },
+      {
+        "id": "Parameters.parameter:dataEndpoint.name",
+        "path": "Parameters.parameter.name",
+        "fixedString": "dataEndpoint"
+      },
+      {
+        "id": "Parameters.parameter:dataEndpoint.value[x]",
+        "path": "Parameters.parameter.value[x]",
+        "type": [
+          {
+            "code": "uri"
+          },
+          {
+            "code": "Reference"
+          }
+        ]
+      },
+      {
+        "id": "Parameters.parameter:dataEndpoint.resource",
+        "path": "Parameters.parameter.resource",
+        "type": [
+          {
+            "code": "Endpoint"
+          }
+        ]
+      },
+      {
+        "id": "Parameters.parameter:dataEndpoint.part",
+        "path": "Parameters.parameter.part",
+        "max": "0"
+      },
+      {
+        "id": "Parameters.parameter:data",
+        "path": "Parameters.parameter",
+        "sliceName": "data",
+        "min": 0,
+        "max": "1"
+      },
+      {
+        "id": "Parameters.parameter:data.name",
+        "path": "Parameters.parameter.name",
+        "fixedString": "data"
+      },
+      {
+        "id": "Parameters.parameter:data.value[x]",
+        "path": "Parameters.parameter.value[x]",
+        "max": "0"
+      },
+      {
+        "id": "Parameters.parameter:data.resource",
+        "path": "Parameters.parameter.resource",
+        "min": 1,
+        "type": [
+          {
+            "code": "Bundle"
+          }
+        ]
+      },
+      {
+        "id": "Parameters.parameter:data.part",
+        "path": "Parameters.parameter.part",
         "max": "0"
       },
       {

@@ -134,4 +134,61 @@ public class R4CodeSystemCompilerTests
         var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
         Assert.AreEqual("Injected description", cs.Description);
     }
+
+    // ─── Count and URL ────────────────────────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldComputeCodeSystemCount()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: MyCS
+            * #active ""Active""
+            * #inactive ""Inactive""
+            * #draft ""Draft""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
+        Assert.AreEqual(3, cs.Count, "CodeSystem.Count should equal the total number of concepts");
+    }
+
+    [TestMethod]
+    public void ShouldUseCodeSystemPathSegmentInUrl()
+    {
+        var fsh = CompilerTestHelper.LeftAlign(@"
+            CodeSystem: MyCS
+            Id: my-cs
+        ");
+        var doc = fsh_processor.FshParser.Parse(fsh);
+        var fshDoc = ((fsh_processor.Models.ParseResult.Success)doc).Document;
+        var opts = new fsh_compiler.CompilerOptions { CanonicalBase = "http://example.org/fhir" };
+        var result = fsh_compiler.FshCompiler.Compile(fshDoc, opts);
+        var cs = (FhirCodeSystem)((fsh_compiler.CompileResult<System.Collections.Generic.List<Hl7.Fhir.Model.Resource>>.SuccessResult)result).Value[0];
+        Assert.AreEqual("http://example.org/fhir/CodeSystem/my-cs", cs.Url,
+            "CodeSystem URL should use /CodeSystem/ segment");
+    }
+
+    [TestMethod]
+    public void ShouldApplyConceptCodeContextFromIndentedCaretRules()
+    {
+        // C-CS4: Indented caret rules under a Concept should have their codes propagated
+        // from the parent Concept rule so they apply to that concept (not the CodeSystem).
+        // We test with the flat ^definition property which TrySet can set directly.
+        var resources = CompilerTestHelper.CompileDoc(@"
+            CodeSystem: StatusCodes
+            * #active ""Active""
+              * ^definition = ""The active status""
+            * #inactive ""Inactive""
+              * ^definition = ""The inactive status""
+        ");
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "StatusCodes");
+        Assert.IsNotNull(cs, "CodeSystem should compile");
+        Assert.AreEqual(2, cs.Concept.Count, "Should have 2 concepts");
+        var active = cs.Concept.FirstOrDefault(c => c.Code == "active");
+        Assert.IsNotNull(active, "#active concept should exist");
+        Assert.AreEqual("The active status", active.Definition,
+            "Indented ^definition should be applied to #active concept");
+        var inactive = cs.Concept.FirstOrDefault(c => c.Code == "inactive");
+        Assert.IsNotNull(inactive, "#inactive concept should exist");
+        Assert.AreEqual("The inactive status", inactive.Definition,
+            "Indented ^definition should be applied to #inactive concept");
+    }
 }

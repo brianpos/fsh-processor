@@ -1,17 +1,19 @@
 {
   "resourceType": "Bundle",
   "id": "map-population-example",
-  "type": "batch-response",
   "entry": [
     {
+      "response": {
+        "status": "200",
+        "etag": "W/",
+        "lastModified": "1899-12-30T00:00:00.000Z"
+      },
       "resource": {
         "resourceType": "Bundle",
         "id": "2c256377-0dbf-4311-a123-14d87f22c5",
         "meta": {
           "lastUpdated": "2021-12-24T20:45:02.548Z"
         },
-        "type": "searchset",
-        "total": 1,
         "link": [
           {
             "relation": "self",
@@ -20,14 +22,13 @@
         ],
         "entry": [
           {
-            "fullUrl": "http://example.org/fhir/Patient/a0df9da6-3157-4b72-95f1-729853718c09",
             "resource": {
-              "resourceType": "Patient",
-              "id": "a0df9da6-3157-4b72-95f1-729853718c09",
               "meta": {
                 "versionId": "3",
                 "lastUpdated": "2021-11-09T22:00:59.865Z"
               },
+              "resourceType": "Patient",
+              "id": "a0df9da6-3157-4b72-95f1-729853718c09",
               "identifier": [
                 {
                   "use": "official",
@@ -136,25 +137,26 @@
             },
             "search": {
               "mode": "match"
-            }
+            },
+            "fullUrl": "http://example.org/fhir/Patient/a0df9da6-3157-4b72-95f1-729853718c09"
           }
-        ]
-      },
+        ],
+        "type": "searchset",
+        "total": 1
+      }
+    },
+    {
       "response": {
         "status": "200",
         "etag": "W/",
         "lastModified": "1899-12-30T00:00:00.000Z"
-      }
-    },
-    {
+      },
       "resource": {
         "resourceType": "Bundle",
         "id": "7b29ddd9-fdbf-4e6c-81f3-38f2d51934",
         "meta": {
           "lastUpdated": "2021-12-24T20:45:02.610Z"
         },
-        "type": "searchset",
-        "total": 1,
         "link": [
           {
             "relation": "self",
@@ -163,14 +165,13 @@
         ],
         "entry": [
           {
-            "fullUrl": "http://example.org/fhir/Condition/7cd8b889-5456-43d4-935c-abc10791ebd6",
             "resource": {
-              "resourceType": "Condition",
-              "id": "7cd8b889-5456-43d4-935c-abc10791ebd6",
               "meta": {
                 "versionId": "3",
                 "lastUpdated": "2021-11-09T22:00:59.965Z"
               },
+              "resourceType": "Condition",
+              "id": "7cd8b889-5456-43d4-935c-abc10791ebd6",
               "clinicalStatus": {
                 "coding": [
                   {
@@ -202,7 +203,6 @@
               "code": {
                 "coding": [
                   {
-                    "version": "http://snomed.info/sct/20611000087101",
                     "code": "95651005",
                     "system": "http://snomed.info/sct",
                     "display": "Chronic progressive paraparesis"
@@ -220,25 +220,26 @@
             },
             "search": {
               "mode": "match"
-            }
+            },
+            "fullUrl": "http://example.org/fhir/Condition/7cd8b889-5456-43d4-935c-abc10791ebd6"
           }
-        ]
-      },
+        ],
+        "type": "searchset",
+        "total": 1
+      }
+    },
+    {
       "response": {
         "status": "200",
         "etag": "W/",
         "lastModified": "1899-12-30T00:00:00.000Z"
-      }
-    },
-    {
+      },
       "resource": {
         "resourceType": "Bundle",
         "id": "94e7a07b-0f81-4586-ad73-ef8ce3b7b7",
         "meta": {
           "lastUpdated": "2021-12-24T20:45:02.719Z"
         },
-        "type": "searchset",
-        "total": 1,
         "link": [
           {
             "relation": "self",
@@ -247,14 +248,13 @@
         ],
         "entry": [
           {
-            "fullUrl": "http://example.org/fhir/MedicationStatement/fe376aa6-83fb-4d0e-be60-ad959c57114f",
             "resource": {
-              "resourceType": "MedicationStatement",
-              "id": "fe376aa6-83fb-4d0e-be60-ad959c57114f",
               "meta": {
                 "versionId": "3",
                 "lastUpdated": "2021-11-09T22:01:00.007Z"
               },
+              "resourceType": "MedicationStatement",
+              "id": "fe376aa6-83fb-4d0e-be60-ad959c57114f",
               "status": "active",
               "medicationReference": {
                 "reference": "http://example.org/fhir/Medication/c6222017-94f6-4dbc-8958-fcdf9df3356a"
@@ -293,17 +293,17 @@
             },
             "search": {
               "mode": "match"
-            }
+            },
+            "fullUrl": "http://example.org/fhir/MedicationStatement/fe376aa6-83fb-4d0e-be60-ad959c57114f"
           },
           {
-            "fullUrl": "http://example.org/fhir/MedicationStatement/01e65f9e-5412-4ac9-a1c2-c408ed485702",
             "resource": {
-              "resourceType": "MedicationStatement",
-              "id": "01e65f9e-5412-4ac9-a1c2-c408ed485702",
               "meta": {
                 "versionId": "3",
                 "lastUpdated": "2021-11-09T22:01:00.007Z"
               },
+              "resourceType": "MedicationStatement",
+              "id": "01e65f9e-5412-4ac9-a1c2-c408ed485702",
               "status": "active",
               "medicationCodeableConcept": {
                 "coding": [
@@ -350,17 +350,17 @@
             },
             "search": {
               "mode": "match"
-            }
+            },
+            "fullUrl": "http://example.org/fhir/MedicationStatement/01e65f9e-5412-4ac9-a1c2-c408ed485702"
           },
           {
-            "fullUrl": "http://example.org/fhir/MedicationStatement/f59e4516-d2c6-4a2f-936b-d2c460bb92c6",
             "resource": {
-              "resourceType": "MedicationStatement",
-              "id": "f59e4516-d2c6-4a2f-936b-d2c460bb92c6",
               "meta": {
                 "versionId": "3",
                 "lastUpdated": "2021-11-09T22:01:00.007Z"
               },
+              "resourceType": "MedicationStatement",
+              "id": "f59e4516-d2c6-4a2f-936b-d2c460bb92c6",
               "status": "active",
               "medicationCodeableConcept": {
                 "text": "SomeMed"
@@ -399,17 +399,17 @@
             },
             "search": {
               "mode": "match"
-            }
+            },
+            "fullUrl": "http://example.org/fhir/MedicationStatement/f59e4516-d2c6-4a2f-936b-d2c460bb92c6"
           },
           {
-            "fullUrl": "http://example.org/fhir/Medication/c6222017-94f6-4dbc-8958-fcdf9df3356a",
             "resource": {
-              "resourceType": "Medication",
-              "id": "c6222017-94f6-4dbc-8958-fcdf9df3356a",
               "meta": {
                 "versionId": "3",
                 "lastUpdated": "2021-11-09T22:01:00.033Z"
               },
+              "resourceType": "Medication",
+              "id": "c6222017-94f6-4dbc-8958-fcdf9df3356a",
               "text": {
                 "status": "generated",
                 "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative with Details</b></p><p><b>id</b>: c6222017-94f6-4dbc-8958-fcdf9df3356a</p><p><b>meta</b>:</p><p><b>code</b>: Simvastatin 40 mg oral tablet <span style=\"background: LightGoldenRodYellow\">(Details : {SNOMED CT code \"320000009\" := \"320000009\", given as \"Simvastatin 40 mg oral tablet\"})</span></p><p><b>form</b>: Film-coated tablet <span style=\"background: LightGoldenRodYellow\">(Details : {SNOMED CT code \"385057009\" := \"385057009\", given as \"Film-coated tablet\"})</span></p></div>"
@@ -417,7 +417,6 @@
               "code": {
                 "coding": [
                   {
-                    "version": "http://snomed.info/sct/20611000087101",
                     "code": "320000009",
                     "system": "http://snomed.info/sct",
                     "display": "Simvastatin 40 mg oral tablet"
@@ -428,7 +427,6 @@
               "form": {
                 "coding": [
                   {
-                    "version": "http://snomed.info/sct/20611000087101",
                     "code": "385057009",
                     "system": "http://snomed.info/sct",
                     "display": "Film-coated tablet"
@@ -440,7 +438,6 @@
                   "itemCodeableConcept": {
                     "coding": [
                       {
-                        "version": "http://snomed.info/sct/20611000087101",
                         "code": "387584000",
                         "system": "http://snomed.info/sct",
                         "display": "Simvastatin"
@@ -466,15 +463,14 @@
             },
             "search": {
               "mode": "include"
-            }
+            },
+            "fullUrl": "http://example.org/fhir/Medication/c6222017-94f6-4dbc-8958-fcdf9df3356a"
           }
-        ]
-      },
-      "response": {
-        "status": "200",
-        "etag": "W/",
-        "lastModified": "1899-12-30T00:00:00.000Z"
+        ],
+        "type": "searchset",
+        "total": 1
       }
     }
-  ]
+  ],
+  "type": "batch-response"
 }

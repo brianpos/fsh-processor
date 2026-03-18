@@ -25,27 +25,28 @@
             }
           ],
           "rules": "open"
-        }
+        },
+        "min": 1
       },
       {
-        "id": "Parameters.parameter:in",
+        "id": "Parameters.parameter:questionnaire-response",
         "path": "Parameters.parameter",
-        "sliceName": "in",
-        "min": 0,
-        "max": "*"
+        "sliceName": "questionnaire-response",
+        "min": 1,
+        "max": "1"
       },
       {
-        "id": "Parameters.parameter:in.name",
+        "id": "Parameters.parameter:questionnaire-response.name",
         "path": "Parameters.parameter.name",
         "fixedString": "questionnaire-response"
       },
       {
-        "id": "Parameters.parameter:in.value[x]",
+        "id": "Parameters.parameter:questionnaire-response.value[x]",
         "path": "Parameters.parameter.value[x]",
         "max": "0"
       },
       {
-        "id": "Parameters.parameter:in.resource",
+        "id": "Parameters.parameter:questionnaire-response.resource",
         "path": "Parameters.parameter.resource",
         "type": [
           {
@@ -57,7 +58,7 @@
         ]
       },
       {
-        "id": "Parameters.parameter:in.part",
+        "id": "Parameters.parameter:questionnaire-response.part",
         "path": "Parameters.parameter.part",
         "max": "0"
       }

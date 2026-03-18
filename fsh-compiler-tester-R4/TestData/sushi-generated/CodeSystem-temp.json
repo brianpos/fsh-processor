@@ -27,9 +27,14 @@
       "code": "response-endpoint",
       "display": "Response Endpoint",
       "definition": "Identifies the base URL for FHIR servers to which the Questionnaire resulting from the Task should be POSTed"
+    },
+    {
+      "code": "question-library",
+      "display": "Question Library",
+      "definition": "Indicates that a Questionnaire is a library of reusable items to be referenced during modular form assembly."
     }
   ],
   "experimental": false,
   "caseSensitive": true,
-  "count": 4
+  "count": 5
 }

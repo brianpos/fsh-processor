@@ -4,7 +4,6 @@
   "meta": {
     "lastUpdated": "2014-05-15T17:25:15Z"
   },
-  "type": "collection",
   "entry": [
     {
       "fullUrl": "http://example.org/AHRQ/form/Questionnaire/F8-1.2",
@@ -14,19 +13,6 @@
         "meta": {
           "lastUpdated": "2014-05-15T17:25:15Z"
         },
-        "extension": [
-          {
-            "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
-            "valueCoding": {
-              "code": "semver",
-              "system": "http://hl7.org/fhir/version-algorithm"
-            }
-          },
-          {
-            "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.copyrightLabel",
-            "valueString": "(c) 2013"
-          }
-        ],
         "contained": [
           {
             "resourceType": "CodeSystem",
@@ -95,10 +81,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e551-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE270-cs"
                       }
                     ]
                   }
@@ -148,10 +130,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e639-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE273-cs"
                       }
                     ]
                   }
@@ -192,10 +170,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e910cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE279-cs"
                       }
                     ]
                   }
@@ -248,10 +222,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e1125-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE285-cs"
                       }
                     ]
                   }
@@ -300,10 +270,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e1558-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE288-cs"
                       }
                     ]
                   }
@@ -396,10 +362,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e1746-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE291-cs"
                       }
                     ]
                   }
@@ -452,10 +414,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e1863-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE294-cs"
                       }
                     ]
                   }
@@ -500,10 +458,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e2109-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE297-cs"
                       }
                     ]
                   }
@@ -548,10 +502,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e2272-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE300-cs"
                       }
                     ]
                   }
@@ -596,10 +546,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e2489-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE303-cs"
                       }
                     ]
                   }
@@ -644,10 +590,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e2768-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE303-cs"
                       }
                     ]
                   }
@@ -696,10 +638,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e2928-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE312-cs"
                       }
                     ]
                   }
@@ -772,10 +710,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e3159-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE315-cs"
                       }
                     ]
                   }
@@ -816,10 +750,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e4024-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE333-cs"
                       }
                     ]
                   }
@@ -860,10 +790,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e4118-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE336-cs"
                       }
                     ]
                   }
@@ -960,10 +886,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e4236-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE348-cs"
                       }
                     ]
                   }
@@ -1060,10 +982,6 @@
                       {
                         "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
                         "valueCanonical": "#d1e4716-cs"
-                      },
-                      {
-                        "url": "http://hl7.org/fhir/StructureDefinition/valueset-system",
-                        "valueCanonical": "#DE351-cs"
                       }
                     ]
                   }
@@ -1072,29 +990,36 @@
             }
           }
         ],
-        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/F8-1.2",
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
+            "valueCoding": {
+              "code": "semver",
+              "system": "http://hl7.org/fhir/version-algorithm"
+            }
+          },
+          {
+            "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.copyrightLabel",
+            "valueString": "(c) 2013"
+          }
+        ],
         "identifier": [
           {
-            "system": "http://Medication",
+            "system": "http://example.org/Medication",
             "value": "form_identifier/F8/1.2"
           }
         ],
-        "name": "MedicationOrOtherSubstances",
-        "title": "Medication or Other Substance",
-        "status": "active",
         "subjectType": [
           "Patient"
         ],
-        "date": "2012-04-01",
-        "publisher": "Agency for Healthcare Research and Quality (AHRQ)",
         "useContext": [
           {
+            "valueCodeableConcept": {
+              "text": "Acute Care Hospitals"
+            },
             "code": {
               "code": "venue",
               "system": "http://terminology.hl7.org/CodeSystem/usage-context-type"
-            },
-            "valueCodeableConcept": {
-              "text": "Acute Care Hospitals"
             }
           }
         ],
@@ -1113,8 +1038,6 @@
                 }
               }
             ],
-            "linkId": "Medication/header",
-            "type": "group",
             "item": [
               {
                 "extension": [
@@ -1134,12 +1057,11 @@
                 "type": "string",
                 "required": true
               }
-            ]
+            ],
+            "linkId": "Medication/header",
+            "type": "group"
           },
           {
-            "linkId": "Medication/SEC00",
-            "text": "Medication or Other Substance",
-            "type": "group",
             "item": [
               {
                 "linkId": "Medication/SEC00.0",
@@ -1147,9 +1069,6 @@
                 "type": "display"
               },
               {
-                "linkId": "Medication/SEC01/74080-3",
-                "type": "group",
-                "required": true,
                 "item": [
                   {
                     "extension": [
@@ -1158,12 +1077,6 @@
                         "valueInteger": 1
                       }
                     ],
-                    "linkId": "Medication/DE270",
-                    "definition": "http://AHRQ.gov/data_element_identifier#Type%20of%20substance%20involved",
-                    "text": "What type of medication/substance was involved?",
-                    "type": "open-choice",
-                    "required": true,
-                    "answerValueSet": "#d1e551-vs",
                     "item": [
                       {
                         "extension": [
@@ -1172,12 +1085,6 @@
                             "valueInteger": 7
                           }
                         ],
-                        "linkId": "Medication/DE273",
-                        "definition": "http://AHRQ.gov/data_element_identifier#Type%20of%20medication%20involved",
-                        "text": "What type of medication?",
-                        "type": "open-choice",
-                        "required": true,
-                        "answerValueSet": "#d1e639-vs",
                         "item": [
                           {
                             "extension": [
@@ -1187,12 +1094,18 @@
                               }
                             ],
                             "linkId": "Medication/DE276",
-                            "definition": "http://AHRQ.gov/data_element_identifier#Compounded%20preparation%20ingredients",
+                            "definition": "http://example.org/AHRQ/data_element_identifier#Compounded%20preparation%20ingredients",
                             "text": "Please list all ingredients:",
                             "type": "string",
                             "repeats": true
                           }
-                        ]
+                        ],
+                        "linkId": "Medication/DE273",
+                        "definition": "http://example.org/AHRQ/data_element_identifier#Type%20of%20medication%20involved",
+                        "text": "What type of medication?",
+                        "type": "open-choice",
+                        "required": true,
+                        "answerValueSet": "#d1e639-vs"
                       },
                       {
                         "extension": [
@@ -1201,10 +1114,6 @@
                             "valueInteger": 8
                           }
                         ],
-                        "linkId": "Medication/DE279",
-                        "text": "What type of biological product?",
-                        "type": "open-choice",
-                        "answerValueSet": "#d1e910-vs",
                         "item": [
                           {
                             "linkId": "Medication/DE282",
@@ -1212,7 +1121,11 @@
                             "type": "string",
                             "required": true
                           }
-                        ]
+                        ],
+                        "linkId": "Medication/DE279",
+                        "text": "What type of biological product?",
+                        "type": "open-choice",
+                        "answerValueSet": "#d1e910-vs"
                       },
                       {
                         "linkId": "Medication/DE285",
@@ -1221,7 +1134,13 @@
                         "required": true,
                         "answerValueSet": "#d1e1125-vs"
                       }
-                    ]
+                    ],
+                    "linkId": "Medication/DE270",
+                    "definition": "http://example.org/AHRQ/data_element_identifier#Type%20of%20substance%20involved",
+                    "text": "What type of medication/substance was involved?",
+                    "type": "open-choice",
+                    "required": true,
+                    "answerValueSet": "#d1e551-vs"
                   },
                   {
                     "linkId": "Medication/DE288",
@@ -1231,10 +1150,6 @@
                     "answerValueSet": "#d1e1558-vs"
                   },
                   {
-                    "linkId": "Medication/DE291",
-                    "text": "What was the incorrect action?",
-                    "type": "open-choice",
-                    "answerValueSet": "#d1e1746-vs",
                     "item": [
                       {
                         "linkId": "Medication/DE294",
@@ -1284,7 +1199,11 @@
                         "required": true,
                         "answerValueSet": "#d1e2928-vs"
                       }
-                    ]
+                    ],
+                    "linkId": "Medication/DE291",
+                    "text": "What was the incorrect action?",
+                    "type": "open-choice",
+                    "answerValueSet": "#d1e1746-vs"
                   },
                   {
                     "linkId": "Medication/DE315",
@@ -1293,7 +1212,10 @@
                     "required": true,
                     "answerValueSet": "#d1e3159-vs"
                   }
-                ]
+                ],
+                "linkId": "Medication/SEC01/74080-3",
+                "type": "group",
+                "required": true
               },
               {
                 "extension": [
@@ -1302,10 +1224,6 @@
                     "valueInteger": 5
                   }
                 ],
-                "linkId": "Medication/SEC02/74078-7",
-                "type": "group",
-                "repeats": true,
-                "required": true,
                 "item": [
                   {
                     "linkId": "Medication/SEC02/74078-7.0",
@@ -1425,11 +1343,13 @@
                     "required": true,
                     "answerValueSet": "#d1e4118-vs"
                   }
-                ]
+                ],
+                "linkId": "Medication/SEC02/74078-7",
+                "type": "group",
+                "repeats": true,
+                "required": true
               },
               {
-                "linkId": "Medication/SEC03",
-                "type": "group",
                 "item": [
                   {
                     "linkId": "Medication/DE348",
@@ -1445,33 +1365,38 @@
                     "required": true,
                     "answerValueSet": "#d1e4716-vs"
                   }
-                ]
+                ],
+                "linkId": "Medication/SEC03",
+                "type": "group"
               },
               {
-                "linkId": "Medication/SEC04",
-                "text": "STOP",
-                "type": "group",
                 "item": [
                   {
                     "linkId": "Medication/SEC04.0",
                     "text": "The form is complete.",
                     "type": "display"
                   }
-                ]
+                ],
+                "linkId": "Medication/SEC04",
+                "text": "STOP",
+                "type": "group"
               },
               {
-                "linkId": "Medication/SEC05",
-                "text": "Thank you for completing these questions.",
-                "type": "group",
                 "item": [
                   {
                     "linkId": "Medication/SEC05.0",
                     "text": "OMB No. 0935-0143 Exp. Date 10/31/2014 Public reporting burden for the collection of information is estimated to average 10 minutes per response. An agency may not conduct or sponsor, and a person is not required to respond to, a collection of information unless it displays a currently valid OMB control number. Send comments regarding this burden estimate or any other aspect of this collection of information, including suggestions for reducing this burden, to: AHRQ Reports Clearance Officer, Attention: PRA, Paperwork Reduction Project (0935-0143), AHRQ, 540 Gaither Road, Room #5036, Rockville, MD 20850.",
                     "type": "display"
                   }
-                ]
+                ],
+                "linkId": "Medication/SEC05",
+                "text": "Thank you for completing these questions.",
+                "type": "group"
               }
-            ]
+            ],
+            "linkId": "Medication/SEC00",
+            "text": "Medication or Other Substance",
+            "type": "group"
           },
           {
             "extension": [
@@ -1487,17 +1412,23 @@
                 }
               }
             ],
-            "linkId": "Medication/footer",
-            "type": "group",
             "item": [
               {
                 "linkId": "Medication/footer.0",
                 "text": "AHRQ Common Formats - Hospital Version 1.2 - 2012 Medication or Other Substance",
                 "type": "display"
               }
-            ]
+            ],
+            "linkId": "Medication/footer",
+            "type": "group"
           }
-        ]
+        ],
+        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/F8-1.2",
+        "name": "MedicationOrOtherSubstances",
+        "title": "Medication or Other Substance",
+        "status": "active",
+        "date": "2012-04-01",
+        "publisher": "Agency for Healthcare Research and Quality (AHRQ)"
       }
     },
     {
@@ -1785,15 +1716,12 @@
             }
           }
         ],
-        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/HERF-1.2",
         "identifier": [
           {
             "system": "http://example.org/AHRQ",
             "value": "identifier/HERF/1.2"
           }
         ],
-        "title": "Healthcare Event Reporting Form (HERF) Hospital Version 1.2",
-        "status": "active",
         "item": [
           {
             "extension": [
@@ -1809,8 +1737,6 @@
                 }
               }
             ],
-            "linkId": "HERF/header",
-            "type": "group",
             "item": [
               {
                 "extension": [
@@ -1830,11 +1756,11 @@
                 "type": "string",
                 "required": true
               }
-            ]
+            ],
+            "linkId": "HERF/header",
+            "type": "group"
           },
           {
-            "linkId": "HERF/SEC01",
-            "type": "group",
             "item": [
               {
                 "linkId": "HERF/DE30b",
@@ -1889,12 +1815,11 @@
                 "repeats": true,
                 "answerValueSet": "#d1e6177-vs"
               }
-            ]
+            ],
+            "linkId": "HERF/SEC01",
+            "type": "group"
           },
           {
-            "linkId": "HERF/SEC01.1",
-            "text": "PATIENT INFORMATION (COMPLETE ONLY IF INCIDENT)",
-            "type": "group",
             "enableWhen": [
               {
                 "question": "HERF/DE3",
@@ -1935,12 +1860,12 @@
                 "type": "string",
                 "required": true
               }
-            ]
+            ],
+            "linkId": "HERF/SEC01.1",
+            "text": "PATIENT INFORMATION (COMPLETE ONLY IF INCIDENT)",
+            "type": "group"
           },
           {
-            "linkId": "HERF/SEC02",
-            "text": "Patient Information (COMPLETE ONLY IF INCIDENT):",
-            "type": "group",
             "enableWhen": [
               {
                 "question": "HERF/DE3",
@@ -1980,12 +1905,12 @@
                 "type": "open-choice",
                 "answerValueSet": "#d1e6853-vs"
               }
-            ]
+            ],
+            "linkId": "HERF/SEC02",
+            "text": "Patient Information (COMPLETE ONLY IF INCIDENT):",
+            "type": "group"
           },
           {
-            "linkId": "HERF/SEC03",
-            "text": "Neonatal Patient Information:",
-            "type": "group",
             "item": [
               {
                 "linkId": "HERF/SEC03.0",
@@ -1993,10 +1918,6 @@
                 "type": "display"
               },
               {
-                "linkId": "HERF/Hidden",
-                "text": "Is this event a perinatal incident that affected a neonate?",
-                "type": "open-choice",
-                "answerValueSet": "#d1e7006-vs",
                 "item": [
                   {
                     "linkId": "HERF/DE34",
@@ -2021,20 +1942,20 @@
                     "required": true,
                     "answerValueSet": "#d1e7220-vs"
                   }
-                ]
+                ],
+                "linkId": "HERF/Hidden",
+                "text": "Is this event a perinatal incident that affected a neonate?",
+                "type": "open-choice",
+                "answerValueSet": "#d1e7006-vs"
               }
-            ]
+            ],
+            "linkId": "HERF/SEC03",
+            "text": "Neonatal Patient Information:",
+            "type": "group"
           },
           {
-            "linkId": "HERF/SEC04",
-            "text": "REPORT AND EVENT REPORTER INFORMATION",
-            "type": "group",
             "item": [
               {
-                "linkId": "HERF/DE33",
-                "text": "Anonymous Reporter",
-                "type": "open-choice",
-                "answerValueSet": "#d1e7422-vs",
                 "item": [
                   {
                     "linkId": "HERF/DE50",
@@ -2059,21 +1980,28 @@
                     "text": "Reporter's Job or Position",
                     "type": "string"
                   }
-                ]
+                ],
+                "linkId": "HERF/DE33",
+                "text": "Anonymous Reporter",
+                "type": "open-choice",
+                "answerValueSet": "#d1e7422-vs"
               }
-            ]
+            ],
+            "linkId": "HERF/SEC04",
+            "text": "REPORT AND EVENT REPORTER INFORMATION",
+            "type": "group"
           },
           {
-            "linkId": "HERF/SEC05",
-            "text": "Thank you for completing these questions.",
-            "type": "group",
             "item": [
               {
                 "linkId": "HERF/SEC05.0",
                 "text": "OMB No. 0935-0143 Exp. Date 10/31/2014 Public reporting burden for the collection of information is estimated to average 10 minutes per response. An agency may not conduct or sponsor, and a person is not required to respond to, a collection of information unless it displays a currently valid OMB control number. Send comments regarding this burden estimate or any other aspect of this collection of information, including suggestions for reducing this burden, to: AHRQ Reports Clearance Officer, Attention: PRA, Paperwork Reduction Project (0935-0143), AHRQ, 540 Gaither Road, Room #5036, Rockville, MD 20850.",
                 "type": "display"
               }
-            ]
+            ],
+            "linkId": "HERF/SEC05",
+            "text": "Thank you for completing these questions.",
+            "type": "group"
           },
           {
             "extension": [
@@ -2089,17 +2017,20 @@
                 }
               }
             ],
-            "linkId": "HERF/footer",
-            "type": "group",
             "item": [
               {
                 "linkId": "HERF/footer.0",
                 "text": "AHRQ Common Formats - Hospital Version 1.2 - 2012 Medication or Other Substance",
                 "type": "display"
               }
-            ]
+            ],
+            "linkId": "HERF/footer",
+            "type": "group"
           }
-        ]
+        ],
+        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/HERF-1.2",
+        "title": "Healthcare Event Reporting Form (HERF) Hospital Version 1.2",
+        "status": "active"
       }
     },
     {
@@ -2110,7 +2041,6 @@
         "meta": {
           "lastUpdated": "2014-05-15T17:25:15Z"
         },
-        "language": "en",
         "contained": [
           {
             "resourceType": "CodeSystem",
@@ -2337,34 +2267,25 @@
             }
           }
         ],
-        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/3921052v1.0",
         "identifier": [
           {
             "system": "http://example.org/nci.nih.gov/xml/owl/cadsr/form/form_design_identifier",
             "value": "3921052v1.0/"
           }
         ],
-        "title": "Diagnosis NCI Standard Template",
-        "status": "active",
-        "date": "2013-10-16",
-        "publisher": "National Cancer Institute (NCI)",
         "useContext": [
           {
+            "valueCodeableConcept": {
+              "text": "CRF"
+            },
             "code": {
               "code": "form-type",
               "system": "http://example.org/fhir/CodeSystem/usage-contexts"
-            },
-            "valueCodeableConcept": {
-              "text": "CRF"
             }
           }
         ],
         "item": [
           {
-            "linkId": "3921053v1.0",
-            "text": "Mandatory Diagnosis Questions",
-            "type": "group",
-            "required": true,
             "item": [
               {
                 "linkId": "3921053v1.0.0",
@@ -2390,12 +2311,13 @@
                 "text": "Primary Site",
                 "type": "string"
               }
-            ]
+            ],
+            "linkId": "3921053v1.0",
+            "text": "Mandatory Diagnosis Questions",
+            "type": "group",
+            "required": true
           },
           {
-            "linkId": "3921066v1.0",
-            "text": "Conditional Diagnosis Questions",
-            "type": "group",
             "item": [
               {
                 "linkId": "3921066v1.0.0",
@@ -2409,12 +2331,12 @@
                 "type": "open-choice",
                 "answerValueSet": "#d1e8407-vs"
               }
-            ]
+            ],
+            "linkId": "3921066v1.0",
+            "text": "Conditional Diagnosis Questions",
+            "type": "group"
           },
           {
-            "linkId": "3921077v1.0",
-            "text": "Optional Diagnosis Questions",
-            "type": "group",
             "item": [
               {
                 "linkId": "3921077v1.0.0",
@@ -2453,9 +2375,18 @@
                 "type": "open-choice",
                 "answerValueSet": "#d1e9025-vs"
               }
-            ]
+            ],
+            "linkId": "3921077v1.0",
+            "text": "Optional Diagnosis Questions",
+            "type": "group"
           }
-        ]
+        ],
+        "language": "en",
+        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/3921052v1.0",
+        "title": "Diagnosis NCI Standard Template",
+        "status": "active",
+        "date": "2013-10-16",
+        "publisher": "National Cancer Institute (NCI)"
       }
     },
     {
@@ -2466,7 +2397,6 @@
         "meta": {
           "lastUpdated": "2014-05-15T17:25:15Z"
         },
-        "language": "en",
         "contained": [
           {
             "resourceType": "CodeSystem",
@@ -3079,43 +3009,34 @@
             }
           }
         ],
-        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/2674812v4.0",
         "identifier": [
           {
             "system": "http://example.org/nci.nih.gov/xml/owl/cadsr/form/form_design_identifier",
             "value": "2674812v4.0/"
           }
         ],
-        "title": "Demography NCI Standard Template",
-        "status": "active",
-        "date": "2013-03-22",
-        "publisher": "National Cancer Institute (NCI)",
         "useContext": [
           {
+            "valueCodeableConcept": {
+              "text": "CRF"
+            },
             "code": {
               "code": "form-type",
               "system": "http://example.org/fhir/CodeSystem/usage-contexts"
-            },
-            "valueCodeableConcept": {
-              "text": "CRF"
             }
           },
           {
+            "valueCodeableConcept": {
+              "text": "Demographic"
+            },
             "code": {
               "code": "form-type",
               "system": "http://example.org/fhir/CodeSystem/usage-contexts"
-            },
-            "valueCodeableConcept": {
-              "text": "Demographic"
             }
           }
         ],
         "item": [
           {
-            "linkId": "3702891v4.0",
-            "text": "Mandatory Demography Questions",
-            "type": "group",
-            "required": true,
             "item": [
               {
                 "linkId": "3702891v4.0.0",
@@ -3167,12 +3088,13 @@
                 "type": "open-choice",
                 "answerValueSet": "#d1e10593-vs"
               }
-            ]
+            ],
+            "linkId": "3702891v4.0",
+            "text": "Mandatory Demography Questions",
+            "type": "group",
+            "required": true
           },
           {
-            "linkId": "3702912v4.0",
-            "text": "Conditional Demography Questions",
-            "type": "group",
             "item": [
               {
                 "linkId": "3702912v4.0.0",
@@ -3216,12 +3138,12 @@
                 "text": "CDC Ethnicity Code",
                 "type": "string"
               }
-            ]
+            ],
+            "linkId": "3702912v4.0",
+            "text": "Conditional Demography Questions",
+            "type": "group"
           },
           {
-            "linkId": "3702940v4.0",
-            "text": "Optional Demography Questions",
-            "type": "group",
             "item": [
               {
                 "linkId": "3702940v4.0.0",
@@ -3268,9 +3190,18 @@
                 "type": "open-choice",
                 "answerValueSet": "#d1e14027-vs"
               }
-            ]
+            ],
+            "linkId": "3702940v4.0",
+            "text": "Optional Demography Questions",
+            "type": "group"
           }
-        ]
+        ],
+        "language": "en",
+        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/2674812v4.0",
+        "title": "Demography NCI Standard Template",
+        "status": "active",
+        "date": "2013-03-22",
+        "publisher": "National Cancer Institute (NCI)"
       }
     },
     {
@@ -3281,7 +3212,6 @@
         "meta": {
           "lastUpdated": "2014-05-15T17:25:15Z"
         },
-        "language": "en",
         "contained": [
           {
             "resourceType": "CodeSystem",
@@ -12109,35 +12039,25 @@
             }
           }
         ],
-        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/3265657v2.0",
         "identifier": [
           {
             "system": "http://example.org/nci.nih.gov/xml/owl/cadsr/form/form_design_identifier",
             "value": "3265657v2.0/"
           }
         ],
-        "title": "Adverse Event/Serious Adverse Event CTCAE v4 NCI Standard Template",
-        "status": "active",
-        "date": "2012-08-15",
-        "publisher": "National Cancer Institute (NCI)",
-        "description": "A sample questionnaire example for sdc-questionnaire profile",
         "useContext": [
           {
+            "valueCodeableConcept": {
+              "text": "CRF"
+            },
             "code": {
               "code": "form-type",
               "system": "http://example.org/fhir/CodeSystem/usage-contexts"
-            },
-            "valueCodeableConcept": {
-              "text": "CRF"
             }
           }
         ],
         "item": [
           {
-            "linkId": "3556213v2.0",
-            "text": "Mandatory Adverse Event Questions",
-            "type": "group",
-            "required": true,
             "item": [
               {
                 "linkId": "3556213v2.0.0",
@@ -12170,12 +12090,13 @@
                 "type": "open-choice",
                 "answerValueSet": "#d1e54652-vs"
               }
-            ]
+            ],
+            "linkId": "3556213v2.0",
+            "text": "Mandatory Adverse Event Questions",
+            "type": "group",
+            "required": true
           },
           {
-            "linkId": "3557016v2.0",
-            "text": "Conditional Adverse Event Questions",
-            "type": "group",
             "item": [
               {
                 "linkId": "3557016v2.0.0",
@@ -12217,12 +12138,12 @@
                 "text": "Cycle #",
                 "type": "string"
               }
-            ]
+            ],
+            "linkId": "3557016v2.0",
+            "text": "Conditional Adverse Event Questions",
+            "type": "group"
           },
           {
-            "linkId": "3557027v2.0",
-            "text": "Optional Adverse Event Questions",
-            "type": "group",
             "item": [
               {
                 "linkId": "3557027v2.0.0",
@@ -12421,12 +12342,12 @@
                 "text": "Comments",
                 "type": "string"
               }
-            ]
+            ],
+            "linkId": "3557027v2.0",
+            "text": "Optional Adverse Event Questions",
+            "type": "group"
           },
           {
-            "linkId": "3556197v2.0",
-            "text": "Optional Serious Adverse Event Questions",
-            "type": "group",
             "item": [
               {
                 "linkId": "3556197v2.0.0",
@@ -12459,10 +12380,21 @@
                 "type": "open-choice",
                 "answerValueSet": "#d1e99668-vs"
               }
-            ]
+            ],
+            "linkId": "3556197v2.0",
+            "text": "Optional Serious Adverse Event Questions",
+            "type": "group"
           }
-        ]
+        ],
+        "language": "en",
+        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/3265657v2.0",
+        "title": "Adverse Event/Serious Adverse Event CTCAE v4 NCI Standard Template",
+        "status": "active",
+        "date": "2012-08-15",
+        "publisher": "National Cancer Institute (NCI)",
+        "description": "A sample questionnaire example for sdc-questionnaire profile"
       }
     }
-  ]
+  ],
+  "type": "collection"
 }

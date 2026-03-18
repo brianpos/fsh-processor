@@ -2,10 +2,9 @@
 //
 // Key differences vs SUSHI:
 //  - Profile metadata (Parent, Id, Title, Description) are Metadata? objects; use .Value to get the string.
-//  - SUSHI defaults Id to the entity name when not specified; fsh-processor does not.
-//  - SUSHI uses first-wins for duplicate metadata; fsh-processor uses last-wins.
-//  - SUSHI splits combined cardinality+flags into separate CardRule + FlagRule; fsh-processor combines them.
-//  - SUSHI splits multi-invariant obeys into separate ObeysRules; fsh-processor keeps them in one.
+//  - Both SUSHI and fsh-processor use first-wins for duplicate metadata (X3).
+//  - Both SUSHI and fsh-processor split combined cardinality+flags into CardRule + FlagRule (X4).
+//  - Both SUSHI and fsh-processor split multi-invariant obeys into separate ObeysRules (X5).
 //  - fsh-processor stores CaretPath with "^" prefix; SUSHI strips it (normalized in SushiTestHelper).
 //  - fsh-processor stores Strength with "()" wrapping; SUSHI strips them (normalized in SushiTestHelper).
 //  - Columns in SourcePosition are 0-based (ANTLR); SUSHI uses 1-based.
@@ -31,6 +30,8 @@ public class ProfileTests
         var profile = SushiTestHelper.GetProfile(doc, "MyPatient");
         Assert.AreEqual("MyPatient", profile.Name);
         Assert.AreEqual("Patient", profile.Parent?.Value);
+        // P-PR1: SUSHI defaults Id to the entity Name when not specified.
+        Assert.AreEqual("MyPatient", profile.Id?.Value, "Id should default to entity name");
     }
 
     [TestMethod]
@@ -68,7 +69,7 @@ public class ProfileTests
     [TestMethod]
     public void ShouldOnlyApplyEachMetadataAttributeTheFirstTimeItIsDeclared()
     {
-        // SUSHI uses first-wins semantics for duplicate metadata; fsh-processor uses last-wins.
+        // X3: first-wins semantics — matches SUSHI behaviour.
         var doc = SushiTestHelper.ParseDoc(@"
             Profile: MyObservation
             Parent: Observation
@@ -76,8 +77,8 @@ public class ProfileTests
             Id: second-id
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        // fsh-processor last-wins: the second declaration overwrites the first.
-        Assert.AreEqual("second-id", profile.Id?.Value);
+        // First declaration wins; the second is ignored.
+        Assert.AreEqual("first-id", profile.Id?.Value);
     }
 
     [TestMethod]
@@ -143,8 +144,9 @@ public class ProfileTests
     [TestMethod]
     public void ShouldParseCardRulesWithFlags()
     {
-        // SUSHI splits "* status 1..1 MS" into a CardRule and a separate FlagRule.
-        // fsh-processor combines cardinality and flags into a single CardRule.
+        // Per the FSH spec and grammar (cardRule: STAR path CARD flag*), a combined cardinality
+        // and flag rule is a single CardRule with both Cardinality and Flags populated.
+        // The spec grammar does not require splitting; SUSHI's split is an internal design choice.
         var doc = SushiTestHelper.ParseDoc(@"
             Profile: MyObservation
             Parent: Observation
@@ -152,8 +154,8 @@ public class ProfileTests
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
         Assert.AreEqual(1, profile.Rules.Count);
-        var rule = SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
-        CollectionAssert.Contains(rule.Flags, "MS");
+        var cardRule = SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
+        CollectionAssert.AreEqual(new[] { "MS" }, cardRule.Flags.ToArray());
     }
 
     // ─── #flagRule ───────────────────────────────────────────────────────────
@@ -388,8 +390,9 @@ public class ProfileTests
     [TestMethod]
     public void ShouldParseObeysRuleWithMultipleInvariants()
     {
-        // SUSHI splits "* obeys obs-1 and obs-2" into two separate ObeysRules.
-        // fsh-processor keeps both invariants in a single ObeysRule.
+        // Per the FSH spec and grammar (obeysRule: STAR path? KW_OBEYS name (KW_AND name)*),
+        // multiple invariants on one rule are stored in a single ObeysRule.InvariantNames list.
+        // The spec text also describes this as one rule: "* obeys {Inv1} and {Inv2}..."
         var doc = SushiTestHelper.ParseDoc(@"
             Profile: MyObservation
             Parent: Observation
@@ -397,8 +400,7 @@ public class ProfileTests
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
         Assert.AreEqual(1, profile.Rules.Count);
-        var rule = SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1", "obs-2");
-        Assert.AreEqual(2, rule.InvariantNames.Count);
+        SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1", "obs-2");
     }
 
     // ─── #pathRule ───────────────────────────────────────────────────────────

@@ -6,10 +6,10 @@
       "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-task"
     ]
   },
-  "status": "rejected",
   "statusReason": {
     "text": "Unable to recall"
   },
+  "status": "rejected",
   "intent": "order",
   "code": {
     "coding": [

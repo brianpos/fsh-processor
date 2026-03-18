@@ -16,6 +16,8 @@ namespace fsh_compiler;
 /// </summary>
 public static class FshCompiler
 {
+    /// <summary>The FSH alias-reference prefix character (e.g. <c>$myAlias</c>).</summary>
+    private const char AliasPrefix = '$';
     /// <summary>
     /// Compiles all entities in <paramref name="doc"/> to FHIR resources.
     /// Entities that do not produce a FHIR resource (Alias, RuleSet) are silently skipped.
@@ -79,6 +81,7 @@ public static class FshCompiler
 
         // Collect Mapping entities for a second pass (they annotate already-compiled SDs).
         var pendingMappings = new List<(fsh_processor.Models.Mapping Mapping, string EntityName)>();
+        var pendingInstances = new List<fsh_processor.Models.Instance>();
 
         foreach (var doc in docs)
         {
@@ -94,17 +97,21 @@ public static class FshCompiler
                         fsh_processor.Models.Resource fshResource => BuildResource(fshResource, context, opts),
                         fsh_processor.Models.ValueSet vs => BuildValueSet(vs, context, opts),
                         fsh_processor.Models.CodeSystem cs => BuildCodeSystem(cs, context, opts),
-                        fsh_processor.Models.Instance inst => BuildInstance(inst, context, opts),
                         fsh_processor.Models.Mapping => null, // handled in second pass below
                         // Alias, RuleSet, and Invariant produce no FHIR resource
                         _ => null
                     };
+                    if (entity is fsh_processor.Models.Instance instPending)
+                        pendingInstances.Add(instPending);
 
                     if (resource != null)
                     {
                         resources.Add(resource);
                         if (resource is StructureDefinition sd)
+                        {
                             sdByEntityName.TryAdd(entity.Name, sd);
+                            context.RegisterStructureDefinition(entity.Name, sd);
+                        }
                     }
 
                     // Queue Mapping entities for deferred processing.
@@ -120,6 +127,30 @@ public static class FshCompiler
                         Position = entity.Position
                     });
                 }
+            }
+        }
+
+        // Now that all the canonical stuff is done, create all the instance data
+        foreach (var inst in pendingInstances)
+        {
+            try
+            {
+                FhirResource? resource = BuildInstance(inst, context, opts);
+                if (resource != null)
+                {
+                    resources.Add(resource);
+                    if (resource is StructureDefinition sd)
+                        sdByEntityName.TryAdd(inst.Name, sd);
+                }
+            }
+            catch (Exception ex)
+            {
+                errors.Add(new CompilerError
+                {
+                    EntityName = inst.Name,
+                    Message = ex.Message,
+                    Position = inst.Position
+                });
             }
         }
 
@@ -168,15 +199,34 @@ public static class FshCompiler
         Profile profile, CompilerContext context, CompilerOptions? options = null)
     {
         var opts = options ?? new CompilerOptions();
+
+        // C-PR3: Determine the profile's Kind from the parent type via the ModelInspector.
+        // For profiles of resources → "resource"; for datatypes → "complex-type".
+        // Fall back to "resource" when the type can't be resolved (most common case).
+        var parentTypeName = profile.Parent?.Value ?? "DomainResource";
+        var resolvedParent = context.ResolveAlias(parentTypeName);
+        var kind = InferKindFromType(resolvedParent, opts.Inspector);
+
+        // C-PR4: StructureDefinition.Type must be the bare FHIR type name.
+        // When the parent is a URL (e.g. from an alias), strip to the last segment and
+        // check whether that segment is a known base FHIR type via the ModelInspector.
+        // Only use the stripped name when it is a recognised type; otherwise fall back to
+        // the pre-alias-resolution name so profiles-of-profiles don't produce a bogus type.
+        var typeValue = ExtractBareTypeName(resolvedParent, parentTypeName, opts.Inspector);
+
         var sd = new StructureDefinition
         {
             Id = profile.Id?.Value,
-            Url = ResolveUrl(profile.Id?.Value, opts),
+            Url = ResolveUrl(profile.Id?.Value, opts, "StructureDefinition"),
             Name = profile.Name,
             Title = profile.Title?.Value,
             Description = profile.Description?.Value,
-            Type = profile.Parent?.Value ?? "DomainResource",
-            BaseDefinition = context.ResolveAlias(profile.Parent?.Value ?? string.Empty),
+            Status = PublicationStatus.Active,
+            Experimental = false,
+            Abstract = false,
+            Kind = kind,
+            Type = typeValue,
+            BaseDefinition = resolvedParent,
             Derivation = StructureDefinition.TypeDerivationRule.Constraint,
             Differential = new StructureDefinition.DifferentialComponent
             {
@@ -197,11 +247,81 @@ public static class FshCompiler
             };
         }
 
-        // Ensure root element
+        // Ensure root element (no ElementId — snapshot generator will derive it from the type)
         sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type });
 
         ApplySdRules(profile.Rules, sd, context, opts);
         return sd;
+    }
+
+    /// <summary>
+    /// Infers the <see cref="StructureDefinition.StructureDefinitionKind"/> for a profile
+    /// given its parent type name (possibly a URL).  Uses the optional <paramref name="inspector"/>
+    /// to look up whether the type is a resource.  Defaults to <c>Resource</c> when the
+    /// type cannot be resolved.
+    /// </summary>
+    private static StructureDefinition.StructureDefinitionKind InferKindFromType(
+        string? parentTypeOrUrl, ModelInspector? inspector)
+    {
+        if (string.IsNullOrEmpty(parentTypeOrUrl))
+            return StructureDefinition.StructureDefinitionKind.Resource;
+
+        // Strip URL prefix to get the bare type name.
+        var typeName = parentTypeOrUrl;
+        if (IsAbsoluteUrl(typeName))
+        {
+            var lastSlash = typeName.LastIndexOf('/');
+            if (lastSlash >= 0) typeName = typeName[(lastSlash + 1)..];
+        }
+
+        if (inspector != null)
+        {
+            var classMap = inspector.FindClassMapping(typeName);
+            if (classMap != null)
+            {
+                return classMap.IsResource
+                    ? StructureDefinition.StructureDefinitionKind.Resource
+                    : StructureDefinition.StructureDefinitionKind.ComplexType;
+            }
+        }
+
+        // Fallback: most profiles target resources; if the name starts with a lowercase letter
+        // (e.g. "string", "boolean", "code") assume complex-type (FHIR uses ComplexType for
+        // both complex data types and primitive types in the SDK model).
+        // NOTE: This is a last-resort heuristic that works for the FHIR naming convention
+        // where base resource types are PascalCase (Patient, Questionnaire) while primitive
+        // and complex data types are lowercase (string, boolean, code, Coding).  It will
+        // fail for non-standard type names that don't follow this convention.
+        if (typeName.Length > 0 && char.IsLower(typeName[0]))
+            return StructureDefinition.StructureDefinitionKind.ComplexType;
+
+        return StructureDefinition.StructureDefinitionKind.Resource;
+    }
+
+    /// <summary>
+    /// Extracts the bare FHIR type name from a parent type name or URL.
+    /// When <paramref name="resolvedParent"/> is a URL, strips the last segment and
+    /// checks whether it is a known base FHIR type via <paramref name="inspector"/>.
+    /// Falls back to <paramref name="originalParent"/> (pre-alias-resolution name) so that
+    /// profiles-of-profiles (where the URL segment is a profile id, not a type name) don't
+    /// produce a bogus type value.
+    /// </summary>
+    private static string ExtractBareTypeName(
+        string resolvedParent, string originalParent, ModelInspector? inspector)
+    {
+        if (!IsAbsoluteUrl(resolvedParent))
+            return resolvedParent;   // Already bare (e.g. "Patient", "DomainResource").
+
+        var lastSlash = resolvedParent.LastIndexOf('/');
+        var segment = lastSlash >= 0 ? resolvedParent[(lastSlash + 1)..] : resolvedParent;
+
+        // Only use the URL segment when the ModelInspector recognises it as a known FHIR type.
+        // Otherwise keep the original pre-alias name (the next best approximation).
+        if (inspector != null && inspector.FindClassMapping(segment) != null)
+            return segment;
+
+        // Alias name like "$someAlias" → strip the leading alias prefix to get a displayable fallback.
+        return originalParent.TrimStart(AliasPrefix);
     }
 
     /// <summary>
@@ -215,10 +335,13 @@ public static class FshCompiler
         var sd = new StructureDefinition
         {
             Id = ext.Id,
-            Url = ResolveUrl(ext.Id, opts),
+            Url = ResolveUrl(ext.Id, opts, "StructureDefinition"),
             Name = ext.Name,
             Title = ext.Title,
             Description = ext.Description,
+            Status = PublicationStatus.Active,
+            Experimental = false,
+            Abstract = false,
             Type = "Extension",
             BaseDefinition = context.ResolveAlias(ext.Parent ?? "http://hl7.org/fhir/StructureDefinition/Extension"),
             Derivation = StructureDefinition.TypeDerivationRule.Constraint,
@@ -231,13 +354,18 @@ public static class FshCompiler
 
         sd.Differential.Element.Add(new ElementDefinition("Extension") { Path = "Extension" });
 
-        // Context
+        // Context — determine type from the grammar alternative that was matched (P-EX3).
         if (ext.Contexts.Count > 0)
         {
             sd.Context = ext.Contexts
                 .Select(c => new StructureDefinition.ContextComponent
                 {
-                    Type = StructureDefinition.ExtensionContextType.Element,
+                    Type = c.Type switch
+                    {
+                        ContextItemType.Fhirpath  => StructureDefinition.ExtensionContextType.Fhirpath,
+                        ContextItemType.Extension => StructureDefinition.ExtensionContextType.Extension,
+                        _                         => StructureDefinition.ExtensionContextType.Element,
+                    },
                     Expression = c.Value
                 })
                 .ToList();
@@ -255,14 +383,22 @@ public static class FshCompiler
         Logical logical, CompilerContext context, CompilerOptions? options = null)
     {
         var opts = options ?? new CompilerOptions();
+
+        // Logical models use the full canonical URL as Type (spec §Logical).
+        var logicalUrl = ResolveUrl(logical.Id, opts, "StructureDefinition");
+        var logicalType = !string.IsNullOrEmpty(logicalUrl) ? logicalUrl : logical.Name;
+
         var sd = new StructureDefinition
         {
             Id = logical.Id,
-            Url = ResolveUrl(logical.Id, opts),
+            Url = logicalUrl,
             Name = logical.Name,
             Title = logical.Title,
             Description = logical.Description,
-            Type = logical.Name,
+            Status = PublicationStatus.Active,
+            Experimental = false,
+            Abstract = false,
+            Type = logicalType,
             BaseDefinition = context.ResolveAlias(logical.Parent ?? "http://hl7.org/fhir/StructureDefinition/Base"),
             Derivation = StructureDefinition.TypeDerivationRule.Specialization,
             Kind = StructureDefinition.StructureDefinitionKind.Logical,
@@ -272,7 +408,20 @@ public static class FshCompiler
             }
         };
 
-        sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type });
+        sd.Differential.Element.Add(new ElementDefinition(logicalType) { Path = logicalType });
+
+        // C-LG1: Emit type-characteristics extension for each Characteristics code.
+        if (logical.Characteristics.Count > 0)
+        {
+            foreach (var ch in logical.Characteristics)
+            {
+                sd.Extension.Add(new FhirExtension
+                {
+                    Url = "http://hl7.org/fhir/tools/StructureDefinition/type-characteristics",
+                    Value = new FhirCode(ch.TrimStart('#'))
+                });
+            }
+        }
 
         ApplySdRules(logical.Rules, sd, context, opts);
         return sd;
@@ -289,10 +438,13 @@ public static class FshCompiler
         var sd = new StructureDefinition
         {
             Id = fshResource.Id,
-            Url = ResolveUrl(fshResource.Id, opts),
+            Url = ResolveUrl(fshResource.Id, opts, "StructureDefinition"),
             Name = fshResource.Name,
             Title = fshResource.Title,
             Description = fshResource.Description,
+            Status = PublicationStatus.Active,
+            Experimental = false,
+            Abstract = false,
             Type = fshResource.Name,
             BaseDefinition = context.ResolveAlias(fshResource.Parent ?? "http://hl7.org/fhir/StructureDefinition/DomainResource"),
             Derivation = StructureDefinition.TypeDerivationRule.Specialization,
@@ -322,11 +474,12 @@ public static class FshCompiler
         var fvs = new FhirValueSet
         {
             Id = vs.Id,
-            Url = ResolveUrl(vs.Id, opts),
+            Url = ResolveUrl(vs.Id, opts, "ValueSet"),
             Name = vs.Name,
             Title = vs.Title,
             Description = vs.Description,
             Status = PublicationStatus.Active,
+            Experimental = false,
             Compose = new FhirValueSet.ComposeComponent
             {
                 Include = new List<FhirValueSet.ConceptSetComponent>(),
@@ -389,16 +542,17 @@ public static class FshCompiler
         var fcs = new FhirCodeSystem
         {
             Id = cs.Id,
-            Url = ResolveUrl(cs.Id, opts),
+            Url = ResolveUrl(cs.Id, opts, "CodeSystem"),
             Name = cs.Name,
             Title = cs.Title,
             Description = cs.Description,
             Status = PublicationStatus.Active,
+            Experimental = false,
             Content = CodeSystemContentMode.Complete,
             Concept = new List<FhirCodeSystem.ConceptDefinitionComponent>()
         };
 
-        foreach (var rule in cs.Rules)
+        foreach (var rule in PropagateConceptCodesToCaretRules(cs.Rules))
         {
             switch (rule)
             {
@@ -416,10 +570,147 @@ public static class FshCompiler
             }
         }
 
+        // C-CS1: Compute total concept count (including nested concepts).
+        fcs.Count = CountAllConcepts(fcs.Concept);
+
         return fcs;
     }
 
-    // ─── SD rule processing ───────────────────────────────────────────────────
+    private static int CountAllConcepts(IEnumerable<FhirCodeSystem.ConceptDefinitionComponent>? concepts)
+    {
+        if (concepts is null) return 0;
+        int total = 0;
+        foreach (var c in concepts)
+        {
+            total++;
+            total += CountAllConcepts(c.Concept);
+        }
+        return total;
+    }
+
+    /// <summary>
+    /// Propagates concept codes from parent <see cref="Concept"/> rules to child
+    /// <see cref="CsCaretValueRule"/> rules that are indented under them (C-CS4).
+    /// </summary>
+    /// <remarks>
+    /// In FSH a concept-scoped caret-value rule can be written two ways:
+    /// <code>
+    /// * #root ^property[+].code = #notSelectable      ← explicit code on the same line
+    /// * #root "Root"                                   ← concept
+    ///   * ^property[+].code = #notSelectable           ← indented caret rule (no code tokens)
+    /// </code>
+    /// The indented form stores an empty <see cref="CsCaretValueRule.Codes"/> list.
+    /// This method detects that pattern by comparing indentation levels and fills in
+    /// the codes from the ancestor <see cref="Concept"/> rule.
+    /// </remarks>
+    private static IEnumerable<CsRule> PropagateConceptCodesToCaretRules(IEnumerable<CsRule> rules)
+    {
+        // Stack entries: (indentLength, conceptCodes)
+        var stack = new Stack<(int IndentLen, List<string> Codes)>();
+
+        foreach (var rule in rules)
+        {
+            var indentLen = rule.Indent.Length;
+
+            // Pop all stack entries at the same or deeper indent — they can no longer be
+            // ancestors of the current rule.
+            while (stack.Count > 0 && stack.Peek().IndentLen >= indentLen)
+                stack.Pop();
+
+            if (rule is Concept concept)
+            {
+                // Push concept's codes so that more-indented caret rules can inherit them.
+                if (concept.Codes.Count > 0)
+                    stack.Push((indentLen, concept.Codes));
+                yield return rule;
+            }
+            else if (rule is CsCaretValueRule caretRule && caretRule.Codes.Count == 0
+                     && stack.Count > 0)
+            {
+                // C-CS4: Indented caret rule with no explicit codes — inherit from parent concept.
+                var parentCodes = stack.Peek().Codes;
+                yield return new CsCaretValueRule
+                {
+                    Position = caretRule.Position,
+                    LeadingHiddenTokens = caretRule.LeadingHiddenTokens,
+                    TrailingHiddenTokens = caretRule.TrailingHiddenTokens,
+                    Indent = caretRule.Indent,
+                    Codes = parentCodes,
+                    CaretPath = caretRule.CaretPath,
+                    Value = caretRule.Value
+                };
+            }
+            else
+            {
+                yield return rule;
+            }
+        }
+    }
+
+
+
+    /// <summary>
+    /// Applies indented-rule path composition to <paramref name="rules"/>, returning a new
+    /// sequence where each rule's path has been prefixed by any ancestor rule's path,
+    /// respecting indentation levels (C-FP1 / P-FP1).
+    /// </summary>
+    /// <remarks>
+    /// FSH allows nested rules to use relative paths:
+    /// <code>
+    /// * extension[option]          ← context path = "extension[option]"
+    ///   * value[x] 1..1            ← resolved path = "extension[option].value[x]"
+    ///   * ^short = "The value"     ← resolved path = "extension[option]" (empty path inherits context)
+    ///     * ^definition = "..."    ← resolved path = "extension[option].value[x]" (inherits from value[x])
+    /// </code>
+    /// The <c>Indent</c> property on each rule (the whitespace before <c>*</c>) determines
+    /// the nesting level.  This method composes paths bottom-up from that hierarchy.
+    /// </remarks>
+    private static IEnumerable<FshRule> ComposeIndentedPaths(IEnumerable<FshRule> rules)
+    {
+        // Stack entries: (indentLength, effectivePath)
+        var stack = new Stack<(int IndentLen, string Path)>();
+
+        foreach (var rule in rules)
+        {
+            var indentLen = rule.Indent.Length;
+
+            // Pop all ancestors that are at the same or deeper indent — they cannot be
+            // ancestors of the current rule.
+            while (stack.Count > 0 && stack.Peek().IndentLen >= indentLen)
+                stack.Pop();
+
+            // The parent context path is from the stack top.
+            var parentPath = stack.Count > 0 ? stack.Peek().Path : string.Empty;
+
+            // Compute the effective path: compose parent path with rule path.
+            string effectivePath;
+            if (!string.IsNullOrEmpty(parentPath))
+            {
+                effectivePath = string.IsNullOrEmpty(rule.Path)
+                    ? parentPath               // caret/obeys rule with no element path → inherits parent
+                    : $"{parentPath}.{rule.Path}";
+            }
+            else
+            {
+                effectivePath = rule.Path;
+            }
+
+            // Push this rule as potential context for deeper children.
+            if (!string.IsNullOrEmpty(effectivePath))
+                stack.Push((indentLen, effectivePath));
+
+            // Yield rule with effective path (unchanged when there is no parent context).
+            if (effectivePath == rule.Path)
+            {
+                yield return rule;
+            }
+            else
+            {
+                var clone = CloneRuleWithPath(rule, effectivePath);
+                yield return clone ?? rule;
+            }
+        }
+    }
 
     private static void ApplySdRules(
         IEnumerable<FshRule> rules,
@@ -427,7 +718,10 @@ public static class FshCompiler
         CompilerContext context,
         CompilerOptions opts)
     {
-        foreach (var rule in rules)
+        // C-FP1: Apply indented-rule path composition before processing.
+        // This expands relative child paths (e.g. `* value[x]` under `* extension[x]`)
+        // into their fully-qualified form (`extension[x].value[x]`).
+        foreach (var rule in ComposeIndentedPaths(rules))
         {
             switch (rule)
             {
@@ -474,7 +768,25 @@ public static class FshCompiler
                 case InsertRule insertRule:
                     var resolved = RuleSetResolver.Resolve(insertRule, context);
                     if (resolved.Count > 0)
-                        ApplySdRules(resolved, sd, context, opts);
+                    {
+                        // C-RL1: When the insert rule has a path context, prepend it to all resolved rules.
+                        var pathPrefix = insertRule.Path;
+                        if (!string.IsNullOrEmpty(pathPrefix))
+                        {
+                            var prefixed = resolved.Select(r =>
+                            {
+                                if (string.IsNullOrEmpty(r.Path))
+                                    return r;
+                                var clone = CloneRuleWithPath(r, $"{pathPrefix}.{r.Path}");
+                                return clone ?? r;
+                            }).ToList();
+                            ApplySdRules(prefixed, sd, context, opts);
+                        }
+                        else
+                        {
+                            ApplySdRules(resolved, sd, context, opts);
+                        }
+                    }
                     else
                         context.Warnings.Add(new CompilerWarning
                         {
@@ -1065,14 +1377,14 @@ public static class FshCompiler
         var type = sd.Type ?? string.Empty;
         var fullPath = string.IsNullOrEmpty(type) ? path : $"{type}.{path}";
 
-        // Handle slice names: path:sliceName — keep as-is in ElementDefinition.Path is not right;
-        // slicing uses sliceName in ElementDefinition.SliceName instead.
+        // Handle slice names: path:sliceName
         if (path.Contains(':'))
         {
             var colonIndex = path.IndexOf(':');
             var basePath = path[..colonIndex];
             var sliceName = path[(colonIndex + 1)..];
             var sliceFullPath = string.IsNullOrEmpty(type) ? basePath : $"{type}.{basePath}";
+            var sliceElementId = $"{sliceFullPath}:{sliceName}";
 
             var sliceEd = sd.Differential.Element
                 .FirstOrDefault(e => e.Path == sliceFullPath && e.SliceName == sliceName);
@@ -1082,7 +1394,9 @@ public static class FshCompiler
                 sliceEd = new ElementDefinition(sliceFullPath)
                 {
                     Path = sliceFullPath,
-                    SliceName = sliceName
+                    SliceName = sliceName,
+                    // C-EI1: Generate ElementDefinition.Id (path:sliceName)
+                    ElementId = sliceElementId
                 };
                 sd.Differential.Element.Add(sliceEd);
             }
@@ -1092,7 +1406,8 @@ public static class FshCompiler
         var ed = sd.Differential.Element.FirstOrDefault(e => e.Path == fullPath && e.SliceName == null);
         if (ed == null)
         {
-            ed = new ElementDefinition(fullPath) { Path = fullPath };
+            // C-EI1: Generate ElementDefinition.Id equal to the full path for non-slice elements.
+            ed = new ElementDefinition(fullPath) { Path = fullPath, ElementId = fullPath };
             sd.Differential.Element.Add(ed);
         }
         return ed;
@@ -1116,12 +1431,25 @@ public static class FshCompiler
         }
     }
 
-    private static string? ResolveUrl(string? idOrName, CompilerOptions opts)
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="url"/> is an absolute HTTP/HTTPS URL.
+    /// </summary>
+    private static bool IsAbsoluteUrl(string url) =>
+        url.StartsWith("http://", StringComparison.Ordinal) ||
+        url.StartsWith("https://", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Constructs a canonical URL for a resource given its local id/name and the
+    /// resource-type-specific path segment (e.g. "StructureDefinition", "ValueSet",
+    /// "CodeSystem"). When no <see cref="CompilerOptions.CanonicalBase"/> is set the
+    /// id is returned as-is so that downstream tools can still work with relative ids.
+    /// </summary>
+    private static string? ResolveUrl(string? idOrName, CompilerOptions opts, string resourceType = "StructureDefinition")
     {
         if (string.IsNullOrEmpty(idOrName)) return null;
-        if (idOrName.StartsWith("http://") || idOrName.StartsWith("https://")) return idOrName;
+        if (IsAbsoluteUrl(idOrName)) return idOrName;
         if (string.IsNullOrEmpty(opts.CanonicalBase)) return idOrName;
-        return $"{opts.CanonicalBase.TrimEnd('/')}/{idOrName}";
+        return $"{opts.CanonicalBase.TrimEnd('/')}/{resourceType}/{idOrName}";
     }
 
     // ─── Instance builder ─────────────────────────────────────────────────────
@@ -1132,8 +1460,13 @@ public static class FshCompiler
     /// <c>InstanceOf</c> type name to a CLR type; returns <c>null</c> when the type cannot
     /// be resolved or the inspector is not supplied.
     /// </summary>
+    /// <param name="forContained">
+    /// When <c>true</c>, the <c>#inline</c> usage guard is skipped so that the instance can be
+    /// embedded as a contained resource rather than emitted as a standalone output.
+    /// </param>
     public static FhirResource? BuildInstance(
-        fsh_processor.Models.Instance instance, CompilerContext context, CompilerOptions? options = null)
+        fsh_processor.Models.Instance instance, CompilerContext context, CompilerOptions? options = null,
+        bool forContained = false)
     {
         var opts = options ?? new CompilerOptions();
         if (string.IsNullOrEmpty(instance.InstanceOf)) return null;
@@ -1141,22 +1474,93 @@ public static class FshCompiler
         var inspector = opts.Inspector;
         if (inspector is null) return null;  // instance compilation requires a version-specific inspector
 
+        // C-IN4: #inline instances should NOT be emitted as standalone resources.
+        // When compiling for a contained[] slot the inline guard is intentionally bypassed.
+        var usage = instance.Usage?.TrimStart('#').ToLowerInvariant();
+        if (!forContained && usage == "inline") return null;
+
         // Resolve alias → type name, then strip any URL prefix to get the bare FHIR type name.
-        var typeName = context.ResolveAlias(instance.InstanceOf);
+        var resolvedInstanceOf = context.ResolveAlias(instance.InstanceOf);
+        var typeName = resolvedInstanceOf;
         var lastSlash = typeName.LastIndexOf('/');
         if (lastSlash >= 0)
             typeName = typeName[(lastSlash + 1)..];
 
         var classMap = inspector.FindClassMapping(typeName);
-        if (classMap is null || !classMap.IsResource) return null;
+        if (classMap is null || !classMap.IsResource)
+        {
+            // typeName may be a profile identifier rather than a bare FHIR type.
+            // Walk compiled StructureDefinitions to resolve the actual base resource type.
+            classMap = context.ResolveClassMappingForProfile(typeName, inspector);
+        }
+
+        if (classMap is null || !classMap.IsResource)
+        {
+            // Still unresolved — emit a warning so callers can surface the miss.
+            context.Warnings.Add(new CompilerWarning
+            {
+                EntityName = instance.Name,
+                Message = $"Instance '{instance.Name}' InstanceOf '{instance.InstanceOf}' could not be resolved to a known FHIR resource type; instance skipped."
+            });
+            return null;
+        }
 
         if (Activator.CreateInstance(classMap.NativeType) is not FhirResource resource)
             return null;
+
+        // C-IN1: Set resource Id from entity name (kebab-case by convention, but use Name as-is).
+        resource.Id = instance.Name;
+
+        // C-IN2: Set meta.profile to the InstanceOf canonical URL when it looks like a URL,
+        // or when a canonical base is set (so we can construct it).
+        var instanceOfUrl = resolvedInstanceOf;
+        if (!IsAbsoluteUrl(instanceOfUrl))
+        {
+            // Not a URL — try to build one with the canonical base if available.
+            if (!string.IsNullOrEmpty(opts.CanonicalBase))
+                instanceOfUrl = $"{opts.CanonicalBase.TrimEnd('/')}/StructureDefinition/{resolvedInstanceOf}";
+            else
+                instanceOfUrl = null; // can't determine URL; skip meta.profile
+        }
+        if (!string.IsNullOrEmpty(instanceOfUrl))
+        {
+            resource.Meta ??= new Meta();
+            resource.Meta.Profile = [instanceOfUrl];
+        }
+
+        // C-IN3: Set Title and Description on conformance resources that support them.
+        if (!string.IsNullOrEmpty(instance.Title) || !string.IsNullOrEmpty(instance.Description))
+        {
+            var resClassMap = inspector.FindClassMapping(resource.GetType());
+            if (resClassMap != null)
+            {
+                if (!string.IsNullOrEmpty(instance.Title))
+                    TrySetStringProperty(resource, resClassMap, "title", instance.Title);
+                if (!string.IsNullOrEmpty(instance.Description))
+                    TrySetStringProperty(resource, resClassMap, "description", instance.Description);
+            }
+        }
 
         // Apply instance rules.
         ApplyInstanceRules(instance.Rules, resource, context, opts, inspector);
 
         return resource;
+    }
+
+    /// <summary>
+    /// Attempts to set a string property by name on a FHIR resource.
+    /// Silently ignores properties that don't exist or are not string-typed.
+    /// </summary>
+    private static void TrySetStringProperty(Base obj, ClassMapping classMap, string propName, string value)
+    {
+        var propMap = classMap.FindMappedElementByName(propName);
+        if (propMap is null) return;
+        if (propMap.ImplementingType == typeof(FhirString))
+            propMap.SetValue(obj, new FhirString(value));
+        else if (propMap.ImplementingType == typeof(Markdown))
+            propMap.SetValue(obj, new Markdown(value));
+        else if (propMap.ImplementingType == typeof(string))
+            propMap.SetValue(obj, value);
     }
 
     private static void ApplyInstanceRules(
@@ -1166,13 +1570,42 @@ public static class FshCompiler
         CompilerOptions opts,
         ModelInspector inspector)
     {
+        // C-FP2: Soft-index state — maps path prefix → current resolved index.
+        // The state dictionary persists across ALL rules in this entity's rule list so that
+        // each [+] accumulates sequentially and [=] can reference a [+] from a previous rule.
+        // [+] increments (or starts at 0) and stores the new index in state.
+        // [=] reuses the stored index (defaults to 0 if no prior [+] has been seen for this prefix).
+        var softIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
+
         foreach (var rule in rules)
         {
             switch (rule)
             {
                 case InstanceFixedValueRule fixedRule when
                     !string.IsNullOrEmpty(fixedRule.Path) && fixedRule.Value != null:
-                    SetInstancePath(resource, fixedRule.Path, fixedRule.Value, inspector);
+                    var resolvedPath = ResolveSoftIndices(fixedRule.Path, softIndexState);
+
+                    // C-IN6: `* contained = <Name>` — embed a named Instance as a contained resource.
+                    // The path base must be "contained" (with optional index, e.g. "contained[+]")
+                    // and the value must be a NameValue (cross-instance reference).
+                    if (fixedRule.Value is NameValue nameRef &&
+                        resource is DomainResource domRes)
+                    {
+                        var pathBase = resolvedPath.Split('[')[0];
+                        if (string.Equals(pathBase, "contained", StringComparison.Ordinal) &&
+                            context.Instances.TryGetValue(nameRef.Value, out var refInstance))
+                        {
+                            var containedResource = BuildInstance(refInstance, context, opts, forContained: true);
+                            if (containedResource != null)
+                            {
+                                domRes.Contained ??= [];
+                                domRes.Contained.Add(containedResource);
+                            }
+                            break;
+                        }
+                    }
+
+                    SetInstancePath(resource, resolvedPath, fixedRule.Value, inspector);
                     break;
 
                 case InstanceInsertRule insertRule:
@@ -1184,6 +1617,79 @@ public static class FshCompiler
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Resolves soft-index tokens (<c>[+]</c> and <c>[=]</c>) in an instance path to
+    /// numeric indices, updating <paramref name="state"/> as a side-effect.
+    /// </summary>
+    /// <remarks>
+    /// The FSH spec (§Soft Indexing) defines:
+    /// <list type="bullet">
+    ///   <item>
+    ///     <c>[+]</c> — increment the running index for the path-prefix up to this segment
+    ///     and store the new index in <paramref name="state"/>.
+    ///   </item>
+    ///   <item>
+    ///     <c>[=]</c> — reuse the stored index for this prefix (0 if no prior <c>[+]</c>
+    ///     has been seen; note: <c>[=]</c> does NOT update <paramref name="state"/>).
+    ///   </item>
+    /// </list>
+    /// </remarks>
+    private static string ResolveSoftIndices(string path, Dictionary<string, int> state)
+    {
+        if (!path.Contains("[+]") && !path.Contains("[=]")) return path;
+
+        // Process segment by segment, keeping track of the resolved prefix.
+        var segments = path.Split('.');
+        var resolvedSegments = new string[segments.Length];
+        var resolvedPrefix = string.Empty;
+
+        for (int i = 0; i < segments.Length; i++)
+        {
+            var seg = segments[i];
+
+            if (seg.Contains("[+]"))
+            {
+                var baseName = seg.Replace("[+]", string.Empty).TrimEnd();
+                var prefixKey = string.IsNullOrEmpty(resolvedPrefix)
+                    ? baseName
+                    : $"{resolvedPrefix}.{baseName}";
+
+                // Increment index for this path prefix.
+                var currentIdx = state.TryGetValue(prefixKey, out var existing) ? existing + 1 : 0;
+                state[prefixKey] = currentIdx;
+
+                resolvedSegments[i] = $"{baseName}[{currentIdx}]";
+                resolvedPrefix = string.IsNullOrEmpty(resolvedPrefix)
+                    ? $"{baseName}[{currentIdx}]"
+                    : $"{resolvedPrefix}.{baseName}[{currentIdx}]";
+            }
+            else if (seg.Contains("[=]"))
+            {
+                var baseName = seg.Replace("[=]", string.Empty).TrimEnd();
+                var prefixKey = string.IsNullOrEmpty(resolvedPrefix)
+                    ? baseName
+                    : $"{resolvedPrefix}.{baseName}";
+
+                // Reuse the last [+] index for this prefix (default to 0 if none seen yet).
+                var currentIdx = state.TryGetValue(prefixKey, out var existing) ? existing : 0;
+
+                resolvedSegments[i] = $"{baseName}[{currentIdx}]";
+                resolvedPrefix = string.IsNullOrEmpty(resolvedPrefix)
+                    ? $"{baseName}[{currentIdx}]"
+                    : $"{resolvedPrefix}.{baseName}[{currentIdx}]";
+            }
+            else
+            {
+                resolvedSegments[i] = seg;
+                resolvedPrefix = string.IsNullOrEmpty(resolvedPrefix)
+                    ? seg
+                    : $"{resolvedPrefix}.{seg}";
+            }
+        }
+
+        return string.Join('.', resolvedSegments);
     }
 
     /// <summary>
@@ -1325,6 +1831,44 @@ public static class FshCompiler
                 Map = mapRule.Target,
                 Language = mapRule.Language
             });
+        }
+    }
+
+    // ─── Rule path-prefix helper (C-RL1) ────────────────────────────────────
+
+    /// <summary>
+    /// Returns a shallow copy of <paramref name="rule"/> with <see cref="FshRule.Path"/>
+    /// replaced by <paramref name="newPath"/>. Returns <c>null</c> for rule types that
+    /// do not support a simple path replacement.
+    /// </summary>
+    private static FshRule? CloneRuleWithPath(FshRule rule, string newPath)
+    {
+        switch (rule)
+        {
+            case CardRule r:
+                return new CardRule { Position = r.Position, Indent = r.Indent, Path = newPath, Cardinality = r.Cardinality, Flags = r.Flags };
+            case FlagRule r:
+                return new FlagRule { Position = r.Position, Indent = r.Indent, Path = newPath, AdditionalPaths = r.AdditionalPaths, Flags = r.Flags };
+            case ValueSetRule r:
+                return new ValueSetRule { Position = r.Position, Indent = r.Indent, Path = newPath, ValueSetName = r.ValueSetName, Strength = r.Strength };
+            case FixedValueRule r:
+                return new FixedValueRule { Position = r.Position, Indent = r.Indent, Path = newPath, Value = r.Value, Exactly = r.Exactly };
+            case ContainsRule r:
+                return new ContainsRule { Position = r.Position, Indent = r.Indent, Path = newPath, Items = r.Items };
+            case OnlyRule r:
+                return new OnlyRule { Position = r.Position, Indent = r.Indent, Path = newPath, TargetTypes = r.TargetTypes };
+            case ObeysRule r:
+                return new ObeysRule { Position = r.Position, Indent = r.Indent, Path = newPath, InvariantNames = r.InvariantNames };
+            case CaretValueRule r:
+                return new CaretValueRule { Position = r.Position, Indent = r.Indent, Path = newPath, CaretPath = r.CaretPath, Value = r.Value };
+            case PathRule r:
+                return new PathRule { Position = r.Position, Indent = r.Indent, Path = newPath };
+            case LrCardRule r:
+                return new LrCardRule { Position = r.Position, Indent = r.Indent, Path = newPath, Cardinality = r.Cardinality, Flags = r.Flags };
+            case LrFlagRule r:
+                return new LrFlagRule { Position = r.Position, Indent = r.Indent, Path = newPath, AdditionalPaths = r.AdditionalPaths, Flags = r.Flags };
+            default:
+                return null;
         }
     }
 }

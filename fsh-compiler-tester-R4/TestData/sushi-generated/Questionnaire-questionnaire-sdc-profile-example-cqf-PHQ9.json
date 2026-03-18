@@ -8,7 +8,7 @@
   },
   "extension": [
     {
-      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
+      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
         "code": "semver",
         "system": "http://hl7.org/fhir/version-algorithm"
@@ -21,11 +21,6 @@
       "value": "phq-9"
     }
   ],
-  "version": "1.0.0",
-  "url": "http://build.fhir.org/ig/HL7/sdc/questionnaire-sdc-profile-example-cqf-PHQ9",
-  "name": "PatientHealthQuestionnairePHQ9",
-  "title": "Patient Health Questionnaire (PHQ-9)",
-  "status": "active",
   "subjectType": [
     "Patient"
   ],
@@ -38,125 +33,125 @@
   ],
   "item": [
     {
-      "linkId": "LittleInterest",
-      "text": "Little interest or pleasure in doing things",
-      "type": "choice",
-      "required": true,
-      "repeats": false,
-      "answerValueSet": "http://loinc.org/vs/LL358-3",
       "code": [
         {
           "code": "44250-9",
           "system": "http://loinc.org"
         }
-      ]
-    },
-    {
-      "linkId": "FeelingDown",
-      "text": "Feeling down, depressed, or hopeless",
+      ],
+      "linkId": "LittleInterest",
+      "text": "Little interest or pleasure in doing things",
       "type": "choice",
       "required": true,
       "repeats": false,
-      "answerValueSet": "http://loinc.org/vs/LL358-3",
+      "answerValueSet": "http://loinc.org/vs/LL358-3"
+    },
+    {
       "code": [
         {
           "code": "44255-8",
           "system": "http://loinc.org"
         }
-      ]
-    },
-    {
-      "linkId": "TroubleSleeping",
-      "text": "Trouble falling or staying asleep",
+      ],
+      "linkId": "FeelingDown",
+      "text": "Feeling down, depressed, or hopeless",
       "type": "choice",
       "required": true,
       "repeats": false,
-      "answerValueSet": "http://loinc.org/vs/LL358-3",
+      "answerValueSet": "http://loinc.org/vs/LL358-3"
+    },
+    {
       "code": [
         {
           "code": "44259-0",
           "system": "http://loinc.org"
         }
-      ]
-    },
-    {
-      "linkId": "FeelingTired",
-      "text": "Feeling tired or having little energy",
+      ],
+      "linkId": "TroubleSleeping",
+      "text": "Trouble falling or staying asleep",
       "type": "choice",
       "required": true,
       "repeats": false,
-      "answerValueSet": "http://loinc.org/vs/LL358-3",
+      "answerValueSet": "http://loinc.org/vs/LL358-3"
+    },
+    {
       "code": [
         {
           "code": "44254-1",
           "system": "http://loinc.org"
         }
-      ]
-    },
-    {
-      "linkId": "BadAppetite",
-      "text": "Poor appetite or overeating",
+      ],
+      "linkId": "FeelingTired",
+      "text": "Feeling tired or having little energy",
       "type": "choice",
       "required": true,
       "repeats": false,
-      "answerValueSet": "http://loinc.org/vs/LL358-3",
+      "answerValueSet": "http://loinc.org/vs/LL358-3"
+    },
+    {
       "code": [
         {
           "code": "44251-7",
           "system": "http://loinc.org"
         }
-      ]
-    },
-    {
-      "linkId": "FeelingBadAboutSelf",
-      "text": "Feeling bad about yourself - or that you are a failure or have let yourself or your family down",
+      ],
+      "linkId": "BadAppetite",
+      "text": "Poor appetite or overeating",
       "type": "choice",
       "required": true,
       "repeats": false,
-      "answerValueSet": "http://loinc.org/vs/LL358-3",
+      "answerValueSet": "http://loinc.org/vs/LL358-3"
+    },
+    {
       "code": [
         {
           "code": "44258-2",
           "system": "http://loinc.org"
         }
-      ]
-    },
-    {
-      "linkId": "TroubleConcentrating",
-      "text": "Trouble concentrating on things, such as reading the newspaper or watching television",
+      ],
+      "linkId": "FeelingBadAboutSelf",
+      "text": "Feeling bad about yourself - or that you are a failure or have let yourself or your family down",
       "type": "choice",
       "required": true,
       "repeats": false,
-      "answerValueSet": "http://loinc.org/vs/LL358-3",
+      "answerValueSet": "http://loinc.org/vs/LL358-3"
+    },
+    {
       "code": [
         {
           "code": "44252-5",
           "system": "http://loinc.org"
         }
-      ]
-    },
-    {
-      "linkId": "MovingSpeaking",
-      "text": "Moving or speaking so slowly that other people could have noticed. Or the opposite - being so fidgety or restless that you have been moving around a lot more than usual",
+      ],
+      "linkId": "TroubleConcentrating",
+      "text": "Trouble concentrating on things, such as reading the newspaper or watching television",
       "type": "choice",
       "required": true,
       "repeats": false,
-      "answerValueSet": "http://loinc.org/vs/LL358-3",
+      "answerValueSet": "http://loinc.org/vs/LL358-3"
+    },
+    {
       "code": [
         {
           "code": "44253-3",
           "system": "http://loinc.org"
         }
-      ]
+      ],
+      "linkId": "MovingSpeaking",
+      "text": "Moving or speaking so slowly that other people could have noticed. Or the opposite - being so fidgety or restless that you have been moving around a lot more than usual",
+      "type": "choice",
+      "required": true,
+      "repeats": false,
+      "answerValueSet": "http://loinc.org/vs/LL358-3"
     },
     {
       "extension": [
         {
-          "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
           "valueExpression": {
             "language": "text/cql",
             "expression": "CalculateTotalScore"
-          }
+          },
+          "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
         },
         {
           "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observation-extract-category",
@@ -171,40 +166,45 @@
           }
         }
       ],
-      "linkId": "TotalScore",
       "code": [
         {
-          "code": "44261-6",
-          "system": "http://loinc.org",
           "extension": [
             {
               "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-observationExtract",
               "valueBoolean": true
             }
-          ]
+          ],
+          "code": "44261-6",
+          "system": "http://loinc.org"
         },
         {
           "code": "720433000",
           "system": "http://snomed.info/sct"
         }
       ],
+      "linkId": "TotalScore",
       "text": "Total score",
       "type": "integer",
       "required": true
     },
     {
-      "linkId": "Difficulty",
-      "text": "If you checked off any problems, how difficult have these problems made it for you to do your work, take care of things at home, or get along with other people",
-      "type": "choice",
-      "required": true,
-      "repeats": false,
-      "answerValueSet": "http://loinc.org/vs/LL358-3",
       "code": [
         {
           "code": "44256-6",
           "system": "http://loinc.org"
         }
-      ]
+      ],
+      "linkId": "Difficulty",
+      "text": "If you checked off any problems, how difficult have these problems made it for you to do your work, take care of things at home, or get along with other people",
+      "type": "choice",
+      "required": true,
+      "repeats": false,
+      "answerValueSet": "http://loinc.org/vs/LL358-3"
     }
-  ]
+  ],
+  "version": "1.0.0",
+  "url": "http://build.fhir.org/ig/HL7/sdc/questionnaire-sdc-profile-example-cqf-PHQ9",
+  "name": "PatientHealthQuestionnairePHQ9",
+  "title": "Patient Health Questionnaire (PHQ-9)",
+  "status": "active"
 }
