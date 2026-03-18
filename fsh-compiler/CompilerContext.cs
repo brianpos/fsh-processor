@@ -1,6 +1,7 @@
 using fsh_processor.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
+using Hl7.Fhir.Specification.Source;
 
 namespace fsh_compiler;
 
@@ -140,11 +141,9 @@ public class CompilerContext
     /// A <see cref="ClassMapping"/> for the resolved FHIR resource type, or <c>null</c> when
     /// the type cannot be resolved.
     /// </returns>
-    public ClassMapping? ResolveClassMappingForProfile(string typeName, ModelInspector inspector)
+    public ClassMapping? ResolveClassMappingForProfile(string typeName, ModelInspector inspector, IResourceResolver resolver)
     {
-        if (!CompiledStructureDefinitions.TryGetValue(typeName, out var sd))
-            return null;
-
+        var sd = resolver.FindStructureDefinition(typeName);
         var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
 
         while (sd is not null)
@@ -161,18 +160,10 @@ public class CompilerContext
             if (string.IsNullOrEmpty(sd.BaseDefinition))
                 break;
 
-            var lastSlash = sd.BaseDefinition.LastIndexOf('/');
-            var baseName = lastSlash >= 0 ? sd.BaseDefinition[(lastSlash + 1)..] : sd.BaseDefinition;
-
-            // Try the base name directly as a FHIR type first.
-            var baseCm = inspector.FindClassMapping(baseName);
-            if (baseCm is not null && baseCm.IsResource)
-                return baseCm;
-
-            if (!visited.Add(baseName))
+            if (!visited.Add(sd.BaseDefinition))
                 break; // cycle guard
 
-            CompiledStructureDefinitions.TryGetValue(baseName, out sd);
+            sd = resolver.FindStructureDefinition(sd.BaseDefinition);
         }
 
         return null;

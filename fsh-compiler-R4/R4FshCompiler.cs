@@ -43,6 +43,7 @@ public static class R4FshCompiler
         var opts = options ?? new CompilerOptions();
         opts.FhirVersion ??= FhirVersion;
         opts.Inspector ??= ModelInfo.ModelInspector;
+        opts.Resolver = Hl7.Fhir.Specification.Source.ZipSource.CreateValidationSource();
         return FshCompiler.Compile(docs, opts);
     }
 }

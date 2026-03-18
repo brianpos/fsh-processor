@@ -8,6 +8,11 @@ namespace fsh_compiler;
 public class CompilerOptions
 {
     /// <summary>
+    /// Resolver used to find FHIR resources during compilation.
+    /// </summary>
+    public Hl7.Fhir.Specification.Source.IResourceResolver? Resolver { get; set; }
+
+    /// <summary>
     /// Base canonical URL prefix applied to compiled resources (e.g. "http://example.org/fhir").
     /// When set, resources whose URL is just a name will be prefixed with this value.
     /// </summary>

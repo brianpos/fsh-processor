@@ -7,6 +7,7 @@ using FhirExtension = Hl7.Fhir.Model.Extension;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
 using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
+using Hl7.Fhir.Specification.Source;
 
 namespace fsh_compiler;
 
@@ -1491,7 +1492,9 @@ public static class FshCompiler
         {
             // typeName may be a profile identifier rather than a bare FHIR type.
             // Walk compiled StructureDefinitions to resolve the actual base resource type.
-            classMap = context.ResolveClassMappingForProfile(typeName, inspector);
+            var ar = new AliasResolver(context.CompiledStructureDefinitions);
+            IResourceResolver imr = (options?.Resolver == null) ? ar : new MultiResolver(ar, options?.Resolver);
+            classMap = context.ResolveClassMappingForProfile(typeName, inspector, imr);
         }
 
         if (classMap is null || !classMap.IsResource)
