@@ -10,6 +10,7 @@ using System.Text.Json;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
 using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
+using Hl7.Fhir.Utility;
 
 namespace fsh_compiler_tester_r4;
 
@@ -83,7 +84,9 @@ public class SdcIgCompilerTests
                 {
                     case ParseResult.Success s:
                         // Annotate each entity with the originating file for diagnostics.
-                        s.Document.Entities.ForEach(e => e.AddAnnotation(new FileInfo(fshFile)));
+                        var fa = new FileInfo(fshFile);
+                        s.Document.Entities.ForEach(e => e.AddAnnotation(fa));
+                        s.Document.SetAnnotation(fa);
                         fshDocs.Add(s.Document);
                         break;
 
@@ -645,7 +648,20 @@ public class SdcIgCompilerTests
         // artifacts don't accumulate.
         var outputDir = Path.Combine(AppContext.BaseDirectory, "TestOutput", "sdc-fhir-output");
         if (Directory.Exists(outputDir))
-            Directory.Delete(outputDir, recursive: true);
+        {
+            try
+            {
+                Directory.Delete(outputDir, recursive: true);
+            }
+            catch
+            {
+                // just delete all the files in the folder instead
+                foreach (var filename in Directory.EnumerateFiles(outputDir))
+                {
+                    File.Delete(filename);
+                }
+            }
+        }
         Directory.CreateDirectory(outputDir);
 
         var serializerSettings = new FhirJsonSerializationSettings { Pretty = true };
@@ -732,10 +748,10 @@ public class SdcIgCompilerTests
             if (mismatchDetails.Count > 0)
             {
                 Console.WriteLine("  Mismatches (key-field comparison only):");
-                foreach (var detail in mismatchDetails.Take(20))
+                foreach (var detail in mismatchDetails) //.Take(20))
                     Console.WriteLine($"    {detail}");
-                if (mismatchDetails.Count > 20)
-                    Console.WriteLine($"    ... and {mismatchDetails.Count - 20} more");
+                //if (mismatchDetails.Count > 20)
+                //    Console.WriteLine($"    ... and {mismatchDetails.Count - 20} more");
             }
         }
         else
