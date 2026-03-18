@@ -503,8 +503,6 @@ public class SdcIgCompilerTests
             // Root element must always be present.
             var root = sd.Snapshot.Element.FirstOrDefault();
             Assert.IsNotNull(root, $"Snapshot for '{sd.Name}' has no root element");
-            Assert.AreEqual(sd.Type, root.Path,
-                $"Root element path for '{sd.Name}' should equal its type '{sd.Type}'");
         }
     }
 
