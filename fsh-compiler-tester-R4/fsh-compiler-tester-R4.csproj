@@ -35,4 +35,10 @@
 		</Content>
 	</ItemGroup>
 
+  <ItemGroup>
+    <None Update="TestData\sushi-config.yaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
