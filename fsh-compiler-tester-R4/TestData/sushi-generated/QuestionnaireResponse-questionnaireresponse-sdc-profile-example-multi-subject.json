@@ -6,34 +6,26 @@
       "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse"
     ]
   },
-  "questionnaire": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-multi-subject",
-  "status": "completed",
-  "subject": {
-    "reference": "http://example.org/fhir/Patient/12345"
-  },
-  "authored": "2021-12-01",
   "item": [
     {
-      "linkId": "1",
-      "text": "Mother's name",
       "answer": [
         {
           "valueString": "Chioma Abubakar"
         }
-      ]
+      ],
+      "linkId": "1",
+      "text": "Mother's name"
     },
     {
-      "linkId": "2",
-      "text": "Mother's id",
       "answer": [
         {
           "valueString": "12345"
         }
-      ]
+      ],
+      "linkId": "2",
+      "text": "Mother's id"
     },
     {
-      "linkId": "3",
-      "text": "Height",
       "answer": [
         {
           "valueQuantity": {
@@ -42,11 +34,11 @@
             "system": "http://unitsofmeasure.org"
           }
         }
-      ]
+      ],
+      "linkId": "3",
+      "text": "Height"
     },
     {
-      "linkId": "4",
-      "text": "Weight",
       "answer": [
         {
           "valueQuantity": {
@@ -55,11 +47,11 @@
             "system": "http://unitsofmeasure.org"
           }
         }
-      ]
+      ],
+      "linkId": "4",
+      "text": "Weight"
     },
     {
-      "linkId": "5",
-      "text": "Children",
       "item": [
         {
           "extension": [
@@ -68,37 +60,35 @@
               "valueBoolean": true
             }
           ],
-          "linkId": "5.1",
-          "text": "Record",
           "answer": [
             {
               "valueReference": {
                 "reference": "http://example.org/fhir/Patient/123456"
               }
             }
-          ]
+          ],
+          "linkId": "5.1",
+          "text": "Record"
         },
         {
-          "linkId": "5.2",
-          "text": "Name",
           "answer": [
             {
               "valueString": "Bolade"
             }
-          ]
+          ],
+          "linkId": "5.2",
+          "text": "Name"
         },
         {
-          "linkId": "5.3",
-          "text": "Birth date",
           "answer": [
             {
               "valueDate": "2020-05-17"
             }
-          ]
+          ],
+          "linkId": "5.3",
+          "text": "Birth date"
         },
         {
-          "linkId": "5.4",
-          "text": "Height",
           "answer": [
             {
               "valueQuantity": {
@@ -107,11 +97,11 @@
                 "system": "http://unitsofmeasure.org"
               }
             }
-          ]
+          ],
+          "linkId": "5.4",
+          "text": "Height"
         },
         {
-          "linkId": "5.5",
-          "text": "Weight",
           "answer": [
             {
               "valueQuantity": {
@@ -120,13 +110,15 @@
                 "system": "http://unitsofmeasure.org"
               }
             }
-          ]
+          ],
+          "linkId": "5.5",
+          "text": "Weight"
         }
-      ]
+      ],
+      "linkId": "5",
+      "text": "Children"
     },
     {
-      "linkId": "5",
-      "text": "Children",
       "item": [
         {
           "extension": [
@@ -135,37 +127,35 @@
               "valueBoolean": true
             }
           ],
-          "linkId": "5.1",
-          "text": "Record",
           "answer": [
             {
               "valueReference": {
                 "reference": "http://example.org/fhir/Patient/123456"
               }
             }
-          ]
+          ],
+          "linkId": "5.1",
+          "text": "Record"
         },
         {
-          "linkId": "5.2",
-          "text": "Name",
           "answer": [
             {
               "valueString": "Obinna"
             }
-          ]
+          ],
+          "linkId": "5.2",
+          "text": "Name"
         },
         {
-          "linkId": "5.3",
-          "text": "Birth date",
           "answer": [
             {
               "valueDate": "2015-11-20"
             }
-          ]
+          ],
+          "linkId": "5.3",
+          "text": "Birth date"
         },
         {
-          "linkId": "5.4",
-          "text": "Height",
           "answer": [
             {
               "valueQuantity": {
@@ -174,11 +164,11 @@
                 "system": "http://unitsofmeasure.org"
               }
             }
-          ]
+          ],
+          "linkId": "5.4",
+          "text": "Height"
         },
         {
-          "linkId": "5.5",
-          "text": "Weight",
           "answer": [
             {
               "valueQuantity": {
@@ -187,9 +177,19 @@
                 "system": "http://unitsofmeasure.org"
               }
             }
-          ]
+          ],
+          "linkId": "5.5",
+          "text": "Weight"
         }
-      ]
+      ],
+      "linkId": "5",
+      "text": "Children"
     }
-  ]
+  ],
+  "questionnaire": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-multi-subject",
+  "status": "completed",
+  "subject": {
+    "reference": "http://example.org/fhir/Patient/12345"
+  },
+  "authored": "2021-12-01"
 }

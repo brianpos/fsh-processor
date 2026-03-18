@@ -16,7 +16,7 @@
   "compose": {
     "include": [
       {
-        "system": "http://example.org/CodeSystem/Australian-States",
+        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/AustralianStateCodes",
         "concept": [
           {
             "code": "ACT",

@@ -6,29 +6,6 @@
       "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-task"
     ]
   },
-  "status": "completed",
-  "intent": "order",
-  "code": {
-    "coding": [
-      {
-        "code": "complete-questionnaire",
-        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
-      }
-    ]
-  },
-  "for": {
-    "reference": "http://hl7.org/fhir/Patient/proband",
-    "display": "Annie Proband"
-  },
-  "authoredOn": "2021-09-06",
-  "requester": {
-    "reference": "http://hl7.org/fhir/PractitionerRole/example",
-    "display": "Dr. Adam Careful, Acme Hospital"
-  },
-  "owner": {
-    "reference": "http://hl7.org/fhir/Patient/proband",
-    "display": "Annie Proband"
-  },
   "reasonCode": {
     "text": "Pre-genomic analysis family history"
   },
@@ -81,5 +58,28 @@
         "reference": "QuestionnaireResponse/questionnaireresponse-sdc-example-ussg-fht-answers"
       }
     }
-  ]
+  ],
+  "status": "completed",
+  "intent": "order",
+  "code": {
+    "coding": [
+      {
+        "code": "complete-questionnaire",
+        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
+      }
+    ]
+  },
+  "for": {
+    "reference": "http://hl7.org/fhir/Patient/proband",
+    "display": "Annie Proband"
+  },
+  "authoredOn": "2021-09-06",
+  "requester": {
+    "reference": "http://hl7.org/fhir/PractitionerRole/example",
+    "display": "Dr. Adam Careful, Acme Hospital"
+  },
+  "owner": {
+    "reference": "http://hl7.org/fhir/Patient/proband",
+    "display": "Annie Proband"
+  }
 }

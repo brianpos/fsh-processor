@@ -25,27 +25,28 @@
             }
           ],
           "rules": "open"
-        }
+        },
+        "min": 1
       },
       {
-        "id": "Parameters.parameter:out",
+        "id": "Parameters.parameter:return",
         "path": "Parameters.parameter",
-        "sliceName": "out",
-        "min": 0,
-        "max": "*"
+        "sliceName": "return",
+        "min": 1,
+        "max": "1"
       },
       {
-        "id": "Parameters.parameter:out.name",
+        "id": "Parameters.parameter:return.name",
         "path": "Parameters.parameter.name",
         "fixedString": "return"
       },
       {
-        "id": "Parameters.parameter:out.value[x]",
+        "id": "Parameters.parameter:return.value[x]",
         "path": "Parameters.parameter.value[x]",
         "max": "0"
       },
       {
-        "id": "Parameters.parameter:out.resource",
+        "id": "Parameters.parameter:return.resource",
         "path": "Parameters.parameter.resource",
         "type": [
           {
@@ -57,7 +58,7 @@
         ]
       },
       {
-        "id": "Parameters.parameter:out.part",
+        "id": "Parameters.parameter:return.part",
         "path": "Parameters.parameter.part",
         "max": "0"
       }

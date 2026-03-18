@@ -6,7 +6,7 @@
   "title": "SDC Value Set",
   "status": "active",
   "experimental": false,
-  "description": "Defines how ValueSet is used to reflect code lists found in data element defintions and form definitions to be used within the ONC's Structured Data Capture standard.",
+  "description": "Defines how ValueSet is used to reflect code lists found in data element defintions and form definitions to be used within the Structured Data Capture standard.",
   "fhirVersion": "4.0.1",
   "mapping": [
     {
@@ -25,12 +25,60 @@
         "id": "ValueSet",
         "path": "ValueSet",
         "definition": "Sets expectations for SDC-conformant systems around value set support for representing permitted question answers.",
+        "constraint": [
+          {
+            "key": "sdc-2",
+            "severity": "error",
+            "human": "If version is present, versionAlgorithm must be present.",
+            "expression": "version.exists() implies extension.where(url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]').exists()",
+            "xpath": "not(exists(f:version)) or exists(f:extension[@url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]'])",
+            "source": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset"
+          },
+          {
+            "key": "sdc-3",
+            "severity": "warning",
+            "human": "Semver is the preferred version algorithm - package machinery doesn't work well with artifacts using alternate versioning schemes",
+            "expression": "extension.where(url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]').all(value.ofType(Coding).where(system='http://hl7.org/fhir/version-algorithm' and code='semver').exists())",
+            "xpath": "not(f:extension[@url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]' and not(exists(f:valueCoding[f:system/@value='http://hl7.org/fhir/version-algorithm' and f:code/@value='semver'])))",
+            "source": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset"
+          }
+        ],
         "mapping": [
           {
             "identity": "ihesdc",
             "map": "Form_Package//list_field"
           }
         ]
+      },
+      {
+        "id": "ValueSet.extension",
+        "path": "ValueSet.extension",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "url"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "ValueSet.extension:versionAlgorithm",
+        "path": "ValueSet.extension",
+        "sliceName": "versionAlgorithm",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D"
+            ]
+          }
+        ],
+        "mustSupport": true
       },
       {
         "id": "ValueSet.modifierExtension",
@@ -71,6 +119,11 @@
       {
         "id": "ValueSet.url",
         "path": "ValueSet.url",
+        "mustSupport": true
+      },
+      {
+        "id": "ValueSet.version",
+        "path": "ValueSet.version",
         "mustSupport": true
       },
       {
@@ -212,6 +265,21 @@
         ]
       },
       {
+        "id": "ValueSet.compose.include.concept.extension:conceptLabel.value[x].extension:code-markdown",
+        "path": "ValueSet.compose.include.concept.extension.value[x].extension",
+        "sliceName": "code-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
+            ]
+          }
+        ]
+      },
+      {
         "id": "ValueSet.compose.include.concept.extension:conceptLabel.value[x].extension:code-xhtml",
         "path": "ValueSet.compose.include.concept.extension.value[x].extension",
         "sliceName": "code-xhtml",
@@ -295,6 +363,21 @@
         ]
       },
       {
+        "id": "ValueSet.compose.include.concept.display.extension:codeDisplay-markdown",
+        "path": "ValueSet.compose.include.concept.display.extension",
+        "sliceName": "codeDisplay-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
+            ]
+          }
+        ]
+      },
+      {
         "id": "ValueSet.compose.include.concept.display.extension:codeDisplay-xhtml",
         "path": "ValueSet.compose.include.concept.display.extension",
         "sliceName": "codeDisplay-xhtml",
@@ -340,6 +423,21 @@
             "code": "Extension",
             "profile": [
               "http://hl7.org/fhir/StructureDefinition/rendering-style"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ValueSet.compose.include.concept.designation.extension:designation-markdown",
+        "path": "ValueSet.compose.include.concept.designation.extension",
+        "sliceName": "designation-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
             ]
           }
         ]
@@ -413,21 +511,6 @@
           "ordered": false,
           "rules": "open"
         }
-      },
-      {
-        "id": "ValueSet.expansion.extension:expansionSource",
-        "path": "ValueSet.expansion.extension",
-        "sliceName": "expansionSource",
-        "min": 0,
-        "max": "1",
-        "type": [
-          {
-            "code": "Extension",
-            "profile": [
-              "http://hl7.org/fhir/StructureDefinition/valueset-expansionSource"
-            ]
-          }
-        ]
       },
       {
         "id": "ValueSet.expansion.extension:expansionProperty",
@@ -535,6 +618,21 @@
           {
             "identity": "ihesdc",
             "map": "item_number/style"
+          }
+        ]
+      },
+      {
+        "id": "ValueSet.expansion.contains.extension:expansionLabel.value[x].extension:expansion-markdown",
+        "path": "ValueSet.expansion.contains.extension.value[x].extension",
+        "sliceName": "expansion-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
+            ]
           }
         ]
       },
@@ -666,6 +764,21 @@
         ]
       },
       {
+        "id": "ValueSet.expansion.contains.display.extension:title-markdown",
+        "path": "ValueSet.expansion.contains.display.extension",
+        "sliceName": "title-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
+            ]
+          }
+        ]
+      },
+      {
         "id": "ValueSet.expansion.contains.display.extension:expansionDisplay-xhtml",
         "path": "ValueSet.expansion.contains.display.extension",
         "sliceName": "expansionDisplay-xhtml",
@@ -720,6 +833,21 @@
             "code": "Extension",
             "profile": [
               "http://hl7.org/fhir/StructureDefinition/rendering-style"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ValueSet.expansion.contains.designation.extension:expansionDesignation-markdown",
+        "path": "ValueSet.expansion.contains.designation.extension",
+        "sliceName": "expansionDesignation-markdown",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/rendering-markdown"
             ]
           }
         ]

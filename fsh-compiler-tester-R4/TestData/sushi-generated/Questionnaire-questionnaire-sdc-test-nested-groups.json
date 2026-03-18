@@ -8,24 +8,15 @@
   },
   "extension": [
     {
-      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
+      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
         "code": "semver",
         "system": "http://hl7.org/fhir/version-algorithm"
       }
     }
   ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-test-nested-groups",
-  "name": "NestedGroups",
-  "title": "Repeatable group test",
-  "status": "active",
-  "experimental": true,
-  "description": "A Test form with repeatable nested groups",
   "item": [
     {
-      "linkId": "a7837ce4-6ba4-4d01-913c-d20a6685556b",
-      "text": "Repeatable group test",
-      "type": "group",
       "item": [
         {
           "linkId": "a9f40adc-f194-4efb-b4f7-9396d0ca8e49",
@@ -33,10 +24,6 @@
           "type": "string"
         },
         {
-          "linkId": "ba91450b-6e67-40dc-8629-0f1b60577774",
-          "text": "Repeatable group 1",
-          "type": "group",
-          "repeats": true,
           "item": [
             {
               "extension": [
@@ -45,7 +32,7 @@
                   "valueCodeableConcept": {
                     "coding": [
                       {
-                        "code": "drop-down",
+                        "code": "autocomplete",
                         "system": "http://hl7.org/fhir/questionnaire-item-control"
                       }
                     ]
@@ -56,7 +43,7 @@
               "text": "Service type",
               "type": "choice",
               "repeats": false,
-              "answerValueSet": "https://sqlonfhir-r4.azurewebsites.net/fhir/ValueSet/866d7924e20711d48c540020182939f7"
+              "answerValueSet": "http://terminology.hl7.org/ValueSet/service-type"
             },
             {
               "linkId": "b7e29109-f729-4359-aa29-6c9e7c7b2318",
@@ -64,21 +51,34 @@
               "type": "string"
             },
             {
-              "linkId": "68ca912397a145bd9e9f265702b5cf45",
-              "text": "Repeatable group 2",
-              "type": "group",
-              "repeats": true,
               "item": [
                 {
                   "linkId": "b7e29109-f729-4359-aa29-6c9e7c7b2328",
                   "text": "Text box - group 2",
                   "type": "string"
                 }
-              ]
+              ],
+              "linkId": "68ca912397a145bd9e9f265702b5cf45",
+              "text": "Repeatable group 2",
+              "type": "group",
+              "repeats": true
             }
-          ]
+          ],
+          "linkId": "ba91450b-6e67-40dc-8629-0f1b60577774",
+          "text": "Repeatable group 1",
+          "type": "group",
+          "repeats": true
         }
-      ]
+      ],
+      "linkId": "a7837ce4-6ba4-4d01-913c-d20a6685556b",
+      "text": "Repeatable group test",
+      "type": "group"
     }
-  ]
+  ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-test-nested-groups",
+  "name": "NestedGroups",
+  "title": "Repeatable group test",
+  "status": "active",
+  "experimental": true,
+  "description": "A Test form with repeatable nested groups"
 }

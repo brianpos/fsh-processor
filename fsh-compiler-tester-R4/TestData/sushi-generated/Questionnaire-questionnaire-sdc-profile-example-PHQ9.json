@@ -15,115 +15,9 @@
           "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset"
         ]
       },
-      "expansion": {
-        "extension": [
-          {
-            "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property",
-            "extension": [
-              {
-                "url": "code",
-                "valueCode": "itemWeight"
-              },
-              {
-                "url": "uri",
-                "valueUri": "http://hl7.org/fhir/concept-properties#itemWeight"
-              }
-            ]
-          }
-        ],
-        "contains": [
-          {
-            "extension": [
-              {
-                "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
-                "extension": [
-                  {
-                    "url": "code",
-                    "valueCode": "itemWeight"
-                  },
-                  {
-                    "url": "value[x]",
-                    "valueDecimal": 0
-                  }
-                ]
-              }
-            ],
-            "system": "http://example.org/CodeSystem/CSPHQ9",
-            "code": "not-at-all",
-            "display": "Not at all"
-          },
-          {
-            "extension": [
-              {
-                "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
-                "extension": [
-                  {
-                    "url": "code",
-                    "valueCode": "itemWeight"
-                  },
-                  {
-                    "url": "value[x]",
-                    "valueDecimal": 1
-                  }
-                ]
-              }
-            ],
-            "system": "http://example.org/CodeSystem/CSPHQ9",
-            "code": "Several-days",
-            "display": "Several days"
-          },
-          {
-            "extension": [
-              {
-                "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
-                "extension": [
-                  {
-                    "url": "code",
-                    "valueCode": "itemWeight"
-                  },
-                  {
-                    "url": "value[x]",
-                    "valueDecimal": 2
-                  }
-                ]
-              }
-            ],
-            "system": "http://example.org/CodeSystem/CSPHQ9",
-            "code": "More than half the days",
-            "display": "More than half the days"
-          },
-          {
-            "extension": [
-              {
-                "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property",
-                "extension": [
-                  {
-                    "url": "code",
-                    "valueCode": "itemWeight"
-                  },
-                  {
-                    "url": "value[x]",
-                    "valueDecimal": 4
-                  }
-                ]
-              }
-            ],
-            "system": "http://example.org/CodeSystem/CSPHQ9",
-            "code": "Nearly every day",
-            "display": "Nearly every day"
-          }
-        ],
-        "timestamp": "2024-12-06T22:52:00-07:00"
-      },
-      "url": "http://hl7.org/fhir/uv/sdc/ValueSet/VSPHQ9",
-      "name": "VSPHQ9",
-      "status": "active",
-      "description": "The answer list for questions addressing the frequency in which patient reports experiencing behaviors that are assessed in the PHQ-9 Questionnaire.",
-      "immutable": true,
       "compose": {
         "include": [
           {
-            "system": "http://example.org/CodeSystem/CSPHQ9",
             "concept": [
               {
                 "code": "Not-at-all",
@@ -141,10 +35,127 @@
                 "code": "Nearly every day",
                 "display": "Nearly every day"
               }
-            ]
+            ],
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/CSPHQ9"
           }
         ]
-      }
+      },
+      "expansion": {
+        "extension": [
+          {
+            "extension": [
+              {
+                "url": "code",
+                "valueCode": "itemWeight"
+              },
+              {
+                "url": "uri",
+                "valueUri": "http://hl7.org/fhir/concept-properties#itemWeight"
+              }
+            ],
+            "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property"
+          }
+        ],
+        "contains": [
+          {
+            "extension": [
+              {
+                "extension": [
+                  {
+                    "url": "code",
+                    "valueCode": "itemWeight"
+                  },
+                  {
+                    "url": "value[x]",
+                    "valueDecimal": 0
+                  },
+                  {
+                    "url": "value%5Bx%5D"
+                  }
+                ],
+                "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property"
+              }
+            ],
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/CSPHQ9",
+            "code": "Not-at-all",
+            "display": "Not at all"
+          },
+          {
+            "extension": [
+              {
+                "extension": [
+                  {
+                    "url": "code",
+                    "valueCode": "itemWeight"
+                  },
+                  {
+                    "url": "value[x]",
+                    "valueDecimal": 1
+                  },
+                  {
+                    "url": "value%5Bx%5D"
+                  }
+                ],
+                "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property"
+              }
+            ],
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/CSPHQ9",
+            "code": "Several-days",
+            "display": "Several days"
+          },
+          {
+            "extension": [
+              {
+                "extension": [
+                  {
+                    "url": "code",
+                    "valueCode": "itemWeight"
+                  },
+                  {
+                    "url": "value[x]",
+                    "valueDecimal": 2
+                  },
+                  {
+                    "url": "value%5Bx%5D"
+                  }
+                ],
+                "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property"
+              }
+            ],
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/CSPHQ9",
+            "code": "More than half the days",
+            "display": "More than half the days"
+          },
+          {
+            "extension": [
+              {
+                "extension": [
+                  {
+                    "url": "code",
+                    "valueCode": "itemWeight"
+                  },
+                  {
+                    "url": "value[x]",
+                    "valueDecimal": 4
+                  },
+                  {
+                    "url": "value%5Bx%5D"
+                  }
+                ],
+                "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property"
+              }
+            ],
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/CSPHQ9",
+            "code": "Nearly every day",
+            "display": "Nearly every day"
+          }
+        ],
+        "timestamp": "2024-12-06T22:52:00-07:00"
+      },
+      "name": "VSPHQ9",
+      "status": "active",
+      "description": "The answer list for questions addressing the frequency in which patient reports experiencing behaviors that are assessed in the PHQ-9 Questionnaire.",
+      "immutable": true
     }
   ],
   "extension": [
@@ -160,27 +171,15 @@
       "valueBoolean": true
     }
   ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-PHQ9",
-  "name": "SDCPHQ9",
-  "title": "Patient Health Questionnaire - 9 Item",
-  "status": "active",
-  "experimental": true,
   "subjectType": [
     "Patient"
   ],
-  "description": "This is a Questionnaire example of how the PHQ-9 Questionnaire could be rendered as a FHIR Questionnaire Resource according to the Structured Data Capture SDC Base Questionnaire Profile. This example also portrays how FHIRpaths can be used to perform total score calculations using answer values.",
-  "purpose": "This Questionnaire example was generated to ensure a non-proprietary, publicly available questionnaire that is available to test the Structured Data Capture profiles",
-  "copyright": "This content is an unaltered digital reproduction of the PHQ-9 which is copyrighted by Pfizer Inc., which states that no permission is required to reproduce, translate, display or distribute the PHQ-9.",
-  "approvalDate": "2019-08-20",
   "effectivePeriod": {
     "start": "2018-08-20T04:00:00.000Z",
     "end": "2020-08-20T04:00:00.000Z"
   },
   "item": [
     {
-      "linkId": "H1/T1",
-      "text": "Over the last two weeks, how often have you been bothered by any of the following problems?",
-      "type": "group",
       "item": [
         {
           "linkId": "H1/T1/Q1",
@@ -239,16 +238,15 @@
         {
           "extension": [
             {
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
               "valueExpression": {
                 "description": "Score (0-4: None-minimal; 5-9: Mild; 19-14: Moderate; 15-19: Moderately severe; 20-27: Severe)",
                 "name": "score",
                 "language": "text/fhirpath",
                 "expression": "%resource.item.where(linkId!='H1/TS').answer.value.weight().sum()"
-              }
+              },
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression"
             }
           ],
-          "linkId": "H1/TS",
           "code": [
             {
               "code": "44261-6",
@@ -256,10 +254,23 @@
               "display": "Patient Health Questionnaire 9 item (PHQ-9) total score [Reported]"
             }
           ],
+          "linkId": "H1/TS",
           "text": "Patient health questionnaire 9 item total score",
           "type": "quantity"
         }
-      ]
+      ],
+      "linkId": "H1/T1",
+      "text": "Over the last two weeks, how often have you been bothered by any of the following problems?",
+      "type": "group"
     }
-  ]
+  ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-PHQ9",
+  "name": "SDCPHQ9",
+  "title": "Patient Health Questionnaire - 9 Item",
+  "status": "active",
+  "experimental": true,
+  "description": "This is a Questionnaire example of how the PHQ-9 Questionnaire could be rendered as a FHIR Questionnaire Resource according to the Structured Data Capture SDC Base Questionnaire Profile. This example also portrays how FHIRpaths can be used to perform total score calculations using answer values.",
+  "purpose": "This Questionnaire example was generated to ensure a non-proprietary, publicly available questionnaire that is available to test the Structured Data Capture profiles",
+  "copyright": "This content is an unaltered digital reproduction of the PHQ-9 which is copyrighted by Pfizer Inc., which states that no permission is required to reproduce, translate, display or distribute the PHQ-9.",
+  "approvalDate": "2019-08-20"
 }

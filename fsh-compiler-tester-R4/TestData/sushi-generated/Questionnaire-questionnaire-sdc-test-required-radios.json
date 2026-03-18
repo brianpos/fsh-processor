@@ -8,24 +8,15 @@
   },
   "extension": [
     {
-      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
+      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
         "code": "semver",
         "system": "http://hl7.org/fhir/version-algorithm"
       }
     }
   ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-test-required-radios",
-  "name": "RequiredRadioButtons",
-  "title": "Required Radio Buttons",
-  "status": "active",
-  "experimental": true,
-  "description": "A Test form with required fields",
   "item": [
     {
-      "linkId": "grp",
-      "text": "Test: Required Radio Buttons",
-      "type": "group",
       "item": [
         {
           "linkId": "textq",
@@ -38,13 +29,9 @@
           "text": "Should I stay?",
           "type": "choice",
           "required": true,
-          "answerValueSet": "http://sqlonfhir-r4.azurewebsites.net/fhir/ValueSet/a015b6a1ac024dc19baec940be2c1695"
+          "answerValueSet": "http://terminology.hl7.org/ValueSet/yes-no-unknown-not-applicable"
         },
         {
-          "linkId": "radio2",
-          "text": "Should I go now?",
-          "type": "choice",
-          "required": true,
           "answerOption": [
             {
               "valueCoding": {
@@ -60,13 +47,13 @@
                 "display": "Two"
               }
             }
-          ]
+          ],
+          "linkId": "radio2",
+          "text": "Should I go now?",
+          "type": "choice",
+          "required": true
         },
         {
-          "linkId": "radio3",
-          "text": "Will there be trouble?",
-          "type": "choice",
-          "required": true,
           "answerOption": [
             {
               "valueCoding": {
@@ -89,9 +76,22 @@
                 "display": "Three"
               }
             }
-          ]
+          ],
+          "linkId": "radio3",
+          "text": "Will there be trouble?",
+          "type": "choice",
+          "required": true
         }
-      ]
+      ],
+      "linkId": "grp",
+      "text": "Test: Required Radio Buttons",
+      "type": "group"
     }
-  ]
+  ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-test-required-radios",
+  "name": "RequiredRadioButtons",
+  "title": "Required Radio Buttons",
+  "status": "active",
+  "experimental": true,
+  "description": "A Test form with required fields"
 }

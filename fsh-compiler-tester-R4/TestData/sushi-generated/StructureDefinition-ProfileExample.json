@@ -4,7 +4,7 @@
   "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/ProfileExample",
   "identifier": [
     {
-      "system": "http://nlm.nih.gov/some_other_text/data_element_identifier",
+      "system": "http://example.org/nlm/some_other_text/data_element_identifier",
       "value": "DE42AHRQ"
     }
   ],

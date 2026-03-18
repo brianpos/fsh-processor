@@ -20,9 +20,6 @@
       "expression": "ElementDefinition"
     }
   ],
-  "contextInvariant": [
-    "ofType(ElementDefinition).type.exists(code='Coding') or where(%resource.is(Questionnaire)).exists(type.first()='choice' or type.first()='open-choice')"
-  ],
   "type": "Extension",
   "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Extension",
   "derivation": "constraint",
@@ -63,7 +60,42 @@
         "id": "Extension.extension:option.value[x]",
         "path": "Extension.extension.value[x]",
         "short": "The option value to control",
-        "min": 1
+        "min": 1,
+        "type": [
+          {
+            "code": "date"
+          },
+          {
+            "code": "dateTime"
+          },
+          {
+            "code": "decimal"
+          },
+          {
+            "code": "integer"
+          },
+          {
+            "code": "string"
+          },
+          {
+            "code": "time"
+          },
+          {
+            "code": "uri"
+          },
+          {
+            "code": "Coding"
+          },
+          {
+            "code": "Quantity",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/SimpleQuantity"
+            ]
+          },
+          {
+            "code": "Reference"
+          }
+        ]
       },
       {
         "id": "Extension.extension:expression",

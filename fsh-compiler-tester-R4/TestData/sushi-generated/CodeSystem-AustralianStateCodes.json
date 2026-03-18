@@ -1,0 +1,60 @@
+{
+  "resourceType": "CodeSystem",
+  "status": "active",
+  "content": "complete",
+  "name": "AustralianStateCodes",
+  "id": "AustralianStateCodes",
+  "title": "Australian State Codes",
+  "description": "Example code system of Australian state codes",
+  "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/AustralianStateCodes",
+  "concept": [
+    {
+      "code": "ACT",
+      "display": "Australian Capital Territory",
+      "definition": "Australian Capital Territory"
+    },
+    {
+      "code": "NSW",
+      "display": "New South Wales",
+      "definition": "New South Wales"
+    },
+    {
+      "code": "NT",
+      "display": "Northern Territory",
+      "definition": "Northern Territory"
+    },
+    {
+      "code": "Qld",
+      "display": "Queensland",
+      "definition": "Queensland"
+    },
+    {
+      "code": "SA",
+      "display": "South Australia",
+      "definition": "South Australia"
+    },
+    {
+      "code": "Vic",
+      "display": "Victoria",
+      "definition": "Victoria"
+    },
+    {
+      "code": "Tas",
+      "display": "Tasmania",
+      "definition": "Tasmania"
+    },
+    {
+      "code": "WA",
+      "display": "Western Australia",
+      "definition": "Western Australia"
+    }
+  ],
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem"
+    ]
+  },
+  "experimental": true,
+  "caseSensitive": true,
+  "count": 8
+}

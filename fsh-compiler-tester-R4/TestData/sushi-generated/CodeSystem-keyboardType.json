@@ -4,7 +4,7 @@
   "content": "complete",
   "name": "KeyboardTypeCodes",
   "id": "keyboardType",
-  "title": "Keyboard Type",
+  "title": "Keyboard Type Codes",
   "description": "For string or text items, indicates the 'keyboard type' that should be used by the user interface to guide entry.",
   "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/keyboardType",
   "concept": [

@@ -6,11 +6,80 @@
       "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-behave"
     ]
   },
+  "modifierExtension": [
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-rendering-criticalExtension",
+      "valueCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-entryMode"
+    },
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-rendering-criticalExtension",
+      "valueCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression"
+    }
+  ],
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
+      "valueCoding": {
+        "code": "semver",
+        "system": "http://hl7.org/fhir/version-algorithm"
+      }
+    },
+    {
+      "valueExpression": {
+        "name": "weight",
+        "language": "text/fhirpath",
+        "expression": "%resource.repeat(item).where(linkId='3.3.1').item.answer.value"
+      },
+      "url": "http://hl7.org/fhir/StructureDefinition/variable"
+    },
+    {
+      "valueExpression": {
+        "name": "height",
+        "language": "text/fhirpath",
+        "expression": "%resource.repeat(item).where(linkId='3.3.2').item.answer.value*0.0254"
+      },
+      "url": "http://hl7.org/fhir/StructureDefinition/variable"
+    },
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/cqf-library",
+      "valueCanonical": "http://example.org/Library/MeasurementLimits"
+    },
+    {
+      "extension": [
+        {
+          "url": "name",
+          "valueCoding": {
+            "code": "patient",
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext",
+            "display": "Patient"
+          }
+        },
+        {
+          "url": "type",
+          "valueCode": "Patient"
+        },
+        {
+          "url": "description",
+          "valueString": "The patient that is to be used to pre-populate the form"
+        }
+      ],
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-launchContext"
+    },
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-endpoint",
+      "valueUri": "http://example.org/QuestionnaireResponse/create"
+    },
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-entryMode",
+      "valueCode": "sequential"
+    },
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-assembleDefinitionRoot",
+      "valueUri": "http://example.org/StructureDefinition/myElementLibrary"
+    }
+  ],
   "item": [
     {
-      "linkId": "1",
-      "text": "Value constraints",
-      "type": "group",
       "item": [
         {
           "linkId": "1.1",
@@ -42,11 +111,11 @@
                   "valueCode": "error"
                 },
                 {
-                  "url": "expression",
                   "valueExpression": {
                     "language": "text/fhirpath",
                     "expression": "%resource.repeat(item).where(linkId='1.3').answer.all(value.matches('[A-Z][0-9][A-Z] [0-9][A-Z][0-9]'))"
-                  }
+                  },
+                  "url": "expression"
                 },
                 {
                   "url": "human",
@@ -125,14 +194,14 @@
           "text": "Attach Proof of Citizenship",
           "type": "attachment"
         }
-      ]
+      ],
+      "linkId": "1",
+      "text": "Value constraints",
+      "type": "group"
     },
     {
       "item": [
         {
-          "linkId": "2.1",
-          "text": "(I/We) worried whether (my/our) food would run out before (I/we) got money to buy more.",
-          "type": "choice",
           "answerOption": [
             {
               "valueCoding": {
@@ -162,7 +231,10 @@
                 "display": "Don't know/refused"
               }
             }
-          ]
+          ],
+          "linkId": "2.1",
+          "text": "(I/We) worried whether (my/our) food would run out before (I/we) got money to buy more.",
+          "type": "choice"
         },
         {
           "linkId": "2.3",
@@ -171,11 +243,6 @@
           "answerValueSet": "http://loinc.org/vs/LL4882-8"
         },
         {
-          "linkId": "2.5",
-          "text": "Applicable health conditions",
-          "type": "choice",
-          "repeats": true,
-          "answerValueSet": "#vsConditionsAll",
           "extension": [
             {
               "extension": [
@@ -187,11 +254,11 @@
                   }
                 },
                 {
-                  "url": "expression",
                   "valueExpression": {
                     "language": "text/fhirpath",
                     "expression": "%patient.gender!='male'"
-                  }
+                  },
+                  "url": "expression"
                 }
               ],
               "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression"
@@ -206,16 +273,21 @@
                   }
                 },
                 {
-                  "url": "expression",
                   "valueExpression": {
                     "language": "text/fhirpath",
                     "expression": "%patient.gender!='female'"
-                  }
+                  },
+                  "url": "expression"
                 }
               ],
               "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression"
             }
-          ]
+          ],
+          "linkId": "2.5",
+          "text": "Applicable health conditions",
+          "type": "choice",
+          "repeats": true,
+          "answerValueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/formBehaviorConditions"
         },
         {
           "extension": [
@@ -236,12 +308,12 @@
         {
           "extension": [
             {
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
               "valueExpression": {
                 "description": "current date",
                 "language": "text/fhirpath",
                 "expression": "today()"
-              }
+              },
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
             }
           ],
           "linkId": "2.7",
@@ -255,12 +327,12 @@
           "_text": {
             "extension": [
               {
-                "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
                 "valueExpression": {
                   "description": "Substitute in current date",
                   "language": "text/fhirpath",
                   "expression": "'Please only enter data that has been validated as of ' + today()"
-                }
+                },
+                "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
               }
             ]
           }
@@ -272,10 +344,6 @@
               "valueString": "Other event (specify)"
             }
           ],
-          "linkId": "2.8",
-          "text": "Heart History (check all that applies)",
-          "type": "open-choice",
-          "repeats": true,
           "answerOption": [
             {
               "valueCoding": {
@@ -312,14 +380,13 @@
                 "display": "Cardiac pacemaker"
               }
             }
-          ]
+          ],
+          "linkId": "2.8",
+          "text": "Heart History (check all that applies)",
+          "type": "open-choice",
+          "repeats": true
         },
         {
-          "linkId": "2.9",
-          "text": "Heart History (check at least 2):",
-          "type": "choice",
-          "required": true,
-          "repeats": true,
           "answerOption": [
             {
               "valueCoding": {
@@ -362,14 +429,14 @@
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-minOccurs",
               "valueInteger": 2
             }
-          ]
-        },
-        {
-          "linkId": "2.10",
-          "text": "Heart History (check no more than 3):",
+          ],
+          "linkId": "2.9",
+          "text": "Heart History (check at least 2):",
           "type": "choice",
           "required": true,
-          "repeats": true,
+          "repeats": true
+        },
+        {
           "answerOption": [
             {
               "valueCoding": {
@@ -412,7 +479,12 @@
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-maxOccurs",
               "valueInteger": 3
             }
-          ]
+          ],
+          "linkId": "2.10",
+          "text": "Heart History (check no more than 3):",
+          "type": "choice",
+          "required": true,
+          "repeats": true
         },
         {
           "extension": [
@@ -429,10 +501,6 @@
               }
             }
           ],
-          "linkId": "2.11",
-          "text": "What treatments do you now have for heart disease? (select all that applies)",
-          "type": "choice",
-          "repeats": true,
           "answerOption": [
             {
               "valueCoding": {
@@ -482,7 +550,11 @@
                 "display": "None of the above"
               }
             }
-          ]
+          ],
+          "linkId": "2.11",
+          "text": "What treatments do you now have for heart disease? (select all that applies)",
+          "type": "choice",
+          "repeats": true
         },
         {
           "extension": [
@@ -557,12 +629,12 @@
               "valueCanonical": "http://example.org/Questionnaire/1234"
             },
             {
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerExpression",
               "valueExpression": {
                 "description": "all active practitioners",
                 "language": "application/x-fhir-query",
                 "expression": "Practitioner?active=true&_sort=family,given"
-              }
+              },
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerExpression"
             },
             {
               "extension": [
@@ -592,12 +664,12 @@
         {
           "extension": [
             {
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
               "valueExpression": {
                 "description": "deadline for submission",
                 "language": "text/fhirpath",
                 "expression": "today() + 7 days"
-              }
+              },
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
             }
           ],
           "linkId": "3.1",
@@ -606,18 +678,16 @@
           "readOnly": true
         },
         {
-          "linkId": "3.2",
-          "type": "group",
           "item": [
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "patient's last name",
                     "language": "text/fhirpath",
                     "expression": "%patient.name.where(use='official').given.first()"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
               "linkId": "3.2.1",
@@ -628,12 +698,12 @@
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "patient's first name",
                     "language": "text/fhirpath",
                     "expression": "%patient.name.where(use='official').family"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
               "linkId": "3.2.2",
@@ -644,12 +714,12 @@
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "patient's gender",
                     "language": "text/fhirpath",
                     "expression": "%patient.gender"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
               "linkId": "3.2.3",
@@ -657,12 +727,11 @@
               "type": "string",
               "readOnly": true
             }
-          ]
+          ],
+          "linkId": "3.2",
+          "type": "group"
         },
         {
-          "linkId": "3.3",
-          "text": "Calculated Expression",
-          "type": "group",
           "item": [
             {
               "extension": [
@@ -695,12 +764,16 @@
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
                   "valueExpression": {
                     "description": "BMI Calculation",
                     "language": "text/fhirpath",
                     "expression": "(%weight/(%height.power(2))).round(1)"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression"
+                },
+                {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-assembleDefinitionRoot",
+                  "valueBoolean": false
                 }
               ],
               "linkId": "3.3.3",
@@ -708,7 +781,10 @@
               "type": "decimal",
               "readOnly": true
             }
-          ]
+          ],
+          "linkId": "3.3",
+          "text": "Calculated Expression",
+          "type": "group"
         },
         {
           "item": [
@@ -720,11 +796,11 @@
                   "_valueDecimal": {
                     "extension": [
                       {
-                        "url": "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue",
                         "valueExpression": {
                           "language": "text/fhirpath",
                           "expression": "min_weight"
-                        }
+                        },
+                        "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
                       }
                     ]
                   }
@@ -735,11 +811,11 @@
                   "_valueDecimal": {
                     "extension": [
                       {
-                        "url": "http://hl7.org/fhir/StructureDefinition/cqf-calculatedValue",
                         "valueExpression": {
                           "language": "text/fhirpath",
                           "expression": "max_weight"
-                        }
+                        },
+                        "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
                       }
                     ]
                   }
@@ -767,12 +843,12 @@
               "_required": {
                 "extension": [
                   {
-                    "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
                     "valueExpression": {
                       "description": "current date",
                       "language": "text/fhirpath",
                       "expression": "%patient.active"
-                    }
+                    },
+                    "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
                   }
                 ]
               }
@@ -788,12 +864,12 @@
           "_text": {
             "extension": [
               {
-                "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
                 "valueExpression": {
                   "description": "last immunization date",
                   "language": "text/fhirpath",
                   "expression": "'Your last immunization was on '+ %Immunization.occurrenceDateTime.substring(0,10) + '.'"
-                }
+                },
+                "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
               }
             ]
           }
@@ -806,10 +882,6 @@
     {
       "item": [
         {
-          "linkId": "4.1",
-          "text": "Marital Status",
-          "type": "choice",
-          "answerValueSet": "http://hl7.org/fhir/ValueSet/marital-status",
           "initial": [
             {
               "valueCoding": {
@@ -818,7 +890,11 @@
                 "display": "Divorced"
               }
             }
-          ]
+          ],
+          "linkId": "4.1",
+          "text": "Marital Status",
+          "type": "choice",
+          "answerValueSet": "http://hl7.org/fhir/ValueSet/marital-status"
         },
         {
           "item": [
@@ -835,9 +911,6 @@
                   "valueCode": "protected"
                 }
               ],
-              "linkId": "4.2.2",
-              "text": "Are you pregnant? (enableWhen = gender is Female, disableDisplay=protected)",
-              "type": "choice",
               "enableWhen": [
                 {
                   "question": "4.2.1",
@@ -848,6 +921,9 @@
                   }
                 }
               ],
+              "linkId": "4.2.2",
+              "text": "Are you pregnant? (enableWhen = gender is Female, disableDisplay=protected)",
+              "type": "choice",
               "answerValueSet": "http://hl7.org/fhir/ValueSet/yesnodontknow"
             },
             {
@@ -857,9 +933,6 @@
                   "valueCode": "hidden"
                 }
               ],
-              "linkId": "4.2.3",
-              "text": "Are you diabetic? (enableWhen = gender is Female, disableDisplay=hidden)",
-              "type": "choice",
               "enableWhen": [
                 {
                   "question": "4.2.1",
@@ -870,6 +943,9 @@
                   }
                 }
               ],
+              "linkId": "4.2.3",
+              "text": "Are you diabetic? (enableWhen = gender is Female, disableDisplay=hidden)",
+              "type": "choice",
               "answerValueSet": "http://hl7.org/fhir/ValueSet/yesnodontknow"
             },
             {
@@ -879,9 +955,6 @@
                   "valueCode": "protected"
                 }
               ],
-              "linkId": "4.2.4",
-              "text": "Have you been diagnosed with Gestational Diabetes? (enableBehavior = only when pregnant and diabetic, disableDisplay=protected)",
-              "type": "choice",
               "enableWhen": [
                 {
                   "question": "4.2.2",
@@ -900,6 +973,9 @@
                   }
                 }
               ],
+              "linkId": "4.2.4",
+              "text": "Have you been diagnosed with Gestational Diabetes? (enableBehavior = only when pregnant and diabetic, disableDisplay=protected)",
+              "type": "choice",
               "enableBehavior": "all",
               "answerValueSet": "http://hl7.org/fhir/ValueSet/yesnodontknow"
             },
@@ -918,13 +994,16 @@
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-enableWhenExpression",
-                  "valueCode": "protected",
+                  "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.item.disabledDisplay",
+                  "valueCode": "protected"
+                },
+                {
                   "valueExpression": {
                     "description": "if last 2 questions were answered",
                     "language": "text/fhirpath",
                     "expression": "%resource.repeat(item).where(linkId='4.2.b.1').answer.value.code ='female' and today().toString().substring(0, 4).toInteger() - %resource.repeat(item).where(linkId='4.2.b.5').answer.value.toString().substring(0, 4).toInteger() >= 40"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-enableWhenExpression"
                 }
               ],
               "linkId": "4.2.6",
@@ -939,7 +1018,6 @@
         {
           "extension": [
             {
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-signatureRequired",
               "valueCodeableConcept": {
                 "coding": [
                   {
@@ -949,7 +1027,8 @@
                   }
                 ],
                 "text": "the signature of a witness to any other signature."
-              }
+              },
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-signatureRequired"
             },
             {
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-usageMode",
@@ -964,12 +1043,12 @@
         {
           "extension": [
             {
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-candidateExpression",
               "valueExpression": {
                 "description": "active practitioners that speak at least one of the patient's language",
                 "language": "application/x-fhir-query",
                 "expression": "Practitioner?communication=&active=true"
-              }
+              },
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-candidateExpression"
             },
             {
               "extension": [
@@ -1055,17 +1134,15 @@
         {
           "extension": [
             {
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext",
               "valueExpression": {
                 "name": "homeAddress",
                 "description": "Home address of the patient",
                 "language": "text/fhirpath",
                 "expression": "%patient.address.where(use='home').first()"
-              }
+              },
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext"
             }
           ],
-          "linkId": "4.6",
-          "type": "group",
           "item": [
             {
               "linkId": "4.6.1",
@@ -1075,12 +1152,12 @@
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "Address Line 1",
                     "language": "text/fhirpath",
                     "expression": "%homeAddress.line.first()"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
               "linkId": "4.6.2",
@@ -1091,12 +1168,12 @@
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "City",
                     "language": "text/fhirpath",
                     "expression": "%homeAddress.city"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
               "linkId": "4.6.3",
@@ -1107,18 +1184,14 @@
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "State",
                     "language": "text/fhirpath",
                     "expression": "%homeAddress.state"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
-              "linkId": "4.6.4",
-              "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.address.state",
-              "text": "Province",
-              "type": "choice",
               "answerOption": [
                 {
                   "valueCoding": {
@@ -1190,17 +1263,21 @@
                     "display": "Saskatchewan"
                   }
                 }
-              ]
+              ],
+              "linkId": "4.6.4",
+              "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.address.state",
+              "text": "Province",
+              "type": "choice"
             },
             {
               "extension": [
                 {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "Postal Code",
                     "language": "text/fhirpath",
                     "expression": "%homeAddress.postalCode"
-                  }
+                  },
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
                 }
               ],
               "linkId": "4.6.5",
@@ -1208,80 +1285,14 @@
               "text": "Postal Code",
               "type": "string"
             }
-          ]
+          ],
+          "linkId": "4.6",
+          "type": "group"
         }
       ],
       "linkId": "4",
       "text": "Other Controls",
       "type": "group"
-    }
-  ],
-  "modifierExtension": [
-    {
-      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-rendering-criticalExtension",
-      "valueCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-entryMode"
-    },
-    {
-      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-rendering-criticalExtension",
-      "valueCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression"
-    }
-  ],
-  "extension": [
-    {
-      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
-      "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
-      }
-    },
-    {
-      "url": "http://hl7.org/fhir/StructureDefinition/variable",
-      "valueExpression": {
-        "name": "weight",
-        "language": "text/fhirpath",
-        "expression": "%resource.repeat(item).where(linkId='3.3.1').item.answer.value"
-      }
-    },
-    {
-      "url": "http://hl7.org/fhir/StructureDefinition/variable",
-      "valueExpression": {
-        "name": "height",
-        "language": "text/fhirpath",
-        "expression": "%resource.repeat(item).where(linkId='3.3.2').item.answer.value*0.0254"
-      }
-    },
-    {
-      "url": "http://hl7.org/fhir/StructureDefinition/cqf-library",
-      "valueCanonical": "http://example.org/Library/MeasurementLimits"
-    },
-    {
-      "extension": [
-        {
-          "url": "name",
-          "valueCoding": {
-            "code": "patient",
-            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext",
-            "display": "Patient"
-          }
-        },
-        {
-          "url": "type",
-          "valueCode": "Patient"
-        },
-        {
-          "url": "description",
-          "valueString": "The patient that is to be used to pre-populate the form"
-        }
-      ],
-      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-launchContext"
-    },
-    {
-      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-endpoint",
-      "valueUri": "http://example.org/QuestionnaireResponse/create"
-    },
-    {
-      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-entryMode",
-      "valueCode": "sequential"
     }
   ],
   "url": "http://build.fhir.org/ig/HL7/sdc/questionnaire-sdc-profile-example-form-behavior",

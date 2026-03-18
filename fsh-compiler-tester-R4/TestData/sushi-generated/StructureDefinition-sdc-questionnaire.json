@@ -69,15 +69,9 @@
         "mustSupport": true
       },
       {
-        "id": "Questionnaire.version",
-        "path": "Questionnaire.version",
-        "mustSupport": true
-      },
-      {
         "id": "Questionnaire.subjectType",
         "path": "Questionnaire.subjectType",
-        "requirements": "A Questionnaire SHOULD specify the subject. However, it is optional to support legacy questionnaires.",
-        "mustSupport": true
+        "requirements": "A Questionnaire SHOULD specify the subject. However, it is optional to support legacy questionnaires."
       },
       {
         "id": "Questionnaire.item",
@@ -96,6 +90,21 @@
             "code": "Extension",
             "profile": [
               "http://hl7.org/fhir/StructureDefinition/designNote"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item.extension:itemOptionalDisplay",
+        "path": "Questionnaire.item.extension",
+        "sliceName": "itemOptionalDisplay",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-optionalDisplay"
             ]
           }
         ]

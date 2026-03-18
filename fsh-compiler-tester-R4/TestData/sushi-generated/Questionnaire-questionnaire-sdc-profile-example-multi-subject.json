@@ -30,15 +30,9 @@
       }
     }
   ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-multi-subject",
-  "name": "MultiSubject",
-  "title": "Example multi-subject Questionnaire",
-  "status": "active",
-  "experimental": true,
   "subjectType": [
     "Patient"
   ],
-  "description": "A sample Questionnaire that shows the use of the isSubject extension to flag a subject change within a Questionnaire.",
   "item": [
     {
       "linkId": "1",
@@ -53,35 +47,30 @@
       "required": true
     },
     {
-      "linkId": "3",
       "code": [
         {
           "code": "8302-2",
           "system": "http://loinc.org"
         }
       ],
+      "linkId": "3",
       "text": "Height",
       "type": "quantity",
       "required": true
     },
     {
-      "linkId": "4",
       "code": [
         {
           "code": "29463-7",
           "system": "http://loinc.org"
         }
       ],
+      "linkId": "4",
       "text": "Weight",
       "type": "quantity",
       "required": true
     },
     {
-      "linkId": "5",
-      "text": "Children",
-      "type": "group",
-      "required": true,
-      "repeats": true,
       "item": [
         {
           "extension": [
@@ -112,30 +101,41 @@
           "required": true
         },
         {
-          "linkId": "5.4",
           "code": [
             {
               "code": "8302-2",
               "system": "http://loinc.org"
             }
           ],
+          "linkId": "5.4",
           "text": "Height",
           "type": "quantity",
           "required": true
         },
         {
-          "linkId": "5.5",
           "code": [
             {
               "code": "29463-7",
               "system": "http://loinc.org"
             }
           ],
+          "linkId": "5.5",
           "text": "Weight",
           "type": "quantity",
           "required": true
         }
-      ]
+      ],
+      "linkId": "5",
+      "text": "Children",
+      "type": "group",
+      "required": true,
+      "repeats": true
     }
-  ]
+  ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-multi-subject",
+  "name": "MultiSubject",
+  "title": "Example multi-subject Questionnaire",
+  "status": "active",
+  "experimental": true,
+  "description": "A sample Questionnaire that shows the use of the isSubject extension to flag a subject change within a Questionnaire."
 }

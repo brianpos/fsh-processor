@@ -1,0 +1,16 @@
+{
+  "resourceType": "SearchParameter",
+  "id": "Questionnaire-questionnaire-code",
+  "url": "http://hl7.org/fhir/uv/sdc/SearchParameter/Questionnaire-questionnaire-code",
+  "base": [
+    "Questionnaire"
+  ],
+  "name": "SDCQuestionnaireCode",
+  "status": "active",
+  "description": "Allows searching by the questionnaire.code element.  (Official search param appears in R5 core)",
+  "code": "questionnaire-code",
+  "type": "token",
+  "expression": "code",
+  "xpath": "f:code",
+  "xpathUsage": "normal"
+}

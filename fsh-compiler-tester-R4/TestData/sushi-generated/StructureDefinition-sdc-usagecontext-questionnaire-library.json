@@ -1,0 +1,46 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-usagecontext-questionnaire-library",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-usagecontext-questionnaire-library",
+  "name": "SDCQuestionnaireLibraryUsageContext",
+  "title": "SDCUsageContext: Questionnaire Library",
+  "status": "active",
+  "date": "2025-07-12",
+  "description": "Indicates that a Questionnaire is intended to be used as a library of reusable items (e.g., questions, groups, displays) during modular form assembly.",
+  "fhirVersion": "4.0.1",
+  "kind": "complex-type",
+  "abstract": false,
+  "type": "UsageContext",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-usagecontext",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "UsageContext.code",
+        "path": "UsageContext.code",
+        "patternCoding": {
+          "code": "workflow",
+          "system": "http://terminology.hl7.org/CodeSystem/usage-context-type"
+        }
+      },
+      {
+        "id": "UsageContext.value[x]:valueCodeableConcept",
+        "path": "UsageContext.value[x]",
+        "sliceName": "valueCodeableConcept",
+        "type": [
+          {
+            "code": "CodeableConcept"
+          }
+        ],
+        "patternCodeableConcept": {
+          "coding": [
+            {
+              "code": "question-library",
+              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
