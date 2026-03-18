@@ -1431,8 +1431,13 @@ public static class FshCompiler
     /// <c>InstanceOf</c> type name to a CLR type; returns <c>null</c> when the type cannot
     /// be resolved or the inspector is not supplied.
     /// </summary>
+    /// <param name="forContained">
+    /// When <c>true</c>, the <c>#inline</c> usage guard is skipped so that the instance can be
+    /// embedded as a contained resource rather than emitted as a standalone output.
+    /// </param>
     public static FhirResource? BuildInstance(
-        fsh_processor.Models.Instance instance, CompilerContext context, CompilerOptions? options = null)
+        fsh_processor.Models.Instance instance, CompilerContext context, CompilerOptions? options = null,
+        bool forContained = false)
     {
         var opts = options ?? new CompilerOptions();
         if (string.IsNullOrEmpty(instance.InstanceOf)) return null;
@@ -1441,8 +1446,9 @@ public static class FshCompiler
         if (inspector is null) return null;  // instance compilation requires a version-specific inspector
 
         // C-IN4: #inline instances should NOT be emitted as standalone resources.
+        // When compiling for a contained[] slot the inline guard is intentionally bypassed.
         var usage = instance.Usage?.TrimStart('#').ToLowerInvariant();
-        if (usage == "inline") return null;
+        if (!forContained && usage == "inline") return null;
 
         // Resolve alias → type name, then strip any URL prefix to get the bare FHIR type name.
         var resolvedInstanceOf = context.ResolveAlias(instance.InstanceOf);
@@ -1533,6 +1539,27 @@ public static class FshCompiler
                 case InstanceFixedValueRule fixedRule when
                     !string.IsNullOrEmpty(fixedRule.Path) && fixedRule.Value != null:
                     var resolvedPath = ResolveSoftIndices(fixedRule.Path, softIndexState);
+
+                    // C-IN6: `* contained = <Name>` — embed a named Instance as a contained resource.
+                    // The path base must be "contained" (with optional index, e.g. "contained[+]")
+                    // and the value must be a NameValue (cross-instance reference).
+                    if (fixedRule.Value is NameValue nameRef &&
+                        resource is DomainResource domRes)
+                    {
+                        var pathBase = resolvedPath.Split('[')[0];
+                        if (string.Equals(pathBase, "contained", StringComparison.Ordinal) &&
+                            context.Instances.TryGetValue(nameRef.Value, out var refInstance))
+                        {
+                            var containedResource = BuildInstance(refInstance, context, opts, forContained: true);
+                            if (containedResource != null)
+                            {
+                                domRes.Contained ??= [];
+                                domRes.Contained.Add(containedResource);
+                            }
+                            break;
+                        }
+                    }
+
                     SetInstancePath(resource, resolvedPath, fixedRule.Value, inspector);
                     break;
 

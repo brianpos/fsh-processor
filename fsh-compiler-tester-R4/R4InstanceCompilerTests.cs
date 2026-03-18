@@ -204,4 +204,104 @@ public class R4InstanceCompilerTests
         Assert.IsTrue(patient.Name[0].GivenElement.Count > 0,
             "First name should have given element set by [=]");
     }
+
+    // ─── Contained resource embedding (C-IN6) ────────────────────────────────
+
+    [TestMethod]
+    public void ShouldEmbedContainedInstanceByName()
+    {
+        // `* contained = VS1` should embed the named Instance as a contained resource.
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Instance: MyQuestionnaire
+            InstanceOf: Questionnaire
+            Usage: #example
+            * contained = VS1
+            * status = #active
+
+            Instance: VS1
+            InstanceOf: ValueSet
+            Usage: #example
+            * status = #active
+            * url = ""http://example.org/ValueSet/VS1""
+            * name = ""VS1""
+        ");
+
+        var questionnaire = resources.OfType<Questionnaire>().FirstOrDefault();
+        Assert.IsNotNull(questionnaire, "Questionnaire should compile");
+
+        // The ValueSet should be embedded, not emitted as standalone.
+        var standalone = resources.OfType<Hl7.Fhir.Model.ValueSet>().ToList();
+        Assert.AreEqual(1, standalone.Count, "ValueSet should still be emitted as standalone (#example)");
+
+        Assert.IsNotNull(questionnaire.Contained, "Questionnaire.contained should not be null");
+        Assert.AreEqual(1, questionnaire.Contained.Count, "Should have exactly one contained resource");
+
+        var contained = questionnaire.Contained[0] as Hl7.Fhir.Model.ValueSet;
+        Assert.IsNotNull(contained, "Contained resource should be a ValueSet");
+        Assert.AreEqual("VS1", contained.Id, "Contained ValueSet Id should be VS1");
+    }
+
+    [TestMethod]
+    public void ShouldEmbedInlineInstanceAsContained()
+    {
+        // Inline instances must not be emitted standalone, but CAN be contained.
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Instance: MyQuestionnaire
+            InstanceOf: Questionnaire
+            Usage: #example
+            * contained = InlineVS
+            * status = #active
+
+            Instance: InlineVS
+            InstanceOf: ValueSet
+            Usage: #inline
+            * status = #draft
+            * name = ""InlineVS""
+        ");
+
+        var questionnaire = resources.OfType<Questionnaire>().FirstOrDefault();
+        Assert.IsNotNull(questionnaire, "Questionnaire should compile");
+
+        // #inline must NOT appear as standalone
+        Assert.AreEqual(0, resources.OfType<Hl7.Fhir.Model.ValueSet>().Count(),
+            "#inline ValueSet must not be emitted standalone");
+
+        Assert.IsNotNull(questionnaire.Contained, "Questionnaire.contained should not be null");
+        Assert.AreEqual(1, questionnaire.Contained.Count, "Inline instance should be contained");
+
+        var contained = questionnaire.Contained[0] as Hl7.Fhir.Model.ValueSet;
+        Assert.IsNotNull(contained, "Contained resource should be a ValueSet");
+        Assert.AreEqual("InlineVS", contained.Id, "Contained ValueSet Id should be InlineVS");
+    }
+
+    [TestMethod]
+    public void ShouldEmbedMultipleContainedInstances()
+    {
+        // Multiple `* contained[+] = <name>` rules should produce multiple contained entries.
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Instance: MyQuestionnaire
+            InstanceOf: Questionnaire
+            Usage: #example
+            * contained[+] = VS1
+            * contained[+] = VS2
+            * status = #active
+
+            Instance: VS1
+            InstanceOf: ValueSet
+            Usage: #inline
+            * status = #active
+
+            Instance: VS2
+            InstanceOf: ValueSet
+            Usage: #inline
+            * status = #active
+        ");
+
+        var questionnaire = resources.OfType<Questionnaire>().FirstOrDefault();
+        Assert.IsNotNull(questionnaire, "Questionnaire should compile");
+        Assert.IsNotNull(questionnaire.Contained);
+        Assert.AreEqual(2, questionnaire.Contained.Count, "Should have two contained resources");
+        Assert.IsTrue(questionnaire.Contained.Any(c => c.Id == "VS1"), "VS1 should be contained");
+        Assert.IsTrue(questionnaire.Contained.Any(c => c.Id == "VS2"), "VS2 should be contained");
+    }
 }

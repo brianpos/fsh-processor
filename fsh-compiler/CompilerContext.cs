@@ -26,6 +26,13 @@ public class CompilerContext
     public Dictionary<string, Invariant> Invariants { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Instance name → <see cref="Instance"/> entity, collected from all <c>Instance</c> entities.
+    /// Used to resolve <c>* contained = &lt;name&gt;</c> cross-instance references, where the
+    /// named instance is embedded into the host resource's <c>contained[]</c> list.
+    /// </summary>
+    public Dictionary<string, Instance> Instances { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Non-fatal warnings accumulated during compilation.  Populated by rule processors when
     /// a rule is silently skipped or an unresolved reference is encountered.
     /// </summary>
@@ -51,6 +58,9 @@ public class CompilerContext
                 case Invariant inv when !string.IsNullOrEmpty(inv.Name):
                     ctx.Invariants[inv.Name] = inv;
                     break;
+                case Instance inst when !string.IsNullOrEmpty(inst.Name):
+                    ctx.Instances[inst.Name] = inst;
+                    break;
             }
         }
         return ctx;
@@ -74,6 +84,9 @@ public class CompilerContext
                     break;
                 case Invariant inv when !string.IsNullOrEmpty(inv.Name):
                     Invariants.TryAdd(inv.Name, inv);
+                    break;
+                case Instance inst when !string.IsNullOrEmpty(inst.Name):
+                    Instances.TryAdd(inst.Name, inst);
                     break;
             }
         }
