@@ -111,7 +111,16 @@ public class SdcIgCompilerTests
         IReadOnlyList<CompilerWarning> warnings = [];
         var resources = new List<FhirResource>();
 
-        var compileResult = R4FshCompiler.Compile(fshDocs);
+        // Supply the SDC IG canonical base so that resource URLs are generated as
+        // "{canonical}/{ResourceType}/{id}" (e.g. "http://hl7.org/fhir/uv/sdc/CodeSystem/assemble-expectation").
+        // This mirrors what sushi reads from sushi-config.yaml's "canonical:" field.
+        var sdcOptions = new CompilerOptions
+        {
+            CanonicalBase = "http://hl7.org/fhir/uv/sdc",
+            FhirVersion = R4FshCompiler.FhirVersion
+        };
+
+        var compileResult = R4FshCompiler.Compile(fshDocs, sdcOptions);
 
         switch (compileResult)
         {
@@ -129,7 +138,7 @@ public class SdcIgCompilerTests
 
                 foreach (var doc in fshDocs)
                 {
-                    var singleResult = R4FshCompiler.Compile(doc);
+                    var singleResult = R4FshCompiler.Compile(doc, sdcOptions);
                     switch (singleResult)
                     {
                         case CompileResult<List<FhirResource>>.SuccessResult sr:
@@ -718,24 +727,44 @@ public class SdcIgCompilerTests
                     var sushiObj = System.Text.Json.JsonDocument.Parse(File.ReadAllText(sushiFile)).RootElement;
                     var ourObj = System.Text.Json.JsonDocument.Parse(ourJson).RootElement;
 
-                    // Compare key stable fields: resourceType, id, url, name
-                    foreach (var field in new[] { "resourceType", "id", "url", "name" })
+                    // Compare key stable top-level fields: resourceType, id, url, name
+                    CompareKeyFields(fileName, sushiObj, ourObj, mismatchDetails, ref mismatches);
+
+                    // Compare contained resources (resourceType, id, url)
+                    if (sushiObj.TryGetProperty("contained", out var sushiContained) &&
+                        sushiContained.ValueKind == System.Text.Json.JsonValueKind.Array)
                     {
-                        if (!sushiObj.TryGetProperty(field, out var sushiVal)) continue;
-                        if (!ourObj.TryGetProperty(field, out var ourVal))
+                        // Build a lookup of our contained resources keyed by resourceType+id
+                        var ourContained = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+                        if (ourObj.TryGetProperty("contained", out var ourContainedArr) &&
+                            ourContainedArr.ValueKind == System.Text.Json.JsonValueKind.Array)
                         {
-                            mismatchDetails.Add($"{fileName}.{field}: sushi={sushiVal} ours=<missing>");
-                            mismatches++;
-                            continue;
+                            foreach (var item in ourContainedArr.EnumerateArray())
+                            {
+                                var rt = item.TryGetProperty("resourceType", out var rtv) ? rtv.GetString() : null;
+                                var cid = item.TryGetProperty("id", out var idv) ? idv.GetString() : null;
+                                var key = $"{rt}/{cid}";
+                                ourContained.TryAdd(key, item);
+                            }
                         }
-                        var sushiStr = sushiVal.GetRawText();
-                        var ourStr = ourVal.GetRawText();
-                        if (sushiStr != ourStr)
+
+                        foreach (var sushiItem in sushiContained.EnumerateArray())
                         {
-                            mismatchDetails.Add($"{fileName}.{field}: sushi={sushiStr} ours={ourStr}");
-                            mismatches++;
+                            var rt = sushiItem.TryGetProperty("resourceType", out var rtv) ? rtv.GetString() : null;
+                            var cid = sushiItem.TryGetProperty("id", out var idv) ? idv.GetString() : null;
+                            var key = $"{rt}/{cid}";
+                            var prefix = $"{fileName}[contained:{key}]";
+
+                            if (!ourContained.TryGetValue(key, out var ourItem))
+                            {
+                                mismatchDetails.Add($"{prefix}: sushi has contained resource, ours=<missing>");
+                                mismatches++;
+                                continue;
+                            }
+                            CompareKeyFields(prefix, sushiItem, ourItem, mismatchDetails, ref mismatches);
                         }
                     }
+
                     matched++;
                 }
                 catch (Exception ex)
@@ -761,5 +790,39 @@ public class SdcIgCompilerTests
 
         // This test never fails – it is informational.
         Assert.IsTrue(written >= 0);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Compares key stable fields (<c>resourceType</c>, <c>id</c>, <c>url</c>, <c>name</c>)
+    /// between a sushi-generated JSON element and our compiled equivalent, accumulating any
+    /// mismatches into <paramref name="mismatchDetails"/> and incrementing
+    /// <paramref name="mismatches"/> accordingly.
+    /// </summary>
+    private static void CompareKeyFields(
+        string label,
+        System.Text.Json.JsonElement sushiEl,
+        System.Text.Json.JsonElement ourEl,
+        List<string> mismatchDetails,
+        ref int mismatches)
+    {
+        foreach (var field in new[] { "resourceType", "id", "url", "name" })
+        {
+            if (!sushiEl.TryGetProperty(field, out var sushiVal)) continue;
+            if (!ourEl.TryGetProperty(field, out var ourVal))
+            {
+                mismatchDetails.Add($"{label}.{field}: sushi={sushiVal} ours=<missing>");
+                mismatches++;
+                continue;
+            }
+            var sushiStr = sushiVal.GetRawText();
+            var ourStr = ourVal.GetRawText();
+            if (sushiStr != ourStr)
+            {
+                mismatchDetails.Add($"{label}.{field}: sushi={sushiStr} ours={ourStr}");
+                mismatches++;
+            }
+        }
     }
 }
