@@ -135,6 +135,26 @@ public static class CompilerTestHelper
     }
 
     /// <summary>
+    /// Parses and compiles a FSH string using the R4 compiler.
+    /// Returns the full <see cref="CompileResult{T}"/> so that tests can inspect both the
+    /// compiled resources and any compiler warnings. Fails the test on parse errors only.
+    /// </summary>
+    public static CompileResult<List<FhirResource>> CompileDocResult(string fsh)
+    {
+        var trimmed = LeftAlign(fsh);
+        var parseResult = FshParser.Parse(trimmed);
+
+        if (parseResult is ParseResult.Failure parseFailure)
+        {
+            var msg = string.Join("; ", parseFailure.Errors.Select(e => $"Line {e.Line}: {e.Message}"));
+            Assert.Fail($"Parse failed: {msg}");
+        }
+
+        var doc = ((ParseResult.Success)parseResult).Document;
+        return R4FshCompiler.Compile(doc);
+    }
+
+    /// <summary>
     /// Removes common leading whitespace from a multiline string.
     /// </summary>
     public static string LeftAlign(string input)

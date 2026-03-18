@@ -108,7 +108,10 @@ public static class FshCompiler
                     {
                         resources.Add(resource);
                         if (resource is StructureDefinition sd)
+                        {
                             sdByEntityName.TryAdd(entity.Name, sd);
+                            context.RegisterStructureDefinition(entity.Name, sd);
+                        }
                     }
 
                     // Queue Mapping entities for deferred processing.
@@ -1484,7 +1487,23 @@ public static class FshCompiler
             typeName = typeName[(lastSlash + 1)..];
 
         var classMap = inspector.FindClassMapping(typeName);
-        if (classMap is null || !classMap.IsResource) return null;
+        if (classMap is null || !classMap.IsResource)
+        {
+            // typeName may be a profile identifier rather than a bare FHIR type.
+            // Walk compiled StructureDefinitions to resolve the actual base resource type.
+            classMap = context.ResolveClassMappingForProfile(typeName, inspector);
+        }
+
+        if (classMap is null || !classMap.IsResource)
+        {
+            // Still unresolved — emit a warning so callers can surface the miss.
+            context.Warnings.Add(new CompilerWarning
+            {
+                EntityName = instance.Name,
+                Message = $"Instance '{instance.Name}' InstanceOf '{instance.InstanceOf}' could not be resolved to a known FHIR resource type; instance skipped."
+            });
+            return null;
+        }
 
         if (Activator.CreateInstance(classMap.NativeType) is not FhirResource resource)
             return null;

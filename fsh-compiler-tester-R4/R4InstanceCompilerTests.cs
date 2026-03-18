@@ -120,15 +120,65 @@ public class R4InstanceCompilerTests
     public void ShouldSkipInstanceWithUnknownType()
     {
         // An unknown InstanceOf type should not fail; it should just produce no resource.
-        var resources = CompilerTestHelper.CompileDoc(@"
+        // A compiler warning should be issued instead of silent skipping.
+        var result = CompilerTestHelper.CompileDocResult(@"
             Instance: WeirdThing
             InstanceOf: SomeNonexistentType
 
             Profile: MyProfile
             Parent: Patient
         ");
+        var success = (CompileResult<List<FhirResource>>.SuccessResult)result;
         // Profile should still compile
-        Assert.AreEqual(1, resources.OfType<StructureDefinition>().Count());
+        Assert.AreEqual(1, success.Value.OfType<StructureDefinition>().Count());
+        // A warning should be issued for the unresolvable InstanceOf
+        Assert.IsTrue(success.Warnings.Any(w => w.EntityName == "WeirdThing"),
+            "A warning should be emitted for the unresolvable instance type");
+    }
+
+    // ─── Profile-based InstanceOf (C-IN7) ────────────────────────────────────
+
+    [TestMethod]
+    public void ShouldCompileInstanceOfProfileDefinedInSameDoc()
+    {
+        // When InstanceOf references a Profile defined in the same document,
+        // the compiler should walk the SD chain to find the base FHIR type and
+        // produce a resource of that type.
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyPatient
+            Parent: Patient
+            Title: ""My Patient Profile""
+
+            Instance: ExampleMyPatient
+            InstanceOf: MyPatient
+            Usage: #example
+            * id = ""example-patient""
+        ");
+
+        var patient = resources.OfType<Patient>().FirstOrDefault();
+        Assert.IsNotNull(patient, "Instance of a Patient profile should produce a Patient resource");
+        Assert.AreEqual("example-patient", patient.Id, "Patient Id should be set from rule");
+    }
+
+    [TestMethod]
+    public void ShouldSetMetaProfileWhenInstanceOfIsProfileName()
+    {
+        // When InstanceOf is a profile, the produced resource type should match the profile's base.
+        // Without a CanonicalBase, meta.profile is not populated, but the resource must be the right type.
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyQuestionnaire
+            Parent: Questionnaire
+            Id: my-questionnaire
+
+            Instance: ExampleQ
+            InstanceOf: MyQuestionnaire
+            Usage: #example
+            * status = #active
+        ");
+
+        var questionnaire = resources.OfType<Questionnaire>().FirstOrDefault();
+        Assert.IsNotNull(questionnaire, "Instance of a Questionnaire profile should produce a Questionnaire");
+        Assert.AreEqual("ExampleQ", questionnaire.Id, "Instance Id should default to entity name");
     }
 
     // ─── Instance metadata (Id, meta.profile, Usage) ─────────────────────────
