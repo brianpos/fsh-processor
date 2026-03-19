@@ -43,20 +43,6 @@ public class SdcIgCompilerTests
     private static readonly string SdcPath =
         Path.Combine(AppContext.BaseDirectory, "TestData", "SDC");
 
-    // ── Sushi comparison thresholds ─────────────────────────────────────────────
-
-    /// <summary>
-    /// Minimum sushi file size in bytes required before the size-ratio heuristic is applied.
-    /// Very small files are not useful as completeness proxies.
-    /// </summary>
-    private const int SushiMinFileSizeForRatioCheck = 200;
-
-    /// <summary>
-    /// If our compiled JSON is smaller than this fraction of the sushi reference JSON,
-    /// the resource is flagged as potentially incomplete.
-    /// </summary>
-    private const double SushiSizeRatioThreshold = 0.5;
-
     // ── Shared compile result (computed once, reused across tests) ──────────────
 
     private static List<FhirResource>? _compiledResources;
@@ -759,7 +745,7 @@ public class SdcIgCompilerTests
                     // 1. File-size completeness heuristic: warn when ours is less than 50% of sushi's size.
                     var sushiSize = sushiText.Length;
                     var ourSize = ourJson.Length;
-                    if (sushiSize > SushiMinFileSizeForRatioCheck && ourSize < sushiSize * SushiSizeRatioThreshold)
+                    if (sushiSize != ourSize)
                         sizeWarnings.Add($"{fileName}: sushi={sushiSize}B ours={ourSize}B ({ourSize * 100 / sushiSize}%)");
 
                     // 2. All top-level scalar fields
@@ -843,6 +829,68 @@ public class SdcIgCompilerTests
 
         // This test never fails – it is informational.
         Assert.IsTrue(written >= 0);
+    }
+
+    // ── Test 7: Normalize sushi-generated JSON property order ──────────────────
+
+    /// <summary>
+    /// Reads every JSON file in the <c>TestData/sushi-generated</c> directory, parses it
+    /// through <see cref="FhirJsonParser"/> and re-serializes it with <see cref="FhirJsonSerializer"/>.
+    /// The round-tripped JSON is written back to the same file, which normalizes property
+    /// ordering to match the Firely SDK's canonical output — the same order used by our
+    /// compiled resources.  This makes file-level diffs between sushi and our output
+    /// meaningful without noise from property reordering.
+    ///
+    /// This test is idempotent and safe to run repeatedly.
+    /// </summary>
+    // [TestMethod, Ignore]
+    public void ShouldNormalizeSushiGeneratedJsonPropertyOrder()
+    {
+        var sushiDir = Path.Combine(AppContext.BaseDirectory, "TestData", "sushi-generated");
+        if (!Directory.Exists(sushiDir))
+        {
+            Assert.Inconclusive($"sushi-generated directory not found: {sushiDir}");
+            return;
+        }
+
+        var sushiFiles = Directory.GetFiles(sushiDir, "*.json");
+        Assert.IsTrue(sushiFiles.Length > 0, "No JSON files found in sushi-generated directory");
+
+        var serializerSettings = new FhirJsonSerializationSettings { Pretty = true };
+        var parserSettings = new ParserSettings { AcceptUnknownMembers = true, AllowUnrecognizedEnums = true };
+        var jsonParser = new FhirJsonParser(parserSettings);
+
+        int normalized = 0;
+        var failures = new List<string>();
+
+        foreach (var sushiFile in sushiFiles)
+        {
+            var fileName = Path.GetFileName(sushiFile);
+            try
+            {
+                var originalJson = File.ReadAllText(sushiFile);
+                var resource = jsonParser.Parse<FhirResource>(originalJson);
+                var normalizedJson = resource.ToJson(serializerSettings);
+
+                File.WriteAllText(sushiFile, normalizedJson);
+                normalized++;
+            }
+            catch (Exception ex)
+            {
+                failures.Add($"{fileName}: {ex.Message}");
+            }
+        }
+
+        Console.WriteLine($"\nNormalized {normalized}/{sushiFiles.Length} sushi-generated JSON file(s).");
+
+        if (failures.Count > 0)
+        {
+            Console.WriteLine($"\nNormalization failures ({failures.Count}):");
+            foreach (var f in failures) Console.WriteLine($"  {f}");
+        }
+
+        Assert.AreEqual(0, failures.Count,
+            $"{failures.Count} file(s) failed normalization. See output for details.");
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
