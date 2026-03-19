@@ -2171,10 +2171,35 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
 
     private static string ExtractString(string quotedString)
     {
-        // Remove quotes from strings
+        // Remove quotes and process FSH/JSON-compatible escape sequences.
         if (quotedString.StartsWith("\"") && quotedString.EndsWith("\"") && quotedString.Length >= 2)
         {
-            return quotedString[1..^1];
+            var inner = quotedString[1..^1];
+            if (!inner.Contains('\\')) return inner;
+
+            var sb = new System.Text.StringBuilder(inner.Length);
+            for (int i = 0; i < inner.Length; i++)
+            {
+                if (inner[i] == '\\' && i + 1 < inner.Length)
+                {
+                    i++;
+                    sb.Append(inner[i] switch
+                    {
+                        '"'  => '"',
+                        '\\' => '\\',
+                        '/'  => '/',
+                        'n'  => '\n',
+                        'r'  => '\r',
+                        't'  => '\t',
+                        _    => inner[i]
+                    });
+                }
+                else
+                {
+                    sb.Append(inner[i]);
+                }
+            }
+            return sb.ToString();
         }
         return quotedString;
     }

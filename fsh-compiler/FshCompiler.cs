@@ -7,6 +7,7 @@ using FhirExtension = Hl7.Fhir.Model.Extension;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
 using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
+using FshCode = fsh_processor.Models.Code;
 using Hl7.Fhir.Specification.Source;
 
 namespace fsh_compiler;
@@ -493,7 +494,7 @@ public static class FshCompiler
             switch (rule)
             {
                 case VsComponentRule compRule:
-                    ApplyVsComponentRule(compRule, fvs, context);
+                    ApplyVsComponentRule(compRule, fvs, context, opts);
                     break;
 
                 case VsCaretValueRule caretRule:
@@ -1103,44 +1104,110 @@ public static class FshCompiler
     // ─── ValueSet rule processors ─────────────────────────────────────────────
 
     private static void ApplyVsComponentRule(
-        VsComponentRule rule, FhirValueSet fvs, CompilerContext context)
+        VsComponentRule rule, FhirValueSet fvs, CompilerContext context, CompilerOptions opts)
     {
-        var component = new FhirValueSet.ConceptSetComponent();
-
-        if (!string.IsNullOrEmpty(rule.FromSystem))
-            component.System = context.ResolveAlias(rule.FromSystem);
-
-        if (rule.FromValueSets.Count > 0)
-            component.ValueSet = rule.FromValueSets.Select(vs => context.ResolveAlias(vs)).ToList();
-
+        // ─── Explicit concept codes ──────────────────────────────────────────────
+        // Per the FSH spec, codes in a ValueSet component are written as System#code or
+        // #code (with an explicit "from system …").  All codes that share the same system
+        // are grouped into a single ConceptSetComponent in compose.include/exclude.
         if (rule.IsConceptComponent && rule.ConceptCode != null)
         {
-            component.Concept = new List<FhirValueSet.ConceptReferenceComponent>
+            // Split a system-qualified code (e.g. "AustralianStateCodes#ACT") into its
+            // system and code parts.
+            var (splitSystem, codeOnly) = FhirValueMapper.SplitCodeValue(rule.ConceptCode.Value);
+
+            // Prefer an explicit FromSystem; fall back to the system embedded in the code.
+            var resolvedSystem = !string.IsNullOrEmpty(rule.FromSystem)
+                ? ResolveSystemName(rule.FromSystem, context, opts)
+                : (!string.IsNullOrEmpty(splitSystem) ? ResolveSystemName(splitSystem, context, opts) : null);
+
+            // Find an existing include/exclude component for this system so that all codes
+            // from the same system end up in one ConceptSetComponent (as sushi/FSH spec requires).
+            var targetList = rule.IsInclude == false ? fvs.Compose!.Exclude : fvs.Compose!.Include;
+            var existing = resolvedSystem != null
+                ? targetList.FirstOrDefault(c => c.System == resolvedSystem && (c.Filter == null || c.Filter.Count == 0))
+                : null;
+
+            var concept = new FhirValueSet.ConceptReferenceComponent
             {
-                new FhirValueSet.ConceptReferenceComponent
-                {
-                    Code = rule.ConceptCode.Value.TrimStart('#'),
-                    Display = rule.ConceptCode.Display
-                }
+                Code = codeOnly,
+                Display = rule.ConceptCode.Display
             };
+
+            if (existing != null)
+            {
+                // Append to the existing component rather than creating a duplicate.
+                existing.Concept ??= new List<FhirValueSet.ConceptReferenceComponent>();
+                existing.Concept.Add(concept);
+                return;
+            }
+
+            // No existing component for this system — create a new one.
+            var component = new FhirValueSet.ConceptSetComponent
+            {
+                System = resolvedSystem,
+                Concept = new List<FhirValueSet.ConceptReferenceComponent> { concept }
+            };
+
+            if (rule.FromValueSets.Count > 0)
+                component.ValueSet = rule.FromValueSets.Select(vs => context.ResolveAlias(vs)).ToList();
+
+            targetList.Add(component);
+            return;
         }
 
-        if (rule.Filters.Count > 0)
+        // ─── Filter component or system/valueset-only component ─────────────────
         {
-            component.Filter = rule.Filters
-                .Select(f => new FhirValueSet.FilterComponent
-                {
-                    Property = f.Property,
-                    Op = MapFilterOp(f.Operator),
-                    Value = f.Value is StringValue sv ? sv.Value : f.Operator
-                })
-                .ToList();
-        }
+            var component = new FhirValueSet.ConceptSetComponent();
 
-        if (rule.IsInclude == false)
-            fvs.Compose!.Exclude.Add(component);
-        else
-            fvs.Compose!.Include.Add(component);
+            if (!string.IsNullOrEmpty(rule.FromSystem))
+                component.System = ResolveSystemName(rule.FromSystem, context, opts);
+
+            if (rule.FromValueSets.Count > 0)
+                component.ValueSet = rule.FromValueSets.Select(vs => context.ResolveAlias(vs)).ToList();
+
+            if (rule.Filters.Count > 0)
+            {
+                component.Filter = rule.Filters
+                    .Select(f => new FhirValueSet.FilterComponent
+                    {
+                        Property = f.Property,
+                        Op = MapFilterOp(f.Operator),
+                        // FSH filter values may be bare codes (#410607006) or strings.
+                        // Extract the code-only part for FshCode values.
+                        Value = f.Value switch
+                        {
+                            StringValue sv  => sv.Value,
+                            FshCode fshCode => FhirValueMapper.SplitCodeValue(fshCode.Value).Code,
+                            _               => f.Operator
+                        }
+                    })
+                    .ToList();
+            }
+
+            if (rule.IsInclude == false)
+                fvs.Compose!.Exclude.Add(component);
+            else
+                fvs.Compose!.Include.Add(component);
+        }
+    }
+
+    /// <summary>
+    /// Resolves a system name or alias reference to a full URI.  First tries alias resolution;
+    /// when the result is not already a URL (i.e. no alias was found), falls back to building a
+    /// CodeSystem URL from the canonical base (<c>{canonical}/CodeSystem/{name}</c>).
+    /// </summary>
+    private static string ResolveSystemName(string name, CompilerContext context, CompilerOptions opts)
+    {
+        var resolved = context.ResolveAlias(name);
+        // If alias resolution returned the original name unchanged and it is not already a URL,
+        // assume it is a local CodeSystem name and construct the canonical URL for it.
+        if (resolved == name && !resolved.StartsWith("http://", StringComparison.Ordinal)
+                             && !resolved.StartsWith("https://", StringComparison.Ordinal))
+        {
+            resolved = ResolveUrl(name, opts, "CodeSystem");
+        }
+        return resolved;
     }
 
     private static FilterOperator MapFilterOp(string op) =>
@@ -1161,7 +1228,11 @@ public static class FshCompiler
     private static void ApplyVsCaretValueRule(VsCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
     {
         var path = rule.CaretPath.TrimStart('^');
-        FhirCaretValueWriter.TrySet(fvs, path, rule.Value, inspector, aliasResolver);
+        // Use SetCsCaretPath so that multi-level dot-separated paths (e.g. "contact.telecom.system")
+        // are navigated correctly by creating/reusing intermediate child objects.  A single-segment
+        // path is handled identically to the previous TrySet call.
+        var activeInspector = inspector ?? ModelInspector.ForAssembly(typeof(StructureDefinition).Assembly);
+        SetCsCaretPath(fvs, path, rule.Value, activeInspector, aliasResolver);
         // Silently ignore if the path is not in the ValueSet model.
     }
 
@@ -1180,7 +1251,7 @@ public static class FshCompiler
             switch (rule)
             {
                 case VsComponentRule compRule:
-                    ApplyVsComponentRule(compRule, fvs, context);
+                    ApplyVsComponentRule(compRule, fvs, context, opts);
                     break;
                 case VsCaretValueRule vsCaretRule:
                     ApplyVsCaretValueRule(vsCaretRule, fvs, opts.Inspector, context.ResolveAlias);
