@@ -354,4 +354,57 @@ public class R4CodeSystemCompilerTests
         Assert.AreEqual(1, moreHalf.Property?.Count);
         Assert.AreEqual(2m, ((FhirDecimal)moreHalf.Property![0].Value).Value);
     }
+
+    // ─── FshCode → CodeableConcept with alias-qualified system ───────────────
+
+    [TestMethod]
+    public void ShouldCompileJurisdictionFromSystemQualifiedCode()
+    {
+        // FSH spec: assigning a system-qualified code ($alias#code "display") to a
+        // CodeableConcept property creates CodeableConcept { coding: [{ system, code, display }] }.
+        var fsh = CompilerTestHelper.LeftAlign(@"
+            Alias: $m49.htm = http://unstats.un.org/unsd/methods/m49/m49.htm
+
+            CodeSystem: JurisdictionCS
+            * ^jurisdiction = $m49.htm#001 ""World""
+        ");
+        var parseResult = fsh_processor.FshParser.Parse(fsh);
+        var fshDoc = ((fsh_processor.Models.ParseResult.Success)parseResult).Document;
+        var opts = new fsh_compiler.CompilerOptions { CanonicalBase = "http://example.org/fhir" };
+        var result = fsh_compiler_r4.R4FshCompiler.Compile(fshDoc, opts);
+        var cs = (FhirCodeSystem)((fsh_compiler.CompileResult<System.Collections.Generic.List<Hl7.Fhir.Model.Resource>>.SuccessResult)result).Value[0];
+
+        Assert.IsNotNull(cs.Jurisdiction, "jurisdiction should be set");
+        Assert.AreEqual(1, cs.Jurisdiction.Count, "Should have one jurisdiction entry");
+        var cc = cs.Jurisdiction[0];
+        Assert.AreEqual(1, cc.Coding.Count, "CodeableConcept should have one Coding");
+        var coding = cc.Coding[0];
+        Assert.AreEqual("http://unstats.un.org/unsd/methods/m49/m49.htm", coding.System,
+            "Alias should be resolved to the canonical URL");
+        Assert.AreEqual("001", coding.Code, "Code should be '001'");
+        Assert.AreEqual("World", coding.Display, "Display should be 'World'");
+    }
+
+    [TestMethod]
+    public void ShouldCompileCHFCodesStyleJurisdiction()
+    {
+        // Mirror the exact CHFCodes FSH structure that originally triggered this bug.
+        var resources = CompilerTestHelper.CompileDocs(
+            CompilerTestHelper.ParseDoc(@"Alias: $m49.htm = http://unstats.un.org/unsd/methods/m49/m49.htm"),
+            CompilerTestHelper.ParseDoc(@"
+                CodeSystem: CHFCodes
+                Id: chf-codes
+                Title: ""CHF Codes""
+                * ^jurisdiction = $m49.htm#001 ""World""
+                * #body-weight-change ""Body weight change""
+            ")
+        );
+        var cs = CompilerTestHelper.GetCodeSystem(resources, "CHFCodes");
+        Assert.IsNotNull(cs.Jurisdiction, "jurisdiction should be set");
+        Assert.AreEqual(1, cs.Jurisdiction.Count);
+        var coding = cs.Jurisdiction[0].Coding[0];
+        Assert.AreEqual("http://unstats.un.org/unsd/methods/m49/m49.htm", coding.System);
+        Assert.AreEqual("001", coding.Code);
+        Assert.AreEqual("World", coding.Display);
+    }
 }

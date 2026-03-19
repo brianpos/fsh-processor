@@ -48,12 +48,16 @@ public static class FhirCaretValueWriter
     /// Pass the version-specific <c>ModelInfo.ModelInspector</c>; when <c>null</c> the
     /// Conformance-assembly fallback is used.
     /// </param>
+    /// <param name="aliasResolver">
+    /// Optional function that resolves FSH alias names in system-qualified codes (e.g.
+    /// <c>$m49.htm</c> → <c>http://unstats.un.org/unsd/methods/m49/m49.htm</c>).
+    /// </param>
     /// <returns>
     /// <c>true</c> when a matching property was found and set; <c>false</c> when the property
     /// does not exist in the model or the value type is incompatible, in which case the caller
     /// should fall back (e.g. to an extension).
     /// </returns>
-    public static bool TrySet(Base target, string elementName, FshValue? fshValue, ModelInspector? inspector = null)
+    public static bool TrySet(Base target, string elementName, FshValue? fshValue, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null)
     {
         if (fshValue is null) return false;
 
@@ -64,7 +68,7 @@ public static class FhirCaretValueWriter
         var propMap = classMap.FindMappedElementByName(elementName);
         if (propMap is null) return false;
 
-        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector);
+        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector, aliasResolver);
         if (converted is null) return false;
 
         if (propMap.IsCollection)
@@ -97,7 +101,7 @@ public static class FhirCaretValueWriter
     /// <see cref="TrySet"/>).
     /// </summary>
     public static bool TrySetIndexed(
-        Base target, string elementName, int index, FshValue? fshValue, ModelInspector? inspector = null)
+        Base target, string elementName, int index, FshValue? fshValue, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null)
     {
         if (fshValue is null) return false;
 
@@ -108,7 +112,7 @@ public static class FhirCaretValueWriter
         var propMap = classMap.FindMappedElementByName(elementName);
         if (propMap is null) return false;
 
-        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector);
+        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector, aliasResolver);
         if (converted is null) return false;
 
         if (!propMap.IsCollection)
@@ -160,7 +164,7 @@ public static class FhirCaretValueWriter
     /// </para>
     /// </remarks>
     internal static bool TrySetChoiceTypeLeaf(
-        Base target, string elementName, FshValue fshValue, ModelInspector inspector)
+        Base target, string elementName, FshValue fshValue, ModelInspector inspector, Func<string, string>? aliasResolver = null)
     {
         var classMap = inspector.FindClassMapping(target.GetType());
         if (classMap is null) return false;
@@ -186,7 +190,7 @@ public static class FhirCaretValueWriter
             if (propMap is null) continue;
 
             // Produce a concrete DataType from the FSH value.
-            var dataType = FhirValueMapper.ToDataType(fshValue, inspector);
+            var dataType = FhirValueMapper.ToDataType(fshValue, inspector, aliasResolver);
             if (dataType is null) return false;
 
             // Verify the concrete type is assignment-compatible with the property's implementing type.
@@ -212,7 +216,7 @@ public static class FhirCaretValueWriter
         return false;
     }
 
-    private static object? ConvertValue(FshValue fshValue, Type targetType, ModelInspector inspector)
+    private static object? ConvertValue(FshValue fshValue, Type targetType, ModelInspector inspector, Func<string, string>? aliasResolver = null)
     {
         // Code<TEnum> — use EnumUtility.ParseLiteral so that FHIR kebab-case literals
         // (e.g. "is-a", "grouped-by") are resolved correctly against [EnumLiteral] attributes.
@@ -231,7 +235,12 @@ public static class FhirCaretValueWriter
         return fshValue switch
         {
             StringValue sv   => CreatePrimitive(targetType, sv.Value),
-            FshCode c        => CreatePrimitive(targetType, c.Value.TrimStart('#')),
+            // For FshCode: extract the code-only part (strip system and leading #) for
+            // primitive targets (FhirCode, FhirString, …).  When that fails (e.g. target is
+            // CodeableConcept), fall through to ToDataType which produces a Coding that
+            // AdaptToTargetType can then wrap in a CodeableConcept.
+            FshCode c        => CreatePrimitive(targetType, FhirValueMapper.SplitCodeValue(c.Value).Code)
+                                ?? AdaptToTargetType(FhirValueMapper.ToDataType(c, inspector, aliasResolver), targetType),
             BooleanValue bv  => targetType == typeof(FhirBoolean) ? new FhirBoolean(bv.Value) : null,
             NumberValue nv   => CreateNumericPrimitive(targetType, nv.Value),
             _                => AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector), targetType)
@@ -272,7 +281,8 @@ public static class FhirCaretValueWriter
         fshValue switch
         {
             StringValue sv => sv.Value,
-            FshCode c      => c.Value.TrimStart('#'),
+            // Extract code-only part (strip system prefix and leading #).
+            FshCode c      => FhirValueMapper.SplitCodeValue(c.Value).Code,
             _              => null
         };
 
@@ -280,13 +290,20 @@ public static class FhirCaretValueWriter
     /// Returns <paramref name="converted"/> when it is already assignment-compatible with
     /// <paramref name="targetType"/>.  When the types differ but both are string-backed FHIR
     /// primitive types (e.g. <see cref="Canonical"/> → <see cref="FhirUri"/>), the raw string
-    /// value is extracted and used to construct the correct target primitive.  Returns
-    /// <c>null</c> when no adaptation is possible.
+    /// value is extracted and used to construct the correct target primitive.
+    /// A <see cref="Coding"/> is wrapped in a <see cref="CodeableConcept"/> when the target
+    /// type is <see cref="CodeableConcept"/>.
+    /// Returns <c>null</c> when no adaptation is possible.
     /// </summary>
     private static object? AdaptToTargetType(DataType? converted, Type targetType)
     {
         if (converted is null) return null;
         if (targetType.IsAssignableFrom(converted.GetType())) return converted;
+
+        // Coding → CodeableConcept wrapping (FSH spec: code assigned to a CodeableConcept
+        // property creates a CodeableConcept with one Coding element).
+        if (converted is Coding coding && targetType == typeof(CodeableConcept))
+            return new CodeableConcept { Coding = [coding] };
 
         // Both sides are string-backed FHIR primitives — extract the raw value and
         // create the correct target type (e.g. Canonical → FhirUri, FhirUrl → FhirString).

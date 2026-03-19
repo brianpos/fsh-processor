@@ -27,7 +27,11 @@ public static class FhirValueMapper
     /// Optional <see cref="ModelInspector"/> used to dynamically instantiate version-specific
     /// FHIR types such as <c>Ratio</c> that are not available in the shared Conformance assembly.
     /// </param>
-    public static DataType? ToDataType(FshValue? value, ModelInspector? inspector = null) =>
+    /// <param name="aliasResolver">
+    /// Optional function that resolves an FSH alias name (e.g. <c>$m49.htm</c>) to its
+    /// canonical URL.  When <c>null</c>, alias names are used as-is.
+    /// </param>
+    public static DataType? ToDataType(FshValue? value, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null) =>
         value switch
         {
             StringValue sv => new FhirString(sv.Value),
@@ -35,7 +39,7 @@ public static class FhirValueMapper
             BooleanValue bv => new FhirBoolean(bv.Value),
             DateTimeValue dtv => new FhirDateTime(dtv.Value),
             TimeValue tv => new Time(tv.Value),
-            FshCode c => new FhirCode(c.Value.TrimStart('#')),
+            FshCode c => CodeToDataType(c, aliasResolver),
             FshQuantity q => ToQuantity(q),
             RegexValue rv => new FhirString(rv.Pattern),
             Reference r => new ResourceReference(r.Type),
@@ -44,6 +48,32 @@ public static class FhirValueMapper
             FshRatio r => CreateRatio(r, inspector),
             _ => null
         };
+
+    /// <summary>
+    /// Converts a <see cref="FshCode"/> to the most specific Firely <see cref="DataType"/>
+    /// available given the information in the value:
+    /// <list type="bullet">
+    ///   <item>System-qualified codes (e.g. <c>$m49.htm#001 "World"</c>) produce a
+    ///     <see cref="Coding"/> with <c>System</c>, <c>Code</c>, and optionally
+    ///     <c>Display</c> populated.</item>
+    ///   <item>Bare codes (e.g. <c>#active</c> or <c>active</c>) produce a
+    ///     <see cref="FhirCode"/> with the code value only.</item>
+    /// </list>
+    /// </summary>
+    internal static DataType CodeToDataType(FshCode c, Func<string, string>? aliasResolver)
+    {
+        var (system, code) = SplitCodeValue(c.Value);
+        if (system is null)
+            return new FhirCode(code);
+
+        var resolvedSystem = aliasResolver?.Invoke(system) ?? system;
+        return new Coding
+        {
+            System = resolvedSystem,
+            Code = code,
+            Display = c.Display
+        };
+    }
 
     /// <summary>
     /// Converts a <see cref="FshValue"/> to a Firely <see cref="DataType"/> specifically
@@ -56,13 +86,35 @@ public static class FhirValueMapper
     /// Optional <see cref="ModelInspector"/> forwarded to <see cref="ToDataType"/> for
     /// version-specific type resolution.
     /// </param>
-    public static DataType? ToDataTypeForCaretPath(FshValue? value, string caretPath, ModelInspector? inspector = null) =>
+    /// <param name="aliasResolver">
+    /// Optional alias resolver forwarded to <see cref="ToDataType"/>.
+    /// </param>
+    public static DataType? ToDataTypeForCaretPath(FshValue? value, string caretPath, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null) =>
         caretPath switch
         {
             // Integer caret paths (e.g. ^min, ^max on ElementDefinition constraints)
             "^min" when value is NumberValue nv2 => new Integer((int)nv2.Value),
-            _ => ToDataType(value, inspector)
+            _ => ToDataType(value, inspector, aliasResolver)
         };
+
+    /// <summary>
+    /// Splits a raw FSH code value into an optional system and a code.
+    /// <list type="bullet">
+    ///   <item><c>#active</c> → (null, <c>"active"</c>)</item>
+    ///   <item><c>active</c>  → (null, <c>"active"</c>)</item>
+    ///   <item><c>$m49.htm#001</c> → (<c>"$m49.htm"</c>, <c>"001"</c>)</item>
+    /// </list>
+    /// </summary>
+    internal static (string? System, string Code) SplitCodeValue(string rawValue)
+    {
+        if (rawValue.StartsWith('#'))
+            return (null, rawValue[1..]);
+
+        var hashIdx = rawValue.IndexOf('#');
+        return hashIdx >= 0
+            ? (rawValue[..hashIdx], rawValue[(hashIdx + 1)..])
+            : (null, rawValue);
+    }
 
     /// <summary>
     /// Dynamically creates a version-specific FHIR <c>Ratio</c> instance using the supplied
