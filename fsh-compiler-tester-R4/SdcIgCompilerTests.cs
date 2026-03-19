@@ -249,6 +249,19 @@ public class SdcIgCompilerTests
     }
 
     [TestMethod]
+    public void Compile_AustralianStates()
+    {
+        Compile_SpecificResource("AustralianStates.fsh");
+    }
+
+    [TestMethod]
+    public void Compile_Species()
+    {
+        Compile_SpecificResource("QuestionnaireContextSpecies.fsh");
+    }
+
+
+    [TestMethod]
     public void Compile_CodeSystemCSPHQ9()
     {
         Compile_SpecificResource("CodeSystemCSPHQ9.fsh");
