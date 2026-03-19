@@ -260,6 +260,12 @@ public class SdcIgCompilerTests
         Compile_SpecificResource("CHFCodes.fsh");
     }
 
+    [TestMethod]
+    public void Compile_AssembleExpectationCodes()
+    {
+        Compile_SpecificResource("AssembleExpectationCodes.fsh");
+    }
+
     public void Compile_SpecificResource(string fshFileName)
     {
         FshDoc parsedFsh = GetFshDocument(fshFileName, out string fshText);

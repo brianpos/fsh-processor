@@ -29,7 +29,7 @@
       "property": [
         {
           "code": "itemWeight",
-          "valueDecimal": 0
+          "valueDecimal": 0.0
         }
       ]
     },
@@ -39,7 +39,7 @@
       "property": [
         {
           "code": "itemWeight",
-          "valueDecimal": 1
+          "valueDecimal": 1.0
         }
       ]
     },
@@ -49,7 +49,7 @@
       "property": [
         {
           "code": "itemWeight",
-          "valueDecimal": 2
+          "valueDecimal": 2.0
         }
       ]
     },
@@ -59,7 +59,7 @@
       "property": [
         {
           "code": "itemWeight",
-          "valueDecimal": 3
+          "valueDecimal": 3.0
         }
       ]
     }
