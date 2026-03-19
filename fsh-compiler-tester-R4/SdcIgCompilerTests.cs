@@ -269,7 +269,8 @@ public class SdcIgCompilerTests
     public void Compile_SpecificResource(string fshFileName)
     {
         FshDoc parsedFsh = GetFshDocument(fshFileName, out string fshText);
-        FshDoc parsedFshAliases = GetFshDocument("aliases.fsh", out string fshTextAliases);
+        FshDoc parsedFshAliases = GetFshDocument("aliases.fsh", out string _);
+        FshDoc parsedFshShared = GetFshDocument("shared.fsh", out _);
 
         // ── 2. Compile all documents together with a shared context ──────────────
         // Compiling as a batch allows cross-file alias/ruleset resolution so that
@@ -287,7 +288,7 @@ public class SdcIgCompilerTests
             FhirVersion = R4FshCompiler.FhirVersion
         };
 
-        var compileResult = R4FshCompiler.Compile([parsedFshAliases, parsedFsh], sdcOptions);
+        var compileResult = R4FshCompiler.Compile([parsedFshAliases, parsedFshShared, parsedFsh], sdcOptions);
 
         switch (compileResult)
         {
