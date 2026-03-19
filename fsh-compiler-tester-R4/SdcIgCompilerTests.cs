@@ -248,6 +248,154 @@ public class SdcIgCompilerTests
         Assert.IsTrue(resources.Count > 0, "No FHIR resources were produced from the SDC IG FSH.");
     }
 
+    [TestMethod]
+    public void Compile_CodeSystemCSPHQ9()
+    {
+        Compile_SpecificResource("CodeSystemCSPHQ9.fsh");
+    }
+
+    [TestMethod]
+    public void Compile_CHFCodes()
+    {
+        Compile_SpecificResource("CHFCodes.fsh");
+    }
+
+    public void Compile_SpecificResource(string fshFileName)
+    {
+        FshDoc parsedFsh = GetFshDocument(fshFileName, out string fshText);
+        FshDoc parsedFshAliases = GetFshDocument("aliases.fsh", out string fshTextAliases);
+
+        // ── 2. Compile all documents together with a shared context ──────────────
+        // Compiling as a batch allows cross-file alias/ruleset resolution so that
+        // profiles that reference rulesets defined in other files are handled correctly.
+        var compileErrors = new List<string>();
+        IReadOnlyList<CompilerWarning> warnings = [];
+        var resources = new List<FhirResource>();
+
+        // Supply the SDC IG canonical base so that resource URLs are generated as
+        // "{canonical}/{ResourceType}/{id}" (e.g. "http://hl7.org/fhir/uv/sdc/CodeSystem/assemble-expectation").
+        // This mirrors what sushi reads from sushi-config.yaml's "canonical:" field.
+        var sdcOptions = new CompilerOptions
+        {
+            CanonicalBase = "http://hl7.org/fhir/uv/sdc",
+            FhirVersion = R4FshCompiler.FhirVersion
+        };
+
+        var compileResult = R4FshCompiler.Compile([parsedFshAliases, parsedFsh], sdcOptions);
+
+        switch (compileResult)
+        {
+            case CompileResult<List<FhirResource>>.SuccessResult s:
+                resources = s.Value;
+                warnings = s.Warnings;
+                break;
+
+            case CompileResult<List<FhirResource>>.FailureResult f:
+                // Multi-doc compile failed (pre-existing compiler bugs may cause this).
+                // Fall back to compiling each document individually so we can still produce
+                // resources from the files that do compile correctly.
+                compileErrors.AddRange(f.Errors.Select(e => e.ToString()));
+                warnings = f.Warnings;
+
+                break;
+        }
+
+
+        // ── Compile failures ─────────────────────────────────────────────────────
+        if (compileErrors.Count > 0)
+        {
+            Console.WriteLine($"\nCompile failures ({compileErrors.Count}):");
+            foreach (var e in compileErrors) Console.WriteLine($"  COMPILE: {e}");
+        }
+
+        // ── Compiler warnings ────────────────────────────────────────────────────
+        if (warnings.Count > 0)
+        {
+            Console.WriteLine($"\nCompiler warnings ({warnings.Count}):");
+            foreach (var w in warnings) Console.WriteLine($"  WARNING: {w}");
+        }
+
+        // ── Resource breakdown ───────────────────────────────────────────────────
+        Console.WriteLine($"\nCompiled {resources.Count} FHIR resource(s):");
+
+        var structureDefs = resources.OfType<StructureDefinition>().ToList();
+        var valueSets = resources.OfType<FhirValueSet>().ToList();
+        var codeSystems = resources.OfType<FhirCodeSystem>().ToList();
+        var instances = resources.Where(r => r is not StructureDefinition
+                                               and not FhirValueSet
+                                               and not FhirCodeSystem).ToList();
+
+        Console.WriteLine($"  StructureDefinitions : {structureDefs.Count}");
+        Console.WriteLine($"  ValueSets            : {valueSets.Count}");
+        Console.WriteLine($"  CodeSystems          : {codeSystems.Count}");
+        Console.WriteLine($"  Other instances      : {instances.Count}");
+
+        Console.WriteLine("\nStructureDefinitions:");
+        foreach (var sd in structureDefs.OrderBy(s => s.Name))
+        {
+            Console.WriteLine($"  [{sd.Kind}] {sd.Name} (id={sd.Id}, base={sd.BaseDefinition})");
+        }
+
+        Console.WriteLine("\nValueSets:");
+        foreach (var vs in valueSets.OrderBy(v => v.Name))
+            Console.WriteLine($"  {vs.Name} (id={vs.Id})");
+
+        Console.WriteLine("\nCodeSystems:");
+        foreach (var cs in codeSystems.OrderBy(c => c.Name))
+            Console.WriteLine($"  {cs.Name} (id={cs.Id})");
+
+        if (instances.Count > 0)
+        {
+            Console.WriteLine("\nOther instances:");
+            foreach (var r in instances)
+                Console.WriteLine($"  [{r.TypeName}] {r.Id}");
+        }
+
+        Console.WriteLine("--------------------------------------");
+        Console.WriteLine();
+        Console.WriteLine(fshText);
+        Console.WriteLine();
+
+        var serializerSettings = new FhirJsonSerializationSettings { Pretty = true };
+        foreach (var r in resources)
+        {
+            Console.WriteLine("--------------------------------------");
+            Console.WriteLine();
+            Console.WriteLine(r.ToJson(serializerSettings));
+        }
+
+        // T1: SDC IG now compiles with zero errors.  Hard assert so regressions are caught.
+        Assert.AreEqual(0, compileErrors.Count,
+            $"{compileErrors.Count} compile error(s) found. See output for details.");
+
+        Assert.IsTrue(resources.Count > 0, "No FHIR resources were produced from the SDC IG FSH.");
+    }
+
+    private static FshDoc GetFshDocument(string fshFileName, out string fshText)
+    {
+        var fshFile = Path.Combine(SdcPath, fshFileName);
+
+        fshText = File.ReadAllText(fshFile);
+        var result = FshParser.Parse(fshText);
+
+        switch (result)
+        {
+            case ParseResult.Success s:
+                return s.Document;
+
+            case ParseResult.Failure f:
+                var firstError = f.Errors.FirstOrDefault();
+                Console.WriteLine($"\nParse failures:");
+                var errorMessage = $"{Path.GetFileName(fshFile)}: {firstError?.Message ?? "unknown parse error"} (line {firstError?.Line})";
+                Console.WriteLine($"  PARSE: {errorMessage}");
+                Assert.Fail(errorMessage);
+                return null;
+            default:
+                Assert.Fail("No result from parse");
+                return null;
+        }
+    }
+
     // ── Test 2: Serialize to valid FHIR JSON ───────────────────────────────────
 
     /// <summary>
