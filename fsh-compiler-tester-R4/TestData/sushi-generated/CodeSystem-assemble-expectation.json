@@ -1,12 +1,30 @@
 {
   "resourceType": "CodeSystem",
-  "status": "active",
-  "content": "complete",
-  "name": "AssembleExpectationCodes",
   "id": "assemble-expectation",
-  "title": "Assemble Expectation Codes",
-  "description": "A set of codes that reflect the relevance of the Questionnaire to the $assemble operation - specifically, whether the form needs to be assembled, whether the form can be referenced as a subQuestionnaire and whether the form can be used as the 'root' of a QuestionnaireResponse.",
   "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/assemble-expectation",
+  "version": "1.0.0",
+  "name": "AssembleExpectationCodes",
+  "title": "Assemble Expectation Codes",
+  "status": "active",
+  "experimental": false,
+  "description": "A set of codes that reflect the relevance of the Questionnaire to the $assemble operation - specifically, whether the form needs to be assembled, whether the form can be referenced as a subQuestionnaire and whether the form can be used as the 'root' of a QuestionnaireResponse.",
+  "caseSensitive": true,
+  "content": "complete",
+  "count": 9,
+  "property": [
+    {
+      "code": "notSelectable",
+      "uri": "http://hl7.org/fhir/concept-properties#notSelectable",
+      "description": "Indicates that the concept is abstract.  It can be used for searching, but cannot appear in instances",
+      "type": "boolean"
+    },
+    {
+      "code": "parent",
+      "uri": "http://hl7.org/fhir/concept-properties#parent",
+      "description": "Indicates a parent concept that can subsume this concept",
+      "type": "code"
+    }
+  ],
   "concept": [
     {
       "code": "assembly",
@@ -155,23 +173,5 @@
         }
       ]
     }
-  ],
-  "version": "1.0.0",
-  "experimental": false,
-  "caseSensitive": true,
-  "property": [
-    {
-      "code": "notSelectable",
-      "uri": "http://hl7.org/fhir/concept-properties#notSelectable",
-      "type": "boolean",
-      "description": "Indicates that the concept is abstract.  It can be used for searching, but cannot appear in instances"
-    },
-    {
-      "code": "parent",
-      "uri": "http://hl7.org/fhir/concept-properties#parent",
-      "type": "code",
-      "description": "Indicates a parent concept that can subsume this concept"
-    }
-  ],
-  "count": 9
+  ]
 }

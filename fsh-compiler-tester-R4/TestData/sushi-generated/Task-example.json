@@ -6,66 +6,13 @@
       "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-task"
     ]
   },
-  "reasonCode": {
-    "text": "Pre-genomic analysis family history"
-  },
-  "input": [
-    {
-      "type": {
-        "coding": [
-          {
-            "code": "questionnaire",
-            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
-          }
-        ]
-      },
-      "valueCanonical": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-ussg-fht"
-    },
-    {
-      "type": {
-        "coding": [
-          {
-            "code": "response-endpoint",
-            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
-          }
-        ]
-      },
-      "valueUrl": "http://example.org/someplace/QuestionnaireResponse"
-    },
-    {
-      "type": {
-        "coding": [
-          {
-            "code": "response-endpoint",
-            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
-          }
-        ]
-      },
-      "valueUrl": "http://example.org/some-other-place/Questionnaire/$process-response"
-    }
-  ],
-  "output": [
-    {
-      "type": {
-        "coding": [
-          {
-            "code": "questionnaire-response",
-            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
-          }
-        ]
-      },
-      "valueReference": {
-        "reference": "QuestionnaireResponse/questionnaireresponse-sdc-example-ussg-fht-answers"
-      }
-    }
-  ],
   "status": "completed",
   "intent": "order",
   "code": {
     "coding": [
       {
-        "code": "complete-questionnaire",
-        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
+        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+        "code": "complete-questionnaire"
       }
     ]
   },
@@ -81,5 +28,58 @@
   "owner": {
     "reference": "http://hl7.org/fhir/Patient/proband",
     "display": "Annie Proband"
-  }
+  },
+  "reasonCode": {
+    "text": "Pre-genomic analysis family history"
+  },
+  "input": [
+    {
+      "type": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+            "code": "questionnaire"
+          }
+        ]
+      },
+      "valueCanonical": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-ussg-fht"
+    },
+    {
+      "type": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+            "code": "response-endpoint"
+          }
+        ]
+      },
+      "valueUrl": "http://example.org/someplace/QuestionnaireResponse"
+    },
+    {
+      "type": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+            "code": "response-endpoint"
+          }
+        ]
+      },
+      "valueUrl": "http://example.org/some-other-place/Questionnaire/$process-response"
+    }
+  ],
+  "output": [
+    {
+      "type": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+            "code": "questionnaire-response"
+          }
+        ]
+      },
+      "valueReference": {
+        "reference": "QuestionnaireResponse/questionnaireresponse-sdc-example-ussg-fht-answers"
+      }
+    }
+  ]
 }

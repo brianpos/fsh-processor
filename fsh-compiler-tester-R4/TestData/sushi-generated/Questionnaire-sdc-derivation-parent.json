@@ -10,11 +10,14 @@
     {
       "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
+        "system": "http://hl7.org/fhir/version-algorithm",
+        "code": "semver"
       }
     }
   ],
+  "url": "http://build.fhir.org/ig/HL7/sdc/Questionnaire/sdc-derivation-parent",
+  "name": "SDCDerivationParent",
+  "status": "active",
   "item": [
     {
       "linkId": "1",
@@ -38,8 +41,5 @@
       "text": "What are your middle names? (optional, removable)",
       "type": "string"
     }
-  ],
-  "url": "http://build.fhir.org/ig/HL7/sdc/Questionnaire/sdc-derivation-parent",
-  "name": "SDCDerivationParent",
-  "status": "active"
+  ]
 }

@@ -1,16 +1,12 @@
 {
   "resourceType": "ValueSet",
-  "status": "active",
-  "name": "QuestionnaireAnswerConstraint",
   "id": "questionnaire-answer-constraint",
-  "title": "Questionnaire answer constraints value set",
-  "description": "Codes that describe the types of constraints possible on a question item that has a list of permitted answers [Note: This is a clone of QuestionnaireAnswerConstraint valueset from R5 (adopting R5 capability)]",
-  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/questionnaire-answer-constraint",
   "meta": {
     "profile": [
       "http://hl7.org/fhir/StructureDefinition/shareablevalueset"
     ]
   },
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/questionnaire-answer-constraint",
   "identifier": [
     {
       "system": "urn:ietf:rfc:3986",
@@ -18,7 +14,11 @@
     }
   ],
   "version": "4.6.0",
+  "name": "QuestionnaireAnswerConstraint",
+  "title": "Questionnaire answer constraints value set",
+  "status": "active",
   "experimental": false,
+  "description": "Codes that describe the types of constraints possible on a question item that has a list of permitted answers [Note: This is a clone of QuestionnaireAnswerConstraint valueset from R5 (adopting R5 capability)]",
   "compose": {
     "include": [
       {

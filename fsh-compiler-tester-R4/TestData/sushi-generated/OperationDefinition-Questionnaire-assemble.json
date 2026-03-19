@@ -2,10 +2,19 @@
   "resourceType": "OperationDefinition",
   "id": "Questionnaire-assemble",
   "url": "http://hl7.org/fhir/uv/sdc/OperationDefinition/Questionnaire-assemble",
+  "name": "SDCAssemble",
   "title": "Assemble Modular Questionnaire Operation",
+  "status": "active",
+  "kind": "operation",
+  "description": "The $assemble operation takes a modular questionnaire (one that references sub-questionnaires and/or relies on definition elements to contain the content for item definitions) and produces the equivalent fully-inline Questionnaire.  Full details on the process can be found [here](modular.html).",
+  "code": "assemble",
   "resource": [
     "Questionnaire"
   ],
+  "system": false,
+  "type": true,
+  "instance": true,
+  "inputProfile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/parameters-questionnaire-assemble-in",
   "parameter": [
     {
       "extension": [
@@ -26,33 +35,24 @@
       "use": "in",
       "min": 1,
       "max": "1",
-      "type": "Element",
-      "documentation": "The [Modular Questionnaire](StructureDefinition-sdc-questionnaire-modular.html) to assemble the content of. Can be provided as a canonical for the questionnaire, a questionnaire reference, or directly as a questionnaire resource."
+      "documentation": "The [Modular Questionnaire](StructureDefinition-sdc-questionnaire-modular.html) to assemble the content of. Can be provided as a canonical for the questionnaire, a questionnaire reference, or directly as a questionnaire resource.",
+      "type": "Element"
     },
     {
       "name": "return",
       "use": "out",
       "min": 0,
       "max": "1",
-      "type": "Resource",
-      "documentation": "The fully assembled [Questionnaire](StructureDefinition-sdc-questionnaire.html) with all subQuestionnaires inlined and all items with item.definitions have had relevant metadata propagated into the item."
+      "documentation": "The fully assembled [Questionnaire](StructureDefinition-sdc-questionnaire.html) with all subQuestionnaires inlined and all items with item.definitions have had relevant metadata propagated into the item.",
+      "type": "Resource"
     },
     {
       "name": "outcome",
       "use": "out",
       "min": 0,
       "max": "1",
-      "type": "Resource",
-      "documentation": "The OperationOutcome indicating any warnings or information messages with the assembly process"
+      "documentation": "The OperationOutcome indicating any warnings or information messages with the assembly process",
+      "type": "Resource"
     }
-  ],
-  "name": "SDCAssemble",
-  "status": "active",
-  "kind": "operation",
-  "description": "The $assemble operation takes a modular questionnaire (one that references sub-questionnaires and/or relies on definition elements to contain the content for item definitions) and produces the equivalent fully-inline Questionnaire.  Full details on the process can be found [here](modular.html).",
-  "code": "assemble",
-  "system": false,
-  "type": true,
-  "instance": true,
-  "inputProfile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/parameters-questionnaire-assemble-in"
+  ]
 }

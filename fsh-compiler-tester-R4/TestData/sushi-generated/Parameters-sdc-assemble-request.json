@@ -21,8 +21,8 @@
           {
             "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
             "valueCoding": {
-              "code": "semver",
-              "system": "http://hl7.org/fhir/version-algorithm"
+              "system": "http://hl7.org/fhir/version-algorithm",
+              "code": "semver"
             }
           },
           {
@@ -34,8 +34,8 @@
               {
                 "url": "name",
                 "valueCoding": {
-                  "code": "patient",
-                  "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext"
+                  "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext",
+                  "code": "patient"
                 }
               },
               {
@@ -46,26 +46,35 @@
             "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-launchContext"
           },
           {
+            "url": "http://hl7.org/fhir/StructureDefinition/variable",
             "valueExpression": {
               "name": "person",
               "language": "text/fhirpath",
               "expression": "%patient"
-            },
-            "url": "http://hl7.org/fhir/StructureDefinition/variable"
+            }
           }
         ],
+        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/sdc-modular-root",
+        "name": "QuestionnaireSDCModularRoot",
+        "title": "Example modular Questionnaire",
+        "status": "active",
+        "experimental": true,
+        "description": "Example modular questionnaire - root of a questionnaire that references other questionnaires and element definitions",
         "item": [
           {
             "extension": [
               {
+                "url": "http://hl7.org/fhir/StructureDefinition/variable",
                 "valueExpression": {
                   "name": "linkIdPrefix",
                   "language": "text/fhirpath",
                   "expression": "'patientname.'"
-                },
-                "url": "http://hl7.org/fhir/StructureDefinition/variable"
+                }
               }
             ],
+            "linkId": "1",
+            "definition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary#SdcQuestionLibrary.name",
+            "type": "group",
             "item": [
               {
                 "extension": [
@@ -78,10 +87,7 @@
                 "text": "Unable to resolve 'name' sub-questionnaire",
                 "type": "display"
               }
-            ],
-            "linkId": "1",
-            "definition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary#SdcQuestionLibrary.name",
-            "type": "group"
+            ]
           },
           {
             "linkId": "2",
@@ -96,36 +102,40 @@
             "required": true
           },
           {
+            "linkId": "4",
+            "definition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary#SdcQuestionLibrary.address",
+            "type": "group",
+            "required": true,
             "item": [
               {
                 "linkId": "4.1",
                 "type": "display"
               }
-            ],
-            "linkId": "4",
-            "definition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary#SdcQuestionLibrary.address",
-            "type": "group",
-            "required": true
+            ]
           },
           {
             "extension": [
               {
+                "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext",
                 "valueExpression": {
                   "name": "person",
                   "language": "text/fhirpath",
                   "expression": "%patient.contact"
-                },
-                "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext"
+                }
               },
               {
+                "url": "http://hl7.org/fhir/StructureDefinition/variable",
                 "valueExpression": {
                   "name": "linkIdPrefix",
                   "language": "text/fhirpath",
                   "expression": "'patientname.'"
-                },
-                "url": "http://hl7.org/fhir/StructureDefinition/variable"
+                }
               }
             ],
+            "linkId": "5",
+            "type": "group",
+            "required": true,
+            "repeats": true,
             "item": [
               {
                 "extension": [
@@ -138,19 +148,9 @@
                 "text": "Unable to resolve 'contact' sub-questionnaire",
                 "type": "display"
               }
-            ],
-            "linkId": "5",
-            "type": "group",
-            "required": true,
-            "repeats": true
+            ]
           }
-        ],
-        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/sdc-modular-root",
-        "name": "QuestionnaireSDCModularRoot",
-        "title": "Example modular Questionnaire",
-        "status": "active",
-        "experimental": true,
-        "description": "Example modular questionnaire - root of a questionnaire that references other questionnaires and element definitions"
+        ]
       }
     }
   ]

@@ -2,6 +2,10 @@
   "resourceType": "SearchParameter",
   "id": "canonical-experimental",
   "url": "http://hl7.org/fhir/uv/sdc/SearchParameter/canonical-experimental",
+  "name": "SDCCanonicalExperimental",
+  "status": "active",
+  "description": "Allows searching by 'experimental' for the canonical resources SDC cares about.  (Official search param should appear in R6 core)",
+  "code": "experimental",
   "base": [
     "Questionnaire",
     "ValueSet",
@@ -10,10 +14,6 @@
     "StructureMap",
     "Library"
   ],
-  "name": "SDCCanonicalExperimental",
-  "status": "active",
-  "description": "Allows searching by 'experimental' for the canonical resources SDC cares about.  (Official search param should appear in R6 core)",
-  "code": "experimental",
   "type": "token",
   "expression": "experimental",
   "xpath": "f:experimental",

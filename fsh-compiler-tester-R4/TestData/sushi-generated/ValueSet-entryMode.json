@@ -1,12 +1,12 @@
 {
   "resourceType": "ValueSet",
-  "status": "active",
-  "name": "QuestionnaireEntryMode",
   "id": "entryMode",
-  "title": "Questionnaire Entry Mode",
-  "description": "Defines mechanisms of capturing data in a QuestionnaireResponse",
   "url": "http://hl7.org/fhir/uv/sdc/ValueSet/entryMode",
+  "name": "QuestionnaireEntryMode",
+  "title": "Questionnaire Entry Mode",
+  "status": "active",
   "experimental": false,
+  "description": "Defines mechanisms of capturing data in a QuestionnaireResponse",
   "compose": {
     "include": [
       {

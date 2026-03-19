@@ -125,8 +125,8 @@
         "patternCodeableConcept": {
           "coding": [
             {
-              "code": "questionnaire",
-              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
+              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+              "code": "questionnaire"
             }
           ]
         },
@@ -158,8 +158,8 @@
         "patternCodeableConcept": {
           "coding": [
             {
-              "code": "response-endpoint",
-              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
+              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+              "code": "response-endpoint"
             }
           ]
         },
@@ -205,8 +205,8 @@
         "patternCodeableConcept": {
           "coding": [
             {
-              "code": "questionnaire-response",
-              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
+              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+              "code": "questionnaire-response"
             }
           ]
         },

@@ -10,11 +10,13 @@
     {
       "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
+        "system": "http://hl7.org/fhir/version-algorithm",
+        "code": "semver"
       }
     }
   ],
+  "url": "http://build.fhir.org/ig/HL7/sdc/Questionnaire/sdc-derivation-child",
+  "name": "SDCDerivationChild",
   "derivedFrom": [
     "http://build.fhir.org/ig/HL7/sdc/Questionnaire/sdc-derivation-parent"
   ],
@@ -24,13 +26,14 @@
         {
           "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-derivationType",
           "valueCoding": {
-            "code": "compliesWith",
-            "system": "http://hl7.org/fhir/questionnaire-derivationType"
+            "system": "http://hl7.org/fhir/questionnaire-derivationType",
+            "code": "compliesWith"
           }
         }
       ]
     }
   ],
+  "status": "active",
   "item": [
     {
       "linkId": "1",
@@ -43,8 +46,5 @@
       "text": "What is your first name? (optional)",
       "type": "string"
     }
-  ],
-  "url": "http://build.fhir.org/ig/HL7/sdc/Questionnaire/sdc-derivation-child",
-  "name": "SDCDerivationChild",
-  "status": "active"
+  ]
 }

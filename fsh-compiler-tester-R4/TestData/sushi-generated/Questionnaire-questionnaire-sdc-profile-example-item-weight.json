@@ -6,22 +6,20 @@
       "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-behave"
     ]
   },
-  "extension": [
-    {
-      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
-      "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
-      }
-    }
-  ],
   "contained": [
     {
       "resourceType": "ValueSet",
       "id": "LL358-3",
+      "url": "http://example.org/ValueSet/LL358-3",
+      "name": "TimingOfHarmAssessment",
+      "title": "Timing of harm assessment [AHRQ]",
+      "status": "active",
+      "description": "The answer list for timing of harm assessment",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
+            "system": "http://loinc.org",
             "concept": [
               {
                 "code": "LA6568-5",
@@ -39,19 +37,24 @@
                 "code": "LA6571-9",
                 "display": "Nearly every day"
               }
-            ],
-            "system": "http://loinc.org"
+            ]
           }
         ]
-      },
-      "url": "http://example.org/ValueSet/LL358-3",
-      "name": "TimingOfHarmAssessment",
-      "title": "Timing of harm assessment [AHRQ]",
-      "status": "active",
-      "description": "The answer list for timing of harm assessment",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
+      }
     }
   ],
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
+      "valueCoding": {
+        "system": "http://hl7.org/fhir/version-algorithm",
+        "code": "semver"
+      }
+    }
+  ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-item-weight",
+  "name": "SDCExampleUsingItemWeight",
+  "status": "active",
   "item": [
     {
       "extension": [
@@ -70,11 +73,11 @@
               "valueCode": "warning"
             },
             {
+              "url": "expression",
               "valueExpression": {
                 "language": "text/fhirpath",
                 "expression": "%resource.repeat(item).where(linkId='1.0').item.where(answer.hasValue()).count() >= 3"
-              },
-              "url": "expression"
+              }
             },
             {
               "url": "human",
@@ -84,6 +87,9 @@
           "url": "http://hl7.org/fhir/StructureDefinition/targetConstraint"
         }
       ],
+      "linkId": "1.0",
+      "text": "Over the last 2 weeks, how often have you been bothered by any of the following problems?",
+      "type": "group",
       "item": [
         {
           "extension": [
@@ -92,17 +98,17 @@
               "valueCode": "horizontal"
             },
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "radio-button",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "radio-button",
                     "display": "Radio Button"
                   }
                 ],
                 "text": "A control where choices are listed with a button beside them. The button can be toggled to select or de-select a given choice. Selecting one item deselects all others."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             }
           ],
           "linkId": "1.1",
@@ -117,17 +123,17 @@
               "valueCode": "horizontal"
             },
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "radio-button",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "radio-button",
                     "display": "Radio Button"
                   }
                 ],
                 "text": "A control where choices are listed with a button beside them. The button can be toggled to select or de-select a given choice. Selecting one item deselects all others."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             }
           ],
           "linkId": "1.2",
@@ -142,17 +148,17 @@
               "valueCode": "horizontal"
             },
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "radio-button",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "radio-button",
                     "display": "Radio Button"
                   }
                 ],
                 "text": "A control where choices are listed with a button beside them. The button can be toggled to select or de-select a given choice. Selecting one item deselects all others."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             }
           ],
           "linkId": "1.3",
@@ -167,17 +173,17 @@
               "valueCode": "horizontal"
             },
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "radio-button",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "radio-button",
                     "display": "Radio Button"
                   }
                 ],
                 "text": "A control where choices are listed with a button beside them. The button can be toggled to select or de-select a given choice. Selecting one item deselects all others."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             }
           ],
           "linkId": "1.4",
@@ -188,25 +194,19 @@
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
               "valueExpression": {
                 "description": "Total score",
                 "language": "text/fhirpath",
                 "expression": "%resource.repeat(item).where(linkId='1.0').item.answer.value.weight().aggregate($this + $total, 0)"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression"
+              }
             }
           ],
           "linkId": "6",
           "text": "Total Score:",
           "type": "integer"
         }
-      ],
-      "linkId": "1.0",
-      "text": "Over the last 2 weeks, how often have you been bothered by any of the following problems?",
-      "type": "group"
+      ]
     }
-  ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-item-weight",
-  "name": "SDCExampleUsingItemWeight",
-  "status": "active"
+  ]
 }

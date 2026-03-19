@@ -1,12 +1,20 @@
 {
   "resourceType": "CodeSystem",
-  "status": "active",
-  "content": "complete",
-  "name": "QuestionnaireBehaviorConditionCodes",
   "id": "questionnaire-behavior-condition",
-  "title": "Questionnaire behavior condition codes",
-  "description": "Example codes used in the form behavior examples",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/StructureDefinition/shareablecodesystem"
+    ]
+  },
   "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/questionnaire-behavior-condition",
+  "name": "QuestionnaireBehaviorConditionCodes",
+  "title": "Questionnaire behavior condition codes",
+  "status": "active",
+  "experimental": true,
+  "description": "Example codes used in the form behavior examples",
+  "caseSensitive": true,
+  "content": "complete",
+  "count": 4,
   "concept": [
     {
       "code": "1",
@@ -28,13 +36,5 @@
       "display": "Erectile Disfunction",
       "definition": "Erectile Disfunction (example - do not use)"
     }
-  ],
-  "meta": {
-    "profile": [
-      "http://hl7.org/fhir/StructureDefinition/shareablecodesystem"
-    ]
-  },
-  "experimental": true,
-  "caseSensitive": true,
-  "count": 4
+  ]
 }

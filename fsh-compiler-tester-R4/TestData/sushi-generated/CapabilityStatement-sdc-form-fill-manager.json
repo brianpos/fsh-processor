@@ -2,14 +2,21 @@
   "resourceType": "CapabilityStatement",
   "id": "sdc-form-fill-manager",
   "url": "http://hl7.org/fhir/uv/sdc/CapabilityStatement/sdc-form-fill-manager",
+  "name": "SDCFormFillManager",
   "title": "SDC Form Fill Manager",
+  "status": "active",
+  "date": "2014-07-06",
   "description": "This profile defines the expected capabilities of the *SDC Form Fill Manager* role when conforming to this implementation guide.  This role is responsible for maintaining a repository of form definitions for retrieval by form fillers possibly also supporting pre-population of form data.",
+  "kind": "requirements",
+  "fhirVersion": "4.0.1",
   "format": [
     "xml",
     "json"
   ],
   "rest": [
     {
+      "mode": "server",
+      "documentation": "The primary focus of the repository is providing access to [[[Questionnaire]]]s.  However, [[[ValueSet]]]s, [[[CodeSystem]]]s, [[[Library]]]s, [[[ConceptMap]]]s and other resources are also relevant in their support of Questionnaire functionality.  Some forms will opt to have some or all of these additional resources managed as 'contained' resources, meaning there won't be a need for them to be independently managed on the Form Fill Manager.  However, systems should support resource re-use across forms, meaning that support for maintenance of these ancillary resources is still helpful.  (Version-specific referencing can be used to avoid referenced resources from changing independent of the referencing [[[Questionnaire]]].)",
       "security": {
         "description": "Implementations must meet the [general security requirements](security.html) documented in this implementation guide.html."
       },
@@ -21,6 +28,9 @@
               "valueCode": "SHALL"
             }
           ],
+          "type": "Questionnaire",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire",
+          "documentation": "Form mamagers are responsible for handling forms.",
           "interaction": [
             {
               "extension": [
@@ -244,10 +254,7 @@
               "definition": "http://hl7.org/fhir/uv/sdc/OperationDefinition/Questionnaire-populate",
               "documentation": "Usefulness depends on whether fillers tend to perform population themselves"
             }
-          ],
-          "type": "Questionnaire",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire",
-          "documentation": "Form mamagers are responsible for handling forms."
+          ]
         },
         {
           "extension": [
@@ -256,6 +263,9 @@
               "valueCode": "SHALL"
             }
           ],
+          "type": "ValueSet",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset",
+          "documentation": "Needed if Questionnaire valuesets will be stored on the form server as opposed to a separate terminology service.",
           "interaction": [
             {
               "extension": [
@@ -325,10 +335,7 @@
               "definition": "http://hl7.org/fhir/OperationDefinition/ValueSet-validate-code",
               "documentation": "Needed if expansion isn't handled locally or via independent terminology servers"
             }
-          ],
-          "type": "ValueSet",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset",
-          "documentation": "Needed if Questionnaire valuesets will be stored on the form server as opposed to a separate terminology service."
+          ]
         },
         {
           "extension": [
@@ -337,6 +344,9 @@
               "valueCode": "SHOULD"
             }
           ],
+          "type": "CodeSystem",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem",
+          "documentation": "Needed if Questionnaire codes will be stored on the form server as opposed to a separate terminology service.",
           "interaction": [
             {
               "extension": [
@@ -382,10 +392,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/conformance-version",
               "type": "token"
             }
-          ],
-          "type": "CodeSystem",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem",
-          "documentation": "Needed if Questionnaire codes will be stored on the form server as opposed to a separate terminology service."
+          ]
         },
         {
           "extension": [
@@ -394,6 +401,9 @@
               "valueCode": "SHOULD"
             }
           ],
+          "type": "Library",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-library",
+          "documentation": "Needed for certain types of population and extraction",
           "interaction": [
             {
               "extension": [
@@ -439,10 +449,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/Library-version",
               "type": "token"
             }
-          ],
-          "type": "Library",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-library",
-          "documentation": "Needed for certain types of population and extraction"
+          ]
         },
         {
           "extension": [
@@ -451,6 +458,9 @@
               "valueCode": "MAY"
             }
           ],
+          "type": "StructureMap",
+          "profile": "http://hl7.org/fhir/StructureDefinition/StructureMap",
+          "documentation": "Needed if performing map-based population or extraction",
           "interaction": [
             {
               "extension": [
@@ -496,10 +506,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/conformance-version",
               "type": "token"
             }
-          ],
-          "type": "StructureMap",
-          "profile": "http://hl7.org/fhir/StructureDefinition/StructureMap",
-          "documentation": "Needed if performing map-based population or extraction"
+          ]
         },
         {
           "extension": [
@@ -508,6 +515,9 @@
               "valueCode": "MAY"
             }
           ],
+          "type": "StructureDefinition",
+          "profile": "http://hl7.org/fhir/StructureDefinition/StructureDefinition",
+          "documentation": "Needed if performing map-based population or map or definition-based extraction",
           "interaction": [
             {
               "extension": [
@@ -553,10 +563,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/conformance-version",
               "type": "token"
             }
-          ],
-          "type": "StructureDefinition",
-          "profile": "http://hl7.org/fhir/StructureDefinition/StructureDefinition",
-          "documentation": "Needed if performing map-based population or map or definition-based extraction"
+          ]
         },
         {
           "extension": [
@@ -565,6 +572,9 @@
               "valueCode": "MAY"
             }
           ],
+          "type": "ConceptMap",
+          "profile": "http://hl7.org/fhir/StructureDefinition/ConceptMap",
+          "documentation": "May be needed for code conversion during population or extraction",
           "interaction": [
             {
               "extension": [
@@ -676,19 +686,9 @@
               "definition": "http://hl7.org/fhir/SearchParameter/ConceptMap-target-uri",
               "type": "reference"
             }
-          ],
-          "type": "ConceptMap",
-          "profile": "http://hl7.org/fhir/StructureDefinition/ConceptMap",
-          "documentation": "May be needed for code conversion during population or extraction"
+          ]
         }
-      ],
-      "mode": "server",
-      "documentation": "The primary focus of the repository is providing access to [[[Questionnaire]]]s.  However, [[[ValueSet]]]s, [[[CodeSystem]]]s, [[[Library]]]s, [[[ConceptMap]]]s and other resources are also relevant in their support of Questionnaire functionality.  Some forms will opt to have some or all of these additional resources managed as 'contained' resources, meaning there won't be a need for them to be independently managed on the Form Fill Manager.  However, systems should support resource re-use across forms, meaning that support for maintenance of these ancillary resources is still helpful.  (Version-specific referencing can be used to avoid referenced resources from changing independent of the referencing [[[Questionnaire]]].)"
+      ]
     }
-  ],
-  "name": "SDCFormFillManager",
-  "status": "active",
-  "date": "2014-07-06",
-  "kind": "requirements",
-  "fhirVersion": "4.0.1"
+  ]
 }

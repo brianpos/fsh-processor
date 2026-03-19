@@ -2,14 +2,20 @@
   "resourceType": "CapabilityStatement",
   "id": "sdc-form-receiver",
   "url": "http://hl7.org/fhir/uv/sdc/CapabilityStatement/sdc-form-receiver",
+  "name": "SDCFormReceiver",
   "title": "SDC Form Receiver",
+  "status": "active",
+  "date": "2014-07-06",
   "description": "This profile defines the expected capabilities of the *SDC Form Receiver* role when conforming to implementation guide.  This role is responsible for accepting and processing completed and partially-completed forms.  It only exposes a single operation endpoint - the one needed to 'process' a completed [[[QuestionnaireResponse]]]",
+  "kind": "requirements",
+  "fhirVersion": "4.0.1",
   "format": [
     "xml",
     "json"
   ],
   "rest": [
     {
+      "mode": "server",
       "security": {
         "description": "Implementations must meet the [general security requirements](security.html) documented in this implementation guide.html."
       },
@@ -25,10 +31,10 @@
           "definition": "http://hl7.org/fhir/uv/sdc/OperationDefinition/Questionnaire-process-response",
           "documentation": "Allows submitting a completed form"
         }
-      ],
-      "mode": "server"
+      ]
     },
     {
+      "mode": "client",
       "resource": [
         {
           "extension": [
@@ -37,6 +43,9 @@
               "valueCode": "MAY"
             }
           ],
+          "type": "QuestionnaireResponse",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse",
+          "documentation": "Perform operations based on the received response",
           "operation": [
             {
               "extension": [
@@ -49,18 +58,9 @@
               "definition": "http://hl7.org/fhir/uv/sdc/OperationDefinition/QuestionnaireResponse-extract",
               "documentation": "Convert completed form to resources"
             }
-          ],
-          "type": "QuestionnaireResponse",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse",
-          "documentation": "Perform operations based on the received response"
+          ]
         }
-      ],
-      "mode": "client"
+      ]
     }
-  ],
-  "name": "SDCFormReceiver",
-  "status": "active",
-  "date": "2014-07-06",
-  "kind": "requirements",
-  "fhirVersion": "4.0.1"
+  ]
 }

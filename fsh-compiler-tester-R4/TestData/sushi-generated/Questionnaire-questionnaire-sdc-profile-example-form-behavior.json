@@ -6,39 +6,29 @@
       "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-behave"
     ]
   },
-  "modifierExtension": [
-    {
-      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-rendering-criticalExtension",
-      "valueCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-entryMode"
-    },
-    {
-      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-rendering-criticalExtension",
-      "valueCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression"
-    }
-  ],
   "extension": [
     {
       "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
       "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
+        "system": "http://hl7.org/fhir/version-algorithm",
+        "code": "semver"
       }
     },
     {
+      "url": "http://hl7.org/fhir/StructureDefinition/variable",
       "valueExpression": {
         "name": "weight",
         "language": "text/fhirpath",
         "expression": "%resource.repeat(item).where(linkId='3.3.1').item.answer.value"
-      },
-      "url": "http://hl7.org/fhir/StructureDefinition/variable"
+      }
     },
     {
+      "url": "http://hl7.org/fhir/StructureDefinition/variable",
       "valueExpression": {
         "name": "height",
         "language": "text/fhirpath",
         "expression": "%resource.repeat(item).where(linkId='3.3.2').item.answer.value*0.0254"
-      },
-      "url": "http://hl7.org/fhir/StructureDefinition/variable"
+      }
     },
     {
       "url": "http://hl7.org/fhir/StructureDefinition/cqf-library",
@@ -49,8 +39,8 @@
         {
           "url": "name",
           "valueCoding": {
-            "code": "patient",
             "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext",
+            "code": "patient",
             "display": "Patient"
           }
         },
@@ -78,8 +68,24 @@
       "valueUri": "http://example.org/StructureDefinition/myElementLibrary"
     }
   ],
+  "modifierExtension": [
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-rendering-criticalExtension",
+      "valueCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-entryMode"
+    },
+    {
+      "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-rendering-criticalExtension",
+      "valueCanonical": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression"
+    }
+  ],
+  "url": "http://build.fhir.org/ig/HL7/sdc/questionnaire-sdc-profile-example-form-behavior",
+  "name": "SDCAdvancedRenderingExample",
+  "status": "active",
   "item": [
     {
+      "linkId": "1",
+      "text": "Value constraints",
+      "type": "group",
       "item": [
         {
           "linkId": "1.1",
@@ -111,11 +117,11 @@
                   "valueCode": "error"
                 },
                 {
+                  "url": "expression",
                   "valueExpression": {
                     "language": "text/fhirpath",
                     "expression": "%resource.repeat(item).where(linkId='1.3').answer.all(value.matches('[A-Z][0-9][A-Z] [0-9][A-Z][0-9]'))"
-                  },
-                  "url": "expression"
+                  }
                 },
                 {
                   "url": "human",
@@ -158,16 +164,16 @@
               "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-minQuantity",
               "valueQuantity": {
                 "value": 10,
-                "code": "kg",
-                "system": "http://unitsofmeasure.org"
+                "system": "http://unitsofmeasure.org",
+                "code": "kg"
               }
             },
             {
               "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-maxQuantity",
               "valueQuantity": {
                 "value": 100,
-                "code": "kg",
-                "system": "http://unitsofmeasure.org"
+                "system": "http://unitsofmeasure.org",
+                "code": "kg"
               }
             }
           ],
@@ -194,47 +200,47 @@
           "text": "Attach Proof of Citizenship",
           "type": "attachment"
         }
-      ],
-      "linkId": "1",
-      "text": "Value constraints",
-      "type": "group"
+      ]
     },
     {
+      "linkId": "2",
+      "text": "Value constraints",
+      "type": "group",
       "item": [
         {
+          "linkId": "2.1",
+          "text": "(I/We) worried whether (my/our) food would run out before (I/we) got money to buy more.",
+          "type": "choice",
           "answerOption": [
             {
               "valueCoding": {
-                "code": "LA28397-0",
                 "system": "http://loinc.org",
+                "code": "LA28397-0",
                 "display": "Often true"
               }
             },
             {
               "valueCoding": {
-                "code": "LA6729-3",
                 "system": "http://loinc.org",
+                "code": "LA6729-3",
                 "display": "Sometimes true"
               }
             },
             {
               "valueCoding": {
-                "code": "LA28398-8",
                 "system": "http://loinc.org",
+                "code": "LA28398-8",
                 "display": "Never true"
               }
             },
             {
               "valueCoding": {
-                "code": "LA15775-2",
                 "system": "http://loinc.org",
+                "code": "LA15775-2",
                 "display": "Don't know/refused"
               }
             }
-          ],
-          "linkId": "2.1",
-          "text": "(I/We) worried whether (my/our) food would run out before (I/we) got money to buy more.",
-          "type": "choice"
+          ]
         },
         {
           "linkId": "2.3",
@@ -249,16 +255,16 @@
                 {
                   "url": "option",
                   "valueCoding": {
-                    "code": "3",
-                    "system": "http://example.org/CodeSystem/conditions"
+                    "system": "http://example.org/CodeSystem/conditions",
+                    "code": "3"
                   }
                 },
                 {
+                  "url": "expression",
                   "valueExpression": {
                     "language": "text/fhirpath",
                     "expression": "%patient.gender!='male'"
-                  },
-                  "url": "expression"
+                  }
                 }
               ],
               "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression"
@@ -268,16 +274,16 @@
                 {
                   "url": "option",
                   "valueCoding": {
-                    "code": "4",
-                    "system": "http://example.org/CodeSystem/conditions"
+                    "system": "http://example.org/CodeSystem/conditions",
+                    "code": "4"
                   }
                 },
                 {
+                  "url": "expression",
                   "valueExpression": {
                     "language": "text/fhirpath",
                     "expression": "%patient.gender!='female'"
-                  },
-                  "url": "expression"
+                  }
                 }
               ],
               "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression"
@@ -294,8 +300,8 @@
             {
               "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-keyboard",
               "valueCoding": {
-                "code": "email",
                 "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/keyboardType",
+                "code": "email",
                 "display": "email"
               }
             }
@@ -308,12 +314,12 @@
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
               "valueExpression": {
                 "description": "current date",
                 "language": "text/fhirpath",
                 "expression": "today()"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+              }
             }
           ],
           "linkId": "2.7",
@@ -323,19 +329,19 @@
         },
         {
           "linkId": "2.7.1",
-          "type": "display",
           "_text": {
             "extension": [
               {
+                "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
                 "valueExpression": {
                   "description": "Substitute in current date",
                   "language": "text/fhirpath",
                   "expression": "'Please only enter data that has been validated as of ' + today()"
-                },
-                "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
+                }
               }
             ]
-          }
+          },
+          "type": "display"
         },
         {
           "extension": [
@@ -344,86 +350,49 @@
               "valueString": "Other event (specify)"
             }
           ],
-          "answerOption": [
-            {
-              "valueCoding": {
-                "code": "U1",
-                "system": "http://example.org/CodeSystem/procedures",
-                "display": "Heart attack"
-              }
-            },
-            {
-              "valueCoding": {
-                "code": "U2",
-                "system": "http://example.org/CodeSystem/procedures",
-                "display": "Heart surgery"
-              }
-            },
-            {
-              "valueCoding": {
-                "code": "U3",
-                "system": "http://example.org/CodeSystem/procedures",
-                "display": "Cardiac catheterization"
-              }
-            },
-            {
-              "valueCoding": {
-                "code": "U4",
-                "system": "http://example.org/CodeSystem/procedures",
-                "display": "Coronary angioplasty (PTCA)"
-              }
-            },
-            {
-              "valueCoding": {
-                "code": "U5",
-                "system": "http://example.org/CodeSystem/procedures",
-                "display": "Cardiac pacemaker"
-              }
-            }
-          ],
           "linkId": "2.8",
           "text": "Heart History (check all that applies)",
           "type": "open-choice",
-          "repeats": true
-        },
-        {
+          "repeats": true,
           "answerOption": [
             {
               "valueCoding": {
-                "code": "U1",
                 "system": "http://example.org/CodeSystem/procedures",
+                "code": "U1",
                 "display": "Heart attack"
               }
             },
             {
               "valueCoding": {
-                "code": "U2",
                 "system": "http://example.org/CodeSystem/procedures",
+                "code": "U2",
                 "display": "Heart surgery"
               }
             },
             {
               "valueCoding": {
-                "code": "U3",
                 "system": "http://example.org/CodeSystem/procedures",
+                "code": "U3",
                 "display": "Cardiac catheterization"
               }
             },
             {
               "valueCoding": {
-                "code": "U4",
                 "system": "http://example.org/CodeSystem/procedures",
+                "code": "U4",
                 "display": "Coronary angioplasty (PTCA)"
               }
             },
             {
               "valueCoding": {
-                "code": "U5",
                 "system": "http://example.org/CodeSystem/procedures",
+                "code": "U5",
                 "display": "Cardiac pacemaker"
               }
             }
-          ],
+          ]
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-minOccurs",
@@ -434,46 +403,46 @@
           "text": "Heart History (check at least 2):",
           "type": "choice",
           "required": true,
-          "repeats": true
-        },
-        {
+          "repeats": true,
           "answerOption": [
             {
               "valueCoding": {
-                "code": "U1",
                 "system": "http://example.org/CodeSystem/procedures",
+                "code": "U1",
                 "display": "Heart attack"
               }
             },
             {
               "valueCoding": {
-                "code": "U2",
                 "system": "http://example.org/CodeSystem/procedures",
+                "code": "U2",
                 "display": "Heart surgery"
               }
             },
             {
               "valueCoding": {
-                "code": "U3",
                 "system": "http://example.org/CodeSystem/procedures",
+                "code": "U3",
                 "display": "Cardiac catheterization"
               }
             },
             {
               "valueCoding": {
-                "code": "U4",
                 "system": "http://example.org/CodeSystem/procedures",
+                "code": "U4",
                 "display": "Coronary angioplasty (PTCA)"
               }
             },
             {
               "valueCoding": {
-                "code": "U5",
                 "system": "http://example.org/CodeSystem/procedures",
+                "code": "U5",
                 "display": "Cardiac pacemaker"
               }
             }
-          ],
+          ]
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-maxOccurs",
@@ -484,7 +453,44 @@
           "text": "Heart History (check no more than 3):",
           "type": "choice",
           "required": true,
-          "repeats": true
+          "repeats": true,
+          "answerOption": [
+            {
+              "valueCoding": {
+                "system": "http://example.org/CodeSystem/procedures",
+                "code": "U1",
+                "display": "Heart attack"
+              }
+            },
+            {
+              "valueCoding": {
+                "system": "http://example.org/CodeSystem/procedures",
+                "code": "U2",
+                "display": "Heart surgery"
+              }
+            },
+            {
+              "valueCoding": {
+                "system": "http://example.org/CodeSystem/procedures",
+                "code": "U3",
+                "display": "Cardiac catheterization"
+              }
+            },
+            {
+              "valueCoding": {
+                "system": "http://example.org/CodeSystem/procedures",
+                "code": "U4",
+                "display": "Coronary angioplasty (PTCA)"
+              }
+            },
+            {
+              "valueCoding": {
+                "system": "http://example.org/CodeSystem/procedures",
+                "code": "U5",
+                "display": "Cardiac pacemaker"
+              }
+            }
+          ]
         },
         {
           "extension": [
@@ -493,47 +499,51 @@
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "check-box",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "check-box",
                     "display": "Check-box"
                   }
                 ]
               }
             }
           ],
+          "linkId": "2.11",
+          "text": "What treatments do you now have for heart disease? (select all that applies)",
+          "type": "choice",
+          "repeats": true,
           "answerOption": [
             {
               "valueCoding": {
-                "code": "noTreatment",
                 "system": "http://example.org/CodeSystem/treatments",
+                "code": "noTreatment",
                 "display": "NoTreatment"
               }
             },
             {
               "valueCoding": {
-                "code": "aspirin",
                 "system": "http://example.org/CodeSystem/treatments",
+                "code": "aspirin",
                 "display": "Aspirin"
               }
             },
             {
               "valueCoding": {
-                "code": "otherMeds",
                 "system": "http://example.org/CodeSystem/treatments",
+                "code": "otherMeds",
                 "display": "Other medicines, tablets, or pills"
               }
             },
             {
               "valueCoding": {
-                "code": "diet",
                 "system": "http://example.org/CodeSystem/treatments",
+                "code": "diet",
                 "display": "Diet"
               }
             },
             {
               "valueCoding": {
-                "code": "exercise",
                 "system": "http://example.org/CodeSystem/treatments",
+                "code": "exercise",
                 "display": "Exercise"
               }
             },
@@ -545,48 +555,44 @@
                 }
               ],
               "valueCoding": {
-                "code": "none",
                 "system": "http://example.org/CodeSystem/treatments",
+                "code": "none",
                 "display": "None of the above"
               }
             }
-          ],
-          "linkId": "2.11",
-          "text": "What treatments do you now have for heart disease? (select all that applies)",
-          "type": "choice",
-          "repeats": true
+          ]
         },
         {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-unitOption",
               "valueCoding": {
-                "code": "mL",
                 "system": "http://unitsofmeasure.org",
+                "code": "mL",
                 "display": "mL"
               }
             },
             {
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-unitOption",
               "valueCoding": {
-                "code": "L",
                 "system": "http://unitsofmeasure.org",
+                "code": "L",
                 "display": "L"
               }
             },
             {
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-unitOption",
               "valueCoding": {
-                "code": "g",
                 "system": "http://unitsofmeasure.org",
+                "code": "g",
                 "display": "g"
               }
             },
             {
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-unitOption",
               "valueCoding": {
-                "code": "mg",
                 "system": "http://unitsofmeasure.org",
+                "code": "mg",
                 "display": "mg"
               }
             },
@@ -629,12 +635,12 @@
               "valueCanonical": "http://example.org/Questionnaire/1234"
             },
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerExpression",
               "valueExpression": {
                 "description": "all active practitioners",
                 "language": "application/x-fhir-query",
                 "expression": "Practitioner?active=true&_sort=family,given"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerExpression"
+              }
             },
             {
               "extension": [
@@ -654,22 +660,22 @@
           "text": "Select your preferred practitioner:",
           "type": "reference"
         }
-      ],
-      "linkId": "2",
-      "text": "Value constraints",
-      "type": "group"
+      ]
     },
     {
+      "linkId": "3",
+      "text": "Calculation",
+      "type": "group",
       "item": [
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
               "valueExpression": {
                 "description": "deadline for submission",
                 "language": "text/fhirpath",
                 "expression": "today() + 7 days"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+              }
             }
           ],
           "linkId": "3.1",
@@ -678,16 +684,18 @@
           "readOnly": true
         },
         {
+          "linkId": "3.2",
+          "type": "group",
           "item": [
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "patient's last name",
                     "language": "text/fhirpath",
                     "expression": "%patient.name.where(use='official').given.first()"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                  }
                 }
               ],
               "linkId": "3.2.1",
@@ -698,12 +706,12 @@
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "patient's first name",
                     "language": "text/fhirpath",
                     "expression": "%patient.name.where(use='official').family"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                  }
                 }
               ],
               "linkId": "3.2.2",
@@ -714,12 +722,12 @@
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "patient's gender",
                     "language": "text/fhirpath",
                     "expression": "%patient.gender"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                  }
                 }
               ],
               "linkId": "3.2.3",
@@ -727,19 +735,20 @@
               "type": "string",
               "readOnly": true
             }
-          ],
-          "linkId": "3.2",
-          "type": "group"
+          ]
         },
         {
+          "linkId": "3.3",
+          "text": "Calculated Expression",
+          "type": "group",
           "item": [
             {
               "extension": [
                 {
                   "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-unit",
                   "valueCoding": {
-                    "code": "kg",
-                    "system": "http://unitsofmeasure.org"
+                    "system": "http://unitsofmeasure.org",
+                    "code": "kg"
                   }
                 }
               ],
@@ -752,8 +761,8 @@
                 {
                   "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-unit",
                   "valueCoding": {
-                    "code": "[in_i]",
-                    "system": "http://unitsofmeasure.org"
+                    "system": "http://unitsofmeasure.org",
+                    "code": "[in_i]"
                   }
                 }
               ],
@@ -764,12 +773,12 @@
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression",
                   "valueExpression": {
                     "description": "BMI Calculation",
                     "language": "text/fhirpath",
                     "expression": "(%weight/(%height.power(2))).round(1)"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-calculatedExpression"
+                  }
                 },
                 {
                   "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-assembleDefinitionRoot",
@@ -781,12 +790,12 @@
               "type": "decimal",
               "readOnly": true
             }
-          ],
-          "linkId": "3.3",
-          "text": "Calculated Expression",
-          "type": "group"
+          ]
         },
         {
+          "linkId": "3.4",
+          "text": "CQF-related Example",
+          "type": "group",
           "item": [
             {
               "extension": [
@@ -796,11 +805,11 @@
                   "_valueDecimal": {
                     "extension": [
                       {
+                        "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
                         "valueExpression": {
                           "language": "text/fhirpath",
                           "expression": "min_weight"
-                        },
-                        "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
+                        }
                       }
                     ]
                   }
@@ -811,11 +820,11 @@
                   "_valueDecimal": {
                     "extension": [
                       {
+                        "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
                         "valueExpression": {
                           "language": "text/fhirpath",
                           "expression": "max_weight"
-                        },
-                        "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
+                        }
                       }
                     ]
                   }
@@ -830,8 +839,8 @@
                 {
                   "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-keyboard",
                   "valueCoding": {
-                    "code": "email",
                     "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/keyboardType",
+                    "code": "email",
                     "display": "email"
                   }
                 }
@@ -843,60 +852,59 @@
               "_required": {
                 "extension": [
                   {
+                    "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
                     "valueExpression": {
                       "description": "current date",
                       "language": "text/fhirpath",
                       "expression": "%patient.active"
-                    },
-                    "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
+                    }
                   }
                 ]
               }
             }
-          ],
-          "linkId": "3.4",
-          "text": "CQF-related Example",
-          "type": "group"
+          ]
         },
         {
           "linkId": "3.5",
-          "type": "display",
           "_text": {
             "extension": [
               {
+                "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
                 "valueExpression": {
                   "description": "last immunization date",
                   "language": "text/fhirpath",
                   "expression": "'Your last immunization was on '+ %Immunization.occurrenceDateTime.substring(0,10) + '.'"
-                },
-                "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
+                }
               }
             ]
-          }
+          },
+          "type": "display"
         }
-      ],
-      "linkId": "3",
-      "text": "Calculation",
-      "type": "group"
+      ]
     },
     {
+      "linkId": "4",
+      "text": "Other Controls",
+      "type": "group",
       "item": [
         {
-          "initial": [
-            {
-              "valueCoding": {
-                "code": "D",
-                "system": "http://terminology.hl7.org/CodeSystem/v3-MaritalStatus",
-                "display": "Divorced"
-              }
-            }
-          ],
           "linkId": "4.1",
           "text": "Marital Status",
           "type": "choice",
-          "answerValueSet": "http://hl7.org/fhir/ValueSet/marital-status"
+          "answerValueSet": "http://hl7.org/fhir/ValueSet/marital-status",
+          "initial": [
+            {
+              "valueCoding": {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-MaritalStatus",
+                "code": "D",
+                "display": "Divorced"
+              }
+            }
+          ]
         },
         {
+          "linkId": "4.2",
+          "type": "group",
           "item": [
             {
               "linkId": "4.2.1",
@@ -911,19 +919,19 @@
                   "valueCode": "protected"
                 }
               ],
+              "linkId": "4.2.2",
+              "text": "Are you pregnant? (enableWhen = gender is Female, disableDisplay=protected)",
+              "type": "choice",
               "enableWhen": [
                 {
                   "question": "4.2.1",
                   "operator": "=",
                   "answerCoding": {
-                    "code": "female",
-                    "system": "http://hl7.org/fhir/administrative-gender"
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "code": "female"
                   }
                 }
               ],
-              "linkId": "4.2.2",
-              "text": "Are you pregnant? (enableWhen = gender is Female, disableDisplay=protected)",
-              "type": "choice",
               "answerValueSet": "http://hl7.org/fhir/ValueSet/yesnodontknow"
             },
             {
@@ -933,19 +941,19 @@
                   "valueCode": "hidden"
                 }
               ],
+              "linkId": "4.2.3",
+              "text": "Are you diabetic? (enableWhen = gender is Female, disableDisplay=hidden)",
+              "type": "choice",
               "enableWhen": [
                 {
                   "question": "4.2.1",
                   "operator": "=",
                   "answerCoding": {
-                    "code": "female",
-                    "system": "http://hl7.org/fhir/administrative-gender"
+                    "system": "http://hl7.org/fhir/administrative-gender",
+                    "code": "female"
                   }
                 }
               ],
-              "linkId": "4.2.3",
-              "text": "Are you diabetic? (enableWhen = gender is Female, disableDisplay=hidden)",
-              "type": "choice",
               "answerValueSet": "http://hl7.org/fhir/ValueSet/yesnodontknow"
             },
             {
@@ -955,27 +963,27 @@
                   "valueCode": "protected"
                 }
               ],
+              "linkId": "4.2.4",
+              "text": "Have you been diagnosed with Gestational Diabetes? (enableBehavior = only when pregnant and diabetic, disableDisplay=protected)",
+              "type": "choice",
               "enableWhen": [
                 {
                   "question": "4.2.2",
                   "operator": "=",
                   "answerCoding": {
-                    "code": "Y",
-                    "system": "http://terminology.hl7.org/CodeSystem/v2-0136"
+                    "system": "http://terminology.hl7.org/CodeSystem/v2-0136",
+                    "code": "Y"
                   }
                 },
                 {
                   "question": "4.2.3",
                   "operator": "=",
                   "answerCoding": {
-                    "code": "Y",
-                    "system": "http://terminology.hl7.org/CodeSystem/v2-0136"
+                    "system": "http://terminology.hl7.org/CodeSystem/v2-0136",
+                    "code": "Y"
                   }
                 }
               ],
-              "linkId": "4.2.4",
-              "text": "Have you been diagnosed with Gestational Diabetes? (enableBehavior = only when pregnant and diabetic, disableDisplay=protected)",
-              "type": "choice",
               "enableBehavior": "all",
               "answerValueSet": "http://hl7.org/fhir/ValueSet/yesnodontknow"
             },
@@ -998,12 +1006,12 @@
                   "valueCode": "protected"
                 },
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-enableWhenExpression",
                   "valueExpression": {
                     "description": "if last 2 questions were answered",
                     "language": "text/fhirpath",
                     "expression": "%resource.repeat(item).where(linkId='4.2.b.1').answer.value.code ='female' and today().toString().substring(0, 4).toInteger() - %resource.repeat(item).where(linkId='4.2.b.5').answer.value.toString().substring(0, 4).toInteger() >= 40"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-enableWhenExpression"
+                  }
                 }
               ],
               "linkId": "4.2.6",
@@ -1011,24 +1019,22 @@
               "type": "choice",
               "answerValueSet": "http://hl7.org/fhir/ValueSet/yesnodontknow"
             }
-          ],
-          "type": "group",
-          "linkId": "4.2"
+          ]
         },
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-signatureRequired",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "1.2.840.10065.1.12.1.8",
                     "system": "urn:iso-astm:E1762-95:2013",
+                    "code": "1.2.840.10065.1.12.1.8",
                     "display": "Signature Witness Signature"
                   }
                 ],
                 "text": "the signature of a witness to any other signature."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-signatureRequired"
+              }
             },
             {
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-usageMode",
@@ -1043,12 +1049,12 @@
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-candidateExpression",
               "valueExpression": {
                 "description": "active practitioners that speak at least one of the patient's language",
                 "language": "application/x-fhir-query",
                 "expression": "Practitioner?communication=&active=true"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-candidateExpression"
+              }
             },
             {
               "extension": [
@@ -1064,8 +1070,8 @@
                   "url": "width",
                   "valueQuantity": {
                     "value": 40,
-                    "code": "%",
-                    "system": "http://unitsofmeasure.org"
+                    "system": "http://unitsofmeasure.org",
+                    "code": "%"
                   }
                 },
                 {
@@ -1089,8 +1095,8 @@
                   "url": "width",
                   "valueQuantity": {
                     "value": 40,
-                    "code": "%",
-                    "system": "http://unitsofmeasure.org"
+                    "system": "http://unitsofmeasure.org",
+                    "code": "%"
                   }
                 },
                 {
@@ -1114,8 +1120,8 @@
                   "url": "width",
                   "valueQuantity": {
                     "value": 20,
-                    "code": "%",
-                    "system": "http://unitsofmeasure.org"
+                    "system": "http://unitsofmeasure.org",
+                    "code": "%"
                   }
                 },
                 {
@@ -1134,15 +1140,17 @@
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext",
               "valueExpression": {
-                "name": "homeAddress",
                 "description": "Home address of the patient",
+                "name": "homeAddress",
                 "language": "text/fhirpath",
                 "expression": "%patient.address.where(use='home').first()"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext"
+              }
             }
           ],
+          "linkId": "4.6",
+          "type": "group",
           "item": [
             {
               "linkId": "4.6.1",
@@ -1152,12 +1160,12 @@
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "Address Line 1",
                     "language": "text/fhirpath",
                     "expression": "%homeAddress.line.first()"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                  }
                 }
               ],
               "linkId": "4.6.2",
@@ -1168,12 +1176,12 @@
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "City",
                     "language": "text/fhirpath",
                     "expression": "%homeAddress.city"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                  }
                 }
               ],
               "linkId": "4.6.3",
@@ -1184,100 +1192,100 @@
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "State",
                     "language": "text/fhirpath",
                     "expression": "%homeAddress.state"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
-                }
-              ],
-              "answerOption": [
-                {
-                  "valueCoding": {
-                    "code": "Alberta",
-                    "system": "http://example.org/CodeSystem/provinces",
-                    "display": "Alberta"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "BritishColumbia",
-                    "system": "http://example.org/CodeSystem/provinces",
-                    "display": "British Columbia"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "Manitoba",
-                    "system": "http://example.org/CodeSystem/provinces",
-                    "display": "Manitoba"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "NewBrunswick",
-                    "system": "http://example.org/CodeSystem/provinces",
-                    "display": "New Brunswick"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "NewfoundlandAndLabrador",
-                    "system": "http://example.org/CodeSystem/provinces",
-                    "display": "Newfoundland and Labrador"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "NovaScotia",
-                    "system": "http://example.org/CodeSystem/provinces",
-                    "display": "Nova Scotia"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "Ontario",
-                    "system": "http://example.org/CodeSystem/provinces",
-                    "display": "Ontario"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "PrinceEdwardIsland",
-                    "system": "http://example.org/CodeSystem/provinces",
-                    "display": "Prince Edward Island"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "Quebec",
-                    "system": "http://example.org/CodeSystem/provinces",
-                    "display": "Quebec"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "Saskatchewan",
-                    "system": "http://example.org/CodeSystem/provinces",
-                    "display": "Saskatchewan"
                   }
                 }
               ],
               "linkId": "4.6.4",
               "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.address.state",
               "text": "Province",
-              "type": "choice"
+              "type": "choice",
+              "answerOption": [
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/provinces",
+                    "code": "Alberta",
+                    "display": "Alberta"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/provinces",
+                    "code": "BritishColumbia",
+                    "display": "British Columbia"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/provinces",
+                    "code": "Manitoba",
+                    "display": "Manitoba"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/provinces",
+                    "code": "NewBrunswick",
+                    "display": "New Brunswick"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/provinces",
+                    "code": "NewfoundlandAndLabrador",
+                    "display": "Newfoundland and Labrador"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/provinces",
+                    "code": "NovaScotia",
+                    "display": "Nova Scotia"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/provinces",
+                    "code": "Ontario",
+                    "display": "Ontario"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/provinces",
+                    "code": "PrinceEdwardIsland",
+                    "display": "Prince Edward Island"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/provinces",
+                    "code": "Quebec",
+                    "display": "Quebec"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/provinces",
+                    "code": "Saskatchewan",
+                    "display": "Saskatchewan"
+                  }
+                }
+              ]
             },
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "description": "Postal Code",
                     "language": "text/fhirpath",
                     "expression": "%homeAddress.postalCode"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                  }
                 }
               ],
               "linkId": "4.6.5",
@@ -1285,17 +1293,9 @@
               "text": "Postal Code",
               "type": "string"
             }
-          ],
-          "linkId": "4.6",
-          "type": "group"
+          ]
         }
-      ],
-      "linkId": "4",
-      "text": "Other Controls",
-      "type": "group"
+      ]
     }
-  ],
-  "url": "http://build.fhir.org/ig/HL7/sdc/questionnaire-sdc-profile-example-form-behavior",
-  "name": "SDCAdvancedRenderingExample",
-  "status": "active"
+  ]
 }

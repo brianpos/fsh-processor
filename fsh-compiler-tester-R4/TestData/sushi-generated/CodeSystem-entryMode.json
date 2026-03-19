@@ -1,12 +1,15 @@
 {
   "resourceType": "CodeSystem",
-  "status": "active",
-  "content": "complete",
-  "name": "EntryModeCodes",
   "id": "entryMode",
-  "title": "Entry Mode",
-  "description": "Defines mechanisms of capturing data in a QuestionnaireResponse",
   "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/entryMode",
+  "name": "EntryModeCodes",
+  "title": "Entry Mode",
+  "status": "active",
+  "experimental": false,
+  "description": "Defines mechanisms of capturing data in a QuestionnaireResponse",
+  "caseSensitive": true,
+  "content": "complete",
+  "count": 3,
   "concept": [
     {
       "code": "sequential",
@@ -23,8 +26,5 @@
       "display": "Random",
       "definition": "All enabled questions are visible and accessible to the user.  They may complete questions in any order."
     }
-  ],
-  "experimental": false,
-  "caseSensitive": true,
-  "count": 3
+  ]
 }

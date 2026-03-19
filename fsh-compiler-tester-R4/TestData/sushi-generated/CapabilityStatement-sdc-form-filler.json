@@ -2,14 +2,21 @@
   "resourceType": "CapabilityStatement",
   "id": "sdc-form-filler",
   "url": "http://hl7.org/fhir/uv/sdc/CapabilityStatement/sdc-form-filler",
+  "name": "SDCFormFiller",
   "title": "SDC Form Filler",
+  "status": "active",
+  "date": "2014-07-06",
   "description": "This profile defines the expected capabilities of the *SDC Form Filler*' role when conforming to this implementation guide.  This role is responsible for retrieving pre-defined forms, requesting pre-population of forms and/or auto-populating forms, guiding the user through verifying populated data and submitting completed or partially-completed forms.&#xa;&#xa;Note that Form Fillers may also take on the role of [Form Archiver](CapabilityStatement-sdc-form-archiver.html) if they have a requirement to retain the completed version of a form (and potentially the source data that was used to complete it).&#xa;&#xa;In addition to the features described here, Form Fillers **SHOULD** also support search_type on all resources that might need to be looked up either for attachments or as References.  The expectations for supported resources, profiles, and relevant search parameters will typically come from national 'base' or 'core' IGs.",
+  "kind": "requirements",
+  "fhirVersion": "4.0.1",
   "format": [
     "xml",
     "json"
   ],
   "rest": [
     {
+      "mode": "client",
+      "documentation": "The [[[Questionnaire]]], [[[ValueSet]]] and [[[CodeSystem]]] resources are retrieved to allow the system to guide the user through the entry process.  The [[[QuestionnaireResponse]]] resource is used to record the populated form.  Finally, the [[Library]], [[StructureMap]], [[StructureDefinition]], and [[ConceptMap]] resources are available to assist with population.&#xa;&#xa;Note: Form Fillers that support the 'populate' operation will need to be capable of consuming and rendering a partially completed QuestionnaireResponse in the same manner as if they had retrieved such a QuestionnaireResponse from a [Form Response Manager](CapabilityStatement-sdc-form-response-manager.html)",
       "security": {
         "description": "Implementations must meet the [general security requirements](security.html) documented in this implementation guide.html."
       },
@@ -21,6 +28,9 @@
               "valueCode": "SHALL"
             }
           ],
+          "type": "QuestionnaireResponse",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse",
+          "documentation": "The primary focus of a form filler is creating and managing QuestionnaireResponses.",
           "interaction": [
             {
               "extension": [
@@ -95,10 +105,7 @@
               "definition": "http://hl7.org/fhir/uv/sdc/OperationDefinition/QuestionnaireResponse-extract",
               "documentation": "This is only necessary if the form filler doesn't handle all needed extraction capabilities locally and extraction is actually peformed by the form filler rather than a downstream process"
             }
-          ],
-          "type": "QuestionnaireResponse",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse",
-          "documentation": "The primary focus of a form filler is creating and managing QuestionnaireResponses."
+          ]
         },
         {
           "extension": [
@@ -107,6 +114,9 @@
               "valueCode": "SHOULD"
             }
           ],
+          "type": "Questionnaire",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire",
+          "documentation": "If not supported, then forms will need to be made accessible through workflow",
           "interaction": [
             {
               "extension": [
@@ -350,10 +360,7 @@
               "definition": "http://hl7.org/fhir/uv/sdc/OperationDefinition/Questionnaire-populate",
               "documentation": "This is only necessary if the form filler doesn't handle all needed population capabilities locally"
             }
-          ],
-          "type": "Questionnaire",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire",
-          "documentation": "If not supported, then forms will need to be made accessible through workflow"
+          ]
         },
         {
           "extension": [
@@ -362,6 +369,9 @@
               "valueCode": "SHALL"
             }
           ],
+          "type": "ValueSet",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset",
+          "documentation": "Needed to support simple value sets that might not be known to the terminology server or for local expansion and validation",
           "interaction": [
             {
               "extension": [
@@ -431,10 +441,7 @@
               "definition": "http://hl7.org/fhir/OperationDefinition/ValueSet-validate-code",
               "documentation": "Needed when populating from existing data (to confim the code is part of the value set).  **SHOULD** be supported unless handled locally"
             }
-          ],
-          "type": "ValueSet",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset",
-          "documentation": "Needed to support simple value sets that might not be known to the terminology server or for local expansion and validation"
+          ]
         },
         {
           "extension": [
@@ -443,6 +450,9 @@
               "valueCode": "MAY"
             }
           ],
+          "type": "CodeSystem",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem",
+          "documentation": "**SHALL** be supported if doing any terminology expansions or validation locally",
           "interaction": [
             {
               "extension": [
@@ -488,10 +498,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/conformance-version",
               "type": "token"
             }
-          ],
-          "type": "CodeSystem",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem",
-          "documentation": "**SHALL** be supported if doing any terminology expansions or validation locally"
+          ]
         },
         {
           "extension": [
@@ -500,6 +507,9 @@
               "valueCode": "SHOULD"
             }
           ],
+          "type": "Library",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-library",
+          "documentation": "Needed for certain types of population and extraction",
           "interaction": [
             {
               "extension": [
@@ -545,10 +555,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/Library-version",
               "type": "token"
             }
-          ],
-          "type": "Library",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-library",
-          "documentation": "Needed for certain types of population and extraction"
+          ]
         },
         {
           "extension": [
@@ -557,6 +564,9 @@
               "valueCode": "SHOULD"
             }
           ],
+          "type": "StructureMap",
+          "profile": "http://hl7.org/fhir/StructureDefinition/StructureMap",
+          "documentation": "Needed if performing map-based population or extraction",
           "interaction": [
             {
               "extension": [
@@ -602,10 +612,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/conformance-version",
               "type": "token"
             }
-          ],
-          "type": "StructureMap",
-          "profile": "http://hl7.org/fhir/StructureDefinition/StructureMap",
-          "documentation": "Needed if performing map-based population or extraction"
+          ]
         },
         {
           "extension": [
@@ -614,6 +621,9 @@
               "valueCode": "SHOULD"
             }
           ],
+          "type": "StructureDefinition",
+          "profile": "http://hl7.org/fhir/StructureDefinition/StructureDefinition",
+          "documentation": "Needed if performing map-based population or map or definition-based extraction",
           "interaction": [
             {
               "extension": [
@@ -659,10 +669,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/conformance-version",
               "type": "token"
             }
-          ],
-          "type": "StructureDefinition",
-          "profile": "http://hl7.org/fhir/StructureDefinition/StructureDefinition",
-          "documentation": "Needed if performing map-based population or map or definition-based extraction"
+          ]
         },
         {
           "extension": [
@@ -671,6 +678,9 @@
               "valueCode": "SHOULD"
             }
           ],
+          "type": "ConceptMap",
+          "profile": "http://hl7.org/fhir/StructureDefinition/ConceptMap",
+          "documentation": "May be needed for code conversion during population or extraction",
           "interaction": [
             {
               "extension": [
@@ -782,19 +792,9 @@
               "definition": "http://hl7.org/fhir/SearchParameter/ConceptMap-target-uri",
               "type": "reference"
             }
-          ],
-          "type": "ConceptMap",
-          "profile": "http://hl7.org/fhir/StructureDefinition/ConceptMap",
-          "documentation": "May be needed for code conversion during population or extraction"
+          ]
         }
-      ],
-      "mode": "client",
-      "documentation": "The [[[Questionnaire]]], [[[ValueSet]]] and [[[CodeSystem]]] resources are retrieved to allow the system to guide the user through the entry process.  The [[[QuestionnaireResponse]]] resource is used to record the populated form.  Finally, the [[Library]], [[StructureMap]], [[StructureDefinition]], and [[ConceptMap]] resources are available to assist with population.&#xa;&#xa;Note: Form Fillers that support the 'populate' operation will need to be capable of consuming and rendering a partially completed QuestionnaireResponse in the same manner as if they had retrieved such a QuestionnaireResponse from a [Form Response Manager](CapabilityStatement-sdc-form-response-manager.html)"
+      ]
     }
-  ],
-  "name": "SDCFormFiller",
-  "status": "active",
-  "date": "2014-07-06",
-  "kind": "requirements",
-  "fhirVersion": "4.0.1"
+  ]
 }

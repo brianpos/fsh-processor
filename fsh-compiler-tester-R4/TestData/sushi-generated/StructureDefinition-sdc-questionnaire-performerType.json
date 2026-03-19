@@ -47,8 +47,8 @@
         ],
         "binding": {
           "strength": "required",
-          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/performerType",
-          "description": "Resources that can record answers to a questionnaire."
+          "description": "Resources that can record answers to a questionnaire.",
+          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/performerType"
         }
       }
     ]

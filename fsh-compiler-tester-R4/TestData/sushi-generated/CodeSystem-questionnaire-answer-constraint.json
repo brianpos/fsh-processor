@@ -1,12 +1,27 @@
 {
   "resourceType": "CodeSystem",
-  "status": "active",
-  "content": "complete",
-  "name": "QuestionnaireAnswerConstraintCodes",
   "id": "questionnaire-answer-constraint",
-  "title": "Questionnaire answer constraint codes",
-  "description": "Codes that describe the types of constraints possible on a question item that has a list of permitted answers [Note: This is a clone of QuestionnaireAnswerConstraint codesystem from R5 (adopting R5 capability)]",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/StructureDefinition/shareablecodesystem"
+    ]
+  },
   "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/questionnaire-answer-constraint",
+  "identifier": [
+    {
+      "system": "urn:ietf:rfc:3986",
+      "value": "urn:oid:2.16.840.1.113883.4.642.1.0"
+    }
+  ],
+  "version": "4.6.0",
+  "name": "QuestionnaireAnswerConstraintCodes",
+  "title": "Questionnaire answer constraint codes",
+  "status": "active",
+  "experimental": false,
+  "description": "Codes that describe the types of constraints possible on a question item that has a list of permitted answers [Note: This is a clone of QuestionnaireAnswerConstraint codesystem from R5 (adopting R5 capability)]",
+  "caseSensitive": true,
+  "content": "complete",
+  "count": 3,
   "concept": [
     {
       "code": "optionsOnly",
@@ -23,20 +38,5 @@
       "display": "Options or string",
       "definition": "In addition to the values listed as answerOption or in the expansion of the answerValueSet, free-text strings are permitted.  Answers will have a type of 'string'."
     }
-  ],
-  "meta": {
-    "profile": [
-      "http://hl7.org/fhir/StructureDefinition/shareablecodesystem"
-    ]
-  },
-  "identifier": [
-    {
-      "system": "urn:ietf:rfc:3986",
-      "value": "urn:oid:2.16.840.1.113883.4.642.1.0"
-    }
-  ],
-  "version": "4.6.0",
-  "experimental": false,
-  "caseSensitive": true,
-  "count": 3
+  ]
 }

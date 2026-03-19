@@ -10,9 +10,16 @@
     {
       "resourceType": "ValueSet",
       "id": "LL2821-8",
+      "url": "http://example.org/ValueSet/LL2821-8",
+      "name": "TimingOfHarmAssessmentValueSet",
+      "title": "Timing of harm assessment [AHRQ]",
+      "status": "active",
+      "description": "The answer list for timing of harm assessment",
+      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use",
       "compose": {
         "include": [
           {
+            "system": "http://loinc.org",
             "concept": [
               {
                 "extension": [
@@ -54,25 +61,18 @@
                 "code": "LA4489-6",
                 "display": "Unknown"
               }
-            ],
-            "system": "http://loinc.org"
+            ]
           }
         ]
-      },
-      "url": "http://example.org/ValueSet/LL2821-8",
-      "name": "TimingOfHarmAssessmentValueSet",
-      "title": "Timing of harm assessment [AHRQ]",
-      "status": "active",
-      "description": "The answer list for timing of harm assessment",
-      "copyright": "This content from LOINC® is copyright © 1995 Regenstrief Institute, Inc. and the LOINC Committee, and available at no cost under the license at http://loinc.org/terms-of-use"
+      }
     }
   ],
   "extension": [
     {
       "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
+        "system": "http://hl7.org/fhir/version-algorithm",
+        "code": "semver"
       }
     }
   ],
@@ -86,8 +86,14 @@
       "valueCanonical": "http://hl7.org/fhir/StructureDefinition/rendering-xhtml"
     }
   ],
+  "url": "http://build.fhir.org/ig/HL7/sdc/questionnaire-sdc-profile-example-render",
+  "name": "SDCAdvancedRenderingExample",
+  "status": "active",
   "item": [
     {
+      "linkId": "1",
+      "text": "Text Appearance",
+      "type": "group",
       "item": [
         {
           "linkId": "1.1",
@@ -131,17 +137,17 @@
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-displayCategory",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "security",
                     "system": "http://hl7.org/fhir/questionnaire-display-category",
+                    "code": "security",
                     "display": "Security"
                   }
                 ],
                 "text": "The text provides guidance on how the information will be handled from a security perspective."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-displayCategory"
+              }
             }
           ],
           "linkId": "1.3",
@@ -149,6 +155,8 @@
           "type": "display"
         },
         {
+          "linkId": "1.4",
+          "type": "group",
           "item": [
             {
               "extension": [
@@ -166,31 +174,29 @@
               "text": "Event ID",
               "type": "string"
             }
-          ],
-          "linkId": "1.4",
-          "type": "group"
+          ]
         }
-      ],
-      "linkId": "1",
-      "text": "Text Appearance",
-      "type": "group"
+      ]
     },
     {
+      "linkId": "2",
+      "text": "Control Appearance",
+      "type": "group",
       "item": [
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "text-box",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "text-box",
                     "display": "Text Box"
                   }
                 ],
                 "text": "A control where a user can type in their answer freely."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             }
           ],
           "linkId": "2.1",
@@ -204,68 +210,68 @@
               "valueCode": "horizontal"
             },
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "radio-button",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "radio-button",
                     "display": "Radio Button"
                   }
                 ],
                 "text": "A control where choices are listed with a button beside them. The button can be toggled to select or de-select a given choice. Selecting one item deselects all others."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             }
           ],
+          "linkId": "2.2",
+          "text": "Gender:",
+          "type": "choice",
           "answerOption": [
             {
               "valueCoding": {
-                "code": "female",
                 "system": "http://hl7.org/fhir/administrative-gender",
+                "code": "female",
                 "display": "Female"
               },
               "initialSelected": true
             },
             {
               "valueCoding": {
-                "code": "male",
                 "system": "http://hl7.org/fhir/administrative-gender",
+                "code": "male",
                 "display": "Male"
               }
             },
             {
               "valueCoding": {
-                "code": "other",
                 "system": "http://hl7.org/fhir/administrative-gender",
+                "code": "other",
                 "display": "Other"
               }
             },
             {
               "valueCoding": {
-                "code": "unknown",
                 "system": "http://hl7.org/fhir/administrative-gender",
+                "code": "unknown",
                 "display": "Unknown"
               }
             }
-          ],
-          "linkId": "2.2",
-          "text": "Gender:",
-          "type": "choice"
+          ]
         },
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "slider",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "slider",
                     "display": "Slider"
                   }
                 ],
                 "text": "A control where an axis is displayed between the high and low values and the control can be visually manipulated to select a value anywhere on the axis."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             },
             {
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-sliderStepValue",
@@ -280,6 +286,9 @@
               "valueInteger": 100
             }
           ],
+          "linkId": "2.3",
+          "text": "Rate your doctor:",
+          "type": "integer",
           "initial": [
             {
               "valueInteger": 50
@@ -293,8 +302,8 @@
                   "valueCodeableConcept": {
                     "coding": [
                       {
-                        "code": "lower",
                         "system": "http://hl7.org/fhir/questionnaire-item-control",
+                        "code": "lower",
                         "display": "Lower-bound"
                       }
                     ]
@@ -312,8 +321,8 @@
                   "valueCodeableConcept": {
                     "coding": [
                       {
-                        "code": "upper",
                         "system": "http://hl7.org/fhir/questionnaire-item-control",
+                        "code": "upper",
                         "display": "Upper-bound"
                       }
                     ]
@@ -324,142 +333,27 @@
               "text": "Completely satisfied",
               "type": "display"
             }
-          ],
-          "linkId": "2.3",
-          "text": "Rate your doctor:",
-          "type": "integer"
+          ]
         },
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "htable",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "htable",
                     "display": "Horizontal Answer Table"
                   }
                 ],
                 "text": "Questions within the group are columns in the table with possible answers as rows. Used for 'choice' questions."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
-            }
-          ],
-          "item": [
-            {
-              "extension": [
-                {
-                  "valueCodeableConcept": {
-                    "coding": [
-                      {
-                        "code": "check-box",
-                        "system": "http://hl7.org/fhir/questionnaire-item-control",
-                        "display": "Check-box"
-                      }
-                    ],
-                    "text": "A control where choices are listed with a box beside them. The box can be toggled to select or de-select a given choice. Multiple selections may be possible."
-                  },
-                  "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
-                },
-                {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-width",
-                  "valueQuantity": {
-                    "value": 65,
-                    "code": "%",
-                    "system": "http://unitsofmeasure.org"
-                  }
-                }
-              ],
-              "answerOption": [
-                {
-                  "valueCoding": {
-                    "code": "diabetes-type1",
-                    "system": "http://example.org/CodeSystem/conditions",
-                    "display": "Type 1"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "diabetes-type2",
-                    "system": "http://example.org/CodeSystem/conditions",
-                    "display": "Type 2"
-                  }
-                }
-              ],
-              "linkId": "2.4.1",
-              "text": "Diabetes",
-              "type": "choice"
-            },
-            {
-              "extension": [
-                {
-                  "valueCodeableConcept": {
-                    "coding": [
-                      {
-                        "code": "check-box",
-                        "system": "http://hl7.org/fhir/questionnaire-item-control",
-                        "display": "Check-box"
-                      }
-                    ],
-                    "text": "A control where choices are listed with a box beside them. The box can be toggled to select or de-select a given choice. Multiple selections may be possible."
-                  },
-                  "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
-                },
-                {
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-width",
-                  "valueQuantity": {
-                    "value": 35,
-                    "code": "%",
-                    "system": "http://unitsofmeasure.org"
-                  }
-                }
-              ],
-              "answerOption": [
-                {
-                  "valueCoding": {
-                    "code": "diabetes-type1",
-                    "system": "http://example.org/CodeSystem/conditions",
-                    "display": "Type 1"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "diabetes-type2",
-                    "system": "http://example.org/CodeSystem/conditions",
-                    "display": "Type 2"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "otherinformation-hypertension",
-                    "system": "http://example.org/CodeSystem/conditions",
-                    "display": "Hypertension"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "otherinformation-smoker",
-                    "system": "http://example.org/CodeSystem/conditions",
-                    "display": "Smoker"
-                  }
-                }
-              ],
-              "linkId": "2.4.2",
-              "text": "Other Information",
-              "type": "choice"
+              }
             }
           ],
           "linkId": "2.4",
           "text": "Medical History",
-          "type": "group"
-        },
-        {
-          "extension": [
-            {
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-collapsible",
-              "valueCode": "default-closed"
-            }
-          ],
+          "type": "group",
           "item": [
             {
               "extension": [
@@ -468,40 +362,154 @@
                   "valueCodeableConcept": {
                     "coding": [
                       {
-                        "code": "drop-down",
                         "system": "http://hl7.org/fhir/questionnaire-item-control",
+                        "code": "check-box",
+                        "display": "Check-box"
+                      }
+                    ],
+                    "text": "A control where choices are listed with a box beside them. The box can be toggled to select or de-select a given choice. Multiple selections may be possible."
+                  }
+                },
+                {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-width",
+                  "valueQuantity": {
+                    "value": 65,
+                    "system": "http://unitsofmeasure.org",
+                    "code": "%"
+                  }
+                }
+              ],
+              "linkId": "2.4.1",
+              "text": "Diabetes",
+              "type": "choice",
+              "answerOption": [
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/conditions",
+                    "code": "diabetes-type1",
+                    "display": "Type 1"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/conditions",
+                    "code": "diabetes-type2",
+                    "display": "Type 2"
+                  }
+                }
+              ]
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                  "valueCodeableConcept": {
+                    "coding": [
+                      {
+                        "system": "http://hl7.org/fhir/questionnaire-item-control",
+                        "code": "check-box",
+                        "display": "Check-box"
+                      }
+                    ],
+                    "text": "A control where choices are listed with a box beside them. The box can be toggled to select or de-select a given choice. Multiple selections may be possible."
+                  }
+                },
+                {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-width",
+                  "valueQuantity": {
+                    "value": 35,
+                    "system": "http://unitsofmeasure.org",
+                    "code": "%"
+                  }
+                }
+              ],
+              "linkId": "2.4.2",
+              "text": "Other Information",
+              "type": "choice",
+              "answerOption": [
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/conditions",
+                    "code": "diabetes-type1",
+                    "display": "Type 1"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/conditions",
+                    "code": "diabetes-type2",
+                    "display": "Type 2"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/conditions",
+                    "code": "otherinformation-hypertension",
+                    "display": "Hypertension"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/conditions",
+                    "code": "otherinformation-smoker",
+                    "display": "Smoker"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-collapsible",
+              "valueCode": "default-closed"
+            }
+          ],
+          "linkId": "2.5",
+          "type": "group",
+          "item": [
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                  "valueCodeableConcept": {
+                    "coding": [
+                      {
+                        "system": "http://hl7.org/fhir/questionnaire-item-control",
+                        "code": "drop-down",
                         "display": "Drop down"
                       }
                     ]
                   }
                 }
               ],
+              "linkId": "2.5.1",
+              "text": "Relationship to patient",
+              "type": "choice",
               "answerOption": [
                 {
                   "valueCoding": {
-                    "code": "FTH",
                     "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
+                    "code": "FTH",
                     "display": "Father"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "MTH",
                     "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
+                    "code": "MTH",
                     "display": "Mother"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "SIB",
                     "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
+                    "code": "SIB",
                     "display": "Sibling"
                   }
                 }
-              ],
-              "linkId": "2.5.1",
-              "text": "Relationship to patient",
-              "type": "choice"
+              ]
             },
             {
               "linkId": "2.5.2",
@@ -515,231 +523,229 @@
                   "valueCodeableConcept": {
                     "coding": [
                       {
-                        "code": "radio-button",
                         "system": "http://hl7.org/fhir/questionnaire-item-control",
+                        "code": "radio-button",
                         "display": "Radio Button"
                       }
                     ]
                   }
                 }
               ],
+              "linkId": "2.5.3",
+              "text": "Gender",
+              "type": "choice",
               "answerOption": [
                 {
                   "valueCoding": {
-                    "code": "female",
                     "system": "http://hl7.org/fhir/administrative-gender",
+                    "code": "female",
                     "display": "Female"
                   },
                   "initialSelected": true
                 },
                 {
                   "valueCoding": {
-                    "code": "male",
                     "system": "http://hl7.org/fhir/administrative-gender",
+                    "code": "male",
                     "display": "Male"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "other",
                     "system": "http://hl7.org/fhir/administrative-gender",
+                    "code": "other",
                     "display": "Other"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "unknown",
                     "system": "http://hl7.org/fhir/administrative-gender",
+                    "code": "unknown",
                     "display": "Unknown"
                   }
                 }
-              ],
-              "linkId": "2.5.3",
-              "text": "Gender",
-              "type": "choice"
+              ]
             }
-          ],
-          "linkId": "2.5",
-          "type": "group"
+          ]
         },
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "htable",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "htable",
                     "display": "Horizontal Answer Table"
                   }
                 ],
                 "text": "Questions within the group are columns in the table with possible answers as rows. Used for 'choice' questions."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             }
           ],
+          "linkId": "2.6",
+          "text": "Lifestyle Factors",
+          "type": "group",
           "item": [
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
                   "valueCodeableConcept": {
                     "coding": [
                       {
-                        "code": "check-box",
                         "system": "http://hl7.org/fhir/questionnaire-item-control",
+                        "code": "check-box",
                         "display": "Check-box"
                       }
                     ],
                     "text": "A control where choices are listed with a box beside them. The box can be toggled to select or de-select a given choice. Multiple selections may be possible."
-                  },
-                  "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
-                }
-              ],
-              "answerOption": [
-                {
-                  "valueCoding": {
-                    "code": "daily",
-                    "system": "http://example.org/CodeSystem/lifestyle",
-                    "display": "Daily"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "weekly",
-                    "system": "http://example.org/CodeSystem/lifestyle",
-                    "display": "Weekly"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "monthly",
-                    "system": "http://example.org/CodeSystem/lifestyle",
-                    "display": "Monthly"
-                  }
-                },
-                {
-                  "valueCoding": {
-                    "code": "never",
-                    "system": "http://example.org/CodeSystem/lifestyle",
-                    "display": "Never"
                   }
                 }
               ],
               "linkId": "2.6.1",
               "text": "Exercise Habits",
-              "type": "choice"
-            },
-            {
-              "extension": [
-                {
-                  "valueCodeableConcept": {
-                    "coding": [
-                      {
-                        "code": "check-box",
-                        "system": "http://hl7.org/fhir/questionnaire-item-control",
-                        "display": "Check-box"
-                      }
-                    ],
-                    "text": "A control where choices are listed with a box beside them. The box can be toggled to select or de-select a given choice. Multiple selections may be possible."
-                  },
-                  "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
-                }
-              ],
+              "type": "choice",
               "answerOption": [
                 {
                   "valueCoding": {
-                    "code": "daily",
                     "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "daily",
                     "display": "Daily"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "weekly",
                     "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "weekly",
                     "display": "Weekly"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "monthly",
                     "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "monthly",
                     "display": "Monthly"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "never",
                     "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "never",
                     "display": "Never"
+                  }
+                }
+              ]
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                  "valueCodeableConcept": {
+                    "coding": [
+                      {
+                        "system": "http://hl7.org/fhir/questionnaire-item-control",
+                        "code": "check-box",
+                        "display": "Check-box"
+                      }
+                    ],
+                    "text": "A control where choices are listed with a box beside them. The box can be toggled to select or de-select a given choice. Multiple selections may be possible."
                   }
                 }
               ],
               "linkId": "2.6.2",
               "text": "Smoking Frequency",
-              "type": "choice"
-            },
-            {
-              "extension": [
-                {
-                  "valueCodeableConcept": {
-                    "coding": [
-                      {
-                        "code": "check-box",
-                        "system": "http://hl7.org/fhir/questionnaire-item-control",
-                        "display": "Check-box"
-                      }
-                    ],
-                    "text": "A control where choices are listed with a box beside them. The box can be toggled to select or de-select a given choice. Multiple selections may be possible."
-                  },
-                  "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
-                }
-              ],
+              "type": "choice",
               "answerOption": [
                 {
                   "valueCoding": {
-                    "code": "daily",
                     "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "daily",
                     "display": "Daily"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "weekly",
                     "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "weekly",
                     "display": "Weekly"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "monthly",
                     "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "monthly",
                     "display": "Monthly"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "never",
                     "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "never",
                     "display": "Never"
+                  }
+                }
+              ]
+            },
+            {
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+                  "valueCodeableConcept": {
+                    "coding": [
+                      {
+                        "system": "http://hl7.org/fhir/questionnaire-item-control",
+                        "code": "check-box",
+                        "display": "Check-box"
+                      }
+                    ],
+                    "text": "A control where choices are listed with a box beside them. The box can be toggled to select or de-select a given choice. Multiple selections may be possible."
                   }
                 }
               ],
               "linkId": "2.6.3",
               "text": "Alcohol Consumption",
-              "type": "choice"
+              "type": "choice",
+              "answerOption": [
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "daily",
+                    "display": "Daily"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "weekly",
+                    "display": "Weekly"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "monthly",
+                    "display": "Monthly"
+                  }
+                },
+                {
+                  "valueCoding": {
+                    "system": "http://example.org/CodeSystem/lifestyle",
+                    "code": "never",
+                    "display": "Never"
+                  }
+                }
+              ]
             }
-          ],
-          "linkId": "2.6",
-          "text": "Lifestyle Factors",
-          "type": "group"
+          ]
         }
-      ],
-      "linkId": "2",
-      "text": "Control Appearance",
-      "type": "group"
+      ]
     },
     {
+      "linkId": "3",
+      "text": "Additional Display Content",
+      "type": "group",
       "item": [
         {
           "extension": [
@@ -757,38 +763,38 @@
               "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-supportHyperlink"
             },
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "radio-button",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "radio-button",
                     "display": "Radio Button"
                   }
                 ],
                 "text": "A control where choices are listed with a button beside them. The button can be toggled to select or de-select a given choice. Selecting one item deselects all others."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
-            }
-          ],
-          "answerOption": [
-            {
-              "valueCoding": {
-                "code": "Y",
-                "system": "http://terminology.hl7.org/CodeSystem/v2-0532",
-                "display": "Yes"
-              }
-            },
-            {
-              "valueCoding": {
-                "code": "N",
-                "system": "http://terminology.hl7.org/CodeSystem/v2-0532",
-                "display": "No"
               }
             }
           ],
           "linkId": "3.1",
           "text": "Have you traveled outside the country within the last 14 days?",
-          "type": "choice"
+          "type": "choice",
+          "answerOption": [
+            {
+              "valueCoding": {
+                "system": "http://terminology.hl7.org/CodeSystem/v2-0532",
+                "code": "Y",
+                "display": "Yes"
+              }
+            },
+            {
+              "valueCoding": {
+                "system": "http://terminology.hl7.org/CodeSystem/v2-0532",
+                "code": "N",
+                "display": "No"
+              }
+            }
+          ]
         },
         {
           "extension": [
@@ -797,8 +803,8 @@
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "drop-down",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
                     "display": "Drop down"
                   }
                 ]
@@ -818,8 +824,8 @@
                   "url": "width",
                   "valueQuantity": {
                     "value": 25,
-                    "code": "%",
-                    "system": "http://unitsofmeasure.org"
+                    "system": "http://unitsofmeasure.org",
+                    "code": "%"
                   }
                 },
                 {
@@ -843,8 +849,8 @@
                   "url": "width",
                   "valueQuantity": {
                     "value": 75,
-                    "code": "%",
-                    "system": "http://unitsofmeasure.org"
+                    "system": "http://unitsofmeasure.org",
+                    "code": "%"
                   }
                 },
                 {
@@ -863,19 +869,22 @@
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "radio-button",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "radio-button",
                     "display": "Radio Button"
                   }
                 ],
                 "text": "A control where choices are listed with a button beside them. The button can be toggled to select or de-select a given choice. Selecting one item deselects all others."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             }
           ],
+          "linkId": "3.3",
+          "text": "Gender:",
+          "type": "choice",
           "answerOption": [
             {
               "extension": [
@@ -885,8 +894,8 @@
                 }
               ],
               "valueCoding": {
-                "code": "female",
                 "system": "http://hl7.org/fhir/administrative-gender",
+                "code": "female",
                 "display": "Female"
               },
               "initialSelected": true
@@ -899,8 +908,8 @@
                 }
               ],
               "valueCoding": {
-                "code": "male",
                 "system": "http://hl7.org/fhir/administrative-gender",
+                "code": "male",
                 "display": "Male"
               }
             },
@@ -912,8 +921,8 @@
                 }
               ],
               "valueCoding": {
-                "code": "other",
                 "system": "http://hl7.org/fhir/administrative-gender",
+                "code": "other",
                 "display": "Other"
               }
             },
@@ -925,15 +934,12 @@
                 }
               ],
               "valueCoding": {
-                "code": "unknown",
                 "system": "http://hl7.org/fhir/administrative-gender",
+                "code": "unknown",
                 "display": "Unknown"
               }
             }
-          ],
-          "linkId": "3.3",
-          "text": "Gender:",
-          "type": "choice"
+          ]
         },
         {
           "extension": [
@@ -942,17 +948,17 @@
               "valueCode": "vertical"
             },
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "radio-button",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "radio-button",
                     "display": "Radio Button"
                   }
                 ],
                 "text": "A control where choices are listed with a button beside them. The button can be toggled to select or de-select a given choice. Selecting one item deselects all others."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             }
           ],
           "linkId": "3.4",
@@ -1017,6 +1023,9 @@
               "valuePositiveInt": 3
             }
           ],
+          "linkId": "3.9",
+          "text": "Which of the following time-slots are you available for?",
+          "type": "string",
           "answerOption": [
             {
               "valueString": "9-10am"
@@ -1036,10 +1045,7 @@
             {
               "valueString": "3-4pm"
             }
-          ],
-          "linkId": "3.9",
-          "text": "Which of the following time-slots are you available for?",
-          "type": "string"
+          ]
         },
         {
           "extension": [
@@ -1053,13 +1059,7 @@
           "type": "choice",
           "answerValueSet": "http://snomed.info/sct?fhir_vs"
         }
-      ],
-      "linkId": "3",
-      "text": "Additional Display Content",
-      "type": "group"
+      ]
     }
-  ],
-  "url": "http://build.fhir.org/ig/HL7/sdc/questionnaire-sdc-profile-example-render",
-  "name": "SDCAdvancedRenderingExample",
-  "status": "active"
+  ]
 }

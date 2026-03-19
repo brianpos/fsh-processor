@@ -49,8 +49,8 @@
         ],
         "binding": {
           "strength": "required",
-          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/entryMode",
-          "description": "Entry modes when completing a questionnaire"
+          "description": "Entry modes when completing a questionnaire",
+          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/entryMode"
         }
       }
     ]

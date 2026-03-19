@@ -6,125 +6,125 @@
       "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse"
     ]
   },
-  "item": [
-    {
-      "item": [
-        {
-          "item": [
-            {
-              "answer": [
-                {
-                  "valueString": "a0df9da6-3157-4b72-95f1-729853718c09"
-                }
-              ],
-              "linkId": "participant-id"
-            },
-            {
-              "answer": [
-                {
-                  "valueString": "Doe"
-                }
-              ],
-              "linkId": "family-name"
-            },
-            {
-              "answer": [
-                {
-                  "valueString": "Jane"
-                }
-              ],
-              "linkId": "given-names"
-            },
-            {
-              "answer": [
-                {
-                  "valueDate": "1951-02-19"
-                }
-              ],
-              "linkId": "dob"
-            },
-            {
-              "answer": [
-                {
-                  "valueInteger": 1
-                }
-              ],
-              "linkId": "condition-count"
-            }
-          ],
-          "linkId": "part-details"
-        },
-        {
-          "item": [
-            {
-              "answer": [
-                {
-                  "valueString": "SomeMed"
-                }
-              ],
-              "linkId": "med-name"
-            },
-            {
-              "answer": [
-                {
-                  "valueString": "active"
-                }
-              ],
-              "linkId": "med-status"
-            }
-          ],
-          "linkId": "meds"
-        },
-        {
-          "item": [
-            {
-              "answer": [
-                {
-                  "valueString": "Another med"
-                }
-              ],
-              "linkId": "med-name"
-            },
-            {
-              "answer": [
-                {
-                  "valueString": "active"
-                }
-              ],
-              "linkId": "med-status"
-            }
-          ],
-          "linkId": "meds"
-        },
-        {
-          "item": [
-            {
-              "answer": [
-                {
-                  "valueString": "SomeMed"
-                }
-              ],
-              "linkId": "med-name"
-            },
-            {
-              "answer": [
-                {
-                  "valueString": "active"
-                }
-              ],
-              "linkId": "med-status"
-            }
-          ],
-          "linkId": "meds"
-        }
-      ],
-      "linkId": "grp"
-    }
-  ],
   "questionnaire": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-test-fhirpath-prepop-source-query",
   "status": "in-progress",
   "subject": {
     "reference": "http://example.org/fhir/Patient/a0df9da6-3157-4b72-95f1-729853718c09"
   },
-  "authored": "2022-01-03T13:50:53-07:00"
+  "authored": "2022-01-03T13:50:53-07:00",
+  "item": [
+    {
+      "linkId": "grp",
+      "item": [
+        {
+          "linkId": "part-details",
+          "item": [
+            {
+              "linkId": "participant-id",
+              "answer": [
+                {
+                  "valueString": "a0df9da6-3157-4b72-95f1-729853718c09"
+                }
+              ]
+            },
+            {
+              "linkId": "family-name",
+              "answer": [
+                {
+                  "valueString": "Doe"
+                }
+              ]
+            },
+            {
+              "linkId": "given-names",
+              "answer": [
+                {
+                  "valueString": "Jane"
+                }
+              ]
+            },
+            {
+              "linkId": "dob",
+              "answer": [
+                {
+                  "valueDate": "1951-02-19"
+                }
+              ]
+            },
+            {
+              "linkId": "condition-count",
+              "answer": [
+                {
+                  "valueInteger": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "linkId": "meds",
+          "item": [
+            {
+              "linkId": "med-name",
+              "answer": [
+                {
+                  "valueString": "SomeMed"
+                }
+              ]
+            },
+            {
+              "linkId": "med-status",
+              "answer": [
+                {
+                  "valueString": "active"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "linkId": "meds",
+          "item": [
+            {
+              "linkId": "med-name",
+              "answer": [
+                {
+                  "valueString": "Another med"
+                }
+              ]
+            },
+            {
+              "linkId": "med-status",
+              "answer": [
+                {
+                  "valueString": "active"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "linkId": "meds",
+          "item": [
+            {
+              "linkId": "med-name",
+              "answer": [
+                {
+                  "valueString": "SomeMed"
+                }
+              ]
+            },
+            {
+              "linkId": "med-status",
+              "answer": [
+                {
+                  "valueString": "active"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

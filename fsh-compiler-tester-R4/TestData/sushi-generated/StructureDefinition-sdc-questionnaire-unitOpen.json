@@ -52,8 +52,8 @@
         ],
         "binding": {
           "strength": "required",
-          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/questionnaire-answer-constraint",
-          "description": "The types of constraints possible on a question item that has a list of permitted answers"
+          "description": "The types of constraints possible on a question item that has a list of permitted answers",
+          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/questionnaire-answer-constraint"
         }
       }
     ]

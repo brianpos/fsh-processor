@@ -10,8 +10,8 @@
     {
       "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
       "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
+        "system": "http://hl7.org/fhir/version-algorithm",
+        "code": "semver"
       }
     },
     {
@@ -19,8 +19,8 @@
         {
           "url": "name",
           "valueCoding": {
-            "code": "patient",
             "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext",
+            "code": "patient",
             "display": "Patient"
           }
         },
@@ -36,8 +36,13 @@
       "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-launchContext"
     }
   ],
+  "url": "http://hl7.org/fhir/uv/sdc/questionnaire-sdc-profile-example-context-expression",
+  "name": "SDCExampleUsingContextExpression",
+  "status": "active",
   "item": [
     {
+      "linkId": "1.0",
+      "type": "group",
       "item": [
         {
           "linkId": "1.1",
@@ -53,12 +58,12 @@
                   "valueString": "Encounters in past year"
                 },
                 {
+                  "url": "expression",
                   "valueExpression": {
                     "description": "list all Encounters with patient in the past year, in order by date - newest to oldest",
                     "language": "application/x-fhir-query",
                     "expression": "Encounter?patient={{%patient.id}}&date=ge{{today()-1 year}}&_sort=-date&_include=Encounter:practitioner"
-                  },
-                  "url": "expression"
+                  }
                 }
               ],
               "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-contextExpression"
@@ -77,8 +82,8 @@
                   "url": "width",
                   "valueQuantity": {
                     "value": 40,
-                    "code": "%",
-                    "system": "http://unitsofmeasure.org"
+                    "system": "http://unitsofmeasure.org",
+                    "code": "%"
                   }
                 },
                 {
@@ -102,8 +107,8 @@
                   "url": "width",
                   "valueQuantity": {
                     "value": 60,
-                    "code": "%",
-                    "system": "http://unitsofmeasure.org"
+                    "system": "http://unitsofmeasure.org",
+                    "code": "%"
                   }
                 },
                 {
@@ -114,30 +119,30 @@
               "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-choiceColumn"
             },
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "radio-button",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "radio-button",
                     "display": "Radio Button"
                   }
                 ],
                 "text": "A control where choices are listed with a button beside them. The button can be toggled to select or de-select a given choice. Selecting one item deselects all others."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             },
             {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "radio-button",
                     "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "radio-button",
                     "display": "Radio Button"
                   }
                 ],
                 "text": "A control where choices are listed with a button beside them. The button can be toggled to select or de-select a given choice. Selecting one item deselects all others."
-              },
-              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl"
+              }
             }
           ],
           "linkId": "1.2",
@@ -145,12 +150,7 @@
           "type": "choice",
           "answerValueSet": "http://hl7.org/fhir/ValueSet/yesnodontknow"
         }
-      ],
-      "linkId": "1.0",
-      "type": "group"
+      ]
     }
-  ],
-  "url": "http://hl7.org/fhir/uv/sdc/questionnaire-sdc-profile-example-context-expression",
-  "name": "SDCExampleUsingContextExpression",
-  "status": "active"
+  ]
 }
