@@ -6,11 +6,11 @@ using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Hl7.Fhir.Specification.Snapshot;
 using Hl7.Fhir.Specification.Source;
+using Hl7.Fhir.Utility;
 using System.Text.Json;
+using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
-using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
-using Hl7.Fhir.Utility;
 
 namespace fsh_compiler_tester_r4;
 
@@ -375,6 +375,27 @@ public class SdcIgCompilerTests
             $"{compileErrors.Count} compile error(s) found. See output for details.");
 
         Assert.IsTrue(resources.Count > 0, "No FHIR resources were produced from the SDC IG FSH.");
+
+        // and finally compare with any sushi generated files
+        var sushiDir = Path.Combine(AppContext.BaseDirectory, "TestData", "sushi-generated");
+        foreach (var resource in resources)
+        {
+            var index = resources.IndexOf(resource) + 1;
+            var idSegment = !string.IsNullOrWhiteSpace(resource.Id) ? resource.Id : $"noId-{index}";
+            var fileName = $"{resource.TypeName}-{idSegment}.json";
+            // Sanitize to remove characters that are illegal in file names.
+            fileName = string.Concat(fileName.Split(Path.GetInvalidFileNameChars()));
+            
+            var json = resource.ToJson(serializerSettings);
+
+            var filePath = Path.Combine(sushiDir, fileName);
+            if (File.Exists(filePath))
+            {
+                var jsonSushiGenerated = File.ReadAllText(filePath);
+                if (jsonSushiGenerated != json)
+                    Assert.Fail("JSON Content not the same as the sushi-generated file: " + fileName);
+            }
+        }
     }
 
     private static FshDoc GetFshDocument(string fshFileName, out string fshText)
