@@ -345,7 +345,7 @@ public class SdcIgCompilerTests
         if (warnings.Count > 0)
         {
             Console.WriteLine($"\nCompiler warnings ({warnings.Count}):");
-            foreach (var w in warnings) Console.WriteLine($"  WARNING: {w}");
+            foreach (var w in warnings) Console.WriteLine($"  WARNING: {w.EntityName} - {w.Message}");
         }
 
         // ── Resource breakdown ───────────────────────────────────────────────────
