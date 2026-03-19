@@ -69,6 +69,24 @@ public static class FshCompiler
             foreach (var kvp in opts.AliasOverrides)
                 context.Aliases[kvp.Key] = kvp.Value;
 
+        // Pre-scan: register CodeSystem name/id → canonical URL for system name resolution in
+        // ValueSet compose components (e.g. TemporaryCodes → .../CodeSystem/temp).
+        foreach (var doc in docList)
+        {
+            foreach (var entity in doc.Entities)
+            {
+                if (entity is fsh_processor.Models.CodeSystem cs)
+                {
+                    var csUrl = ResolveUrl(cs.Id ?? cs.Name, opts, "CodeSystem");
+                    if (csUrl is null) continue;
+                    if (!string.IsNullOrEmpty(cs.Name))
+                        context.CodeSystemUrls.TryAdd(cs.Name, csUrl);
+                    if (!string.IsNullOrEmpty(cs.Id))
+                        context.CodeSystemUrls.TryAdd(cs.Id, csUrl);
+                }
+            }
+        }
+
         return CompileWithContext(docList, context, opts);
     }
 
@@ -1193,21 +1211,83 @@ public static class FshCompiler
     }
 
     /// <summary>
-    /// Resolves a system name or alias reference to a full URI.  First tries alias resolution;
-    /// when the result is not already a URL (i.e. no alias was found), falls back to building a
-    /// CodeSystem URL from the canonical base (<c>{canonical}/CodeSystem/{name}</c>).
+    /// Resolves a system name or alias reference to a full URI.
+    /// <list type="number">
+    ///   <item>Exact alias lookup.</item>
+    ///   <item>Pre-scanned CodeSystem entity map (<see cref="CompilerContext.CodeSystemUrls"/>).</item>
+    ///   <item>
+    ///     Resolver look-up using common FHIR base URL patterns with the name converted to
+    ///     kebab-case (covers FHIR-core CodeSystems such as <c>TaskCode</c> →
+    ///     <c>http://hl7.org/fhir/CodeSystem/task-code</c>).
+    ///   </item>
+    ///   <item>
+    ///     Canonical-base fallback: <c>{canonical}/CodeSystem/{name}</c> for project-local
+    ///     CodeSystem names whose URL last segment matches the entity name.
+    ///   </item>
+    /// </list>
     /// </summary>
     private static string ResolveSystemName(string name, CompilerContext context, CompilerOptions opts)
     {
+        // 1. Alias lookup (handles $-prefixed aliases and any bare alias names).
         var resolved = context.ResolveAlias(name);
-        // If alias resolution returned the original name unchanged and it is not already a URL,
-        // assume it is a local CodeSystem name and construct the canonical URL for it.
-        if (resolved == name && !resolved.StartsWith("http://", StringComparison.Ordinal)
-                             && !resolved.StartsWith("https://", StringComparison.Ordinal))
+        if (resolved != name || IsAbsoluteUrl(resolved)) return resolved;
+
+        // 2. Pre-scanned CodeSystem entity map (populated before compilation starts).
+        if (context.CodeSystemUrls.TryGetValue(name, out var csUrl))
+            return csUrl;
+
+        // 3. Resolver-based look-up for FHIR-core / terminology CodeSystems.
+        //    Convert PascalCase name to kebab-case and try well-known base URLs.
+        if (opts.Resolver != null)
         {
-            resolved = ResolveUrl(name, opts, "CodeSystem");
+            var resolverUrl = TryResolveCodeSystemUrlByName(name, opts.Resolver);
+            if (resolverUrl != null) return resolverUrl;
         }
-        return resolved;
+
+        // 4. Fallback: construct URL from the canonical base using the entity name.
+        //    Correct when the CodeSystem's URL last segment matches its FSH name
+        //    (e.g. AustralianStateCodes → .../CodeSystem/AustralianStateCodes).
+        return ResolveUrl(name, opts, "CodeSystem") ?? name;
+    }
+
+    /// <summary>
+    /// Attempts to resolve a CodeSystem by name using the supplied resolver.
+    /// Converts the PascalCase <paramref name="name"/> to kebab-case and probes well-known
+    /// FHIR canonical URL patterns.  Returns the CodeSystem URL when a matching resource whose
+    /// <c>name</c> property equals <paramref name="name"/> is found; otherwise <c>null</c>.
+    /// </summary>
+    private static string? TryResolveCodeSystemUrlByName(string name, IResourceResolver resolver)
+    {
+        var kebabId = PascalCaseToKebabCase(name);
+        string[] candidates =
+        [
+            $"http://hl7.org/fhir/CodeSystem/{kebabId}",
+            $"http://terminology.hl7.org/CodeSystem/{kebabId}",
+        ];
+
+        foreach (var uri in candidates)
+        {
+            var cs = resolver.ResolveByCanonicalUri(uri) as FhirCodeSystem;
+            if (cs?.Name == name) return cs.Url;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Converts a PascalCase or camelCase identifier to kebab-case
+    /// (e.g. <c>TaskCode</c> → <c>task-code</c>).
+    /// </summary>
+    private static string PascalCaseToKebabCase(string name)
+    {
+        var sb = new System.Text.StringBuilder(name.Length + 4);
+        for (int i = 0; i < name.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(name[i]))
+                sb.Append('-');
+            sb.Append(char.ToLower(name[i]));
+        }
+        return sb.ToString();
     }
 
     private static FilterOperator MapFilterOp(string op) =>

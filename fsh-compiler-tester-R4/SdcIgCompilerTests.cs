@@ -257,7 +257,7 @@ public class SdcIgCompilerTests
     [TestMethod]
     public void Compile_VSTaskCode()
     {
-        Compile_SpecificResource("TaskCode.fsh");
+        Compile_SpecificResource("TaskCode.fsh", "TemporaryCodes.fsh");
     }
 
     [TestMethod]
@@ -285,11 +285,17 @@ public class SdcIgCompilerTests
         Compile_SpecificResource("AssembleExpectationCodes.fsh");
     }
 
-    public void Compile_SpecificResource(string fshFileName)
+    public void Compile_SpecificResource(string fshFileName, params string[] otherFiles)
     {
         FshDoc parsedFsh = GetFshDocument(fshFileName, out string fshText);
         FshDoc parsedFshAliases = GetFshDocument("aliases.fsh", out string _);
         FshDoc parsedFshShared = GetFshDocument("shared.fsh", out _);
+
+        // Load any additional FSH files required to resolve cross-file references
+        // (e.g. CodeSystem definitions needed for ValueSet system URL resolution).
+        var extraDocs = otherFiles
+            .Select(f => GetFshDocument(f, out _))
+            .ToList();
 
         // ── 2. Compile all documents together with a shared context ──────────────
         // Compiling as a batch allows cross-file alias/ruleset resolution so that
@@ -307,7 +313,8 @@ public class SdcIgCompilerTests
             FhirVersion = R4FshCompiler.FhirVersion
         };
 
-        var compileResult = R4FshCompiler.Compile([parsedFshAliases, parsedFshShared, parsedFsh], sdcOptions);
+        var compileResult = R4FshCompiler.Compile(
+            [parsedFshAliases, parsedFshShared, .. extraDocs, parsedFsh], sdcOptions);
 
         switch (compileResult)
         {

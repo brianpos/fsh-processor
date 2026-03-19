@@ -45,6 +45,14 @@ public class CompilerContext
         new(StringComparer.Ordinal);
 
     /// <summary>
+    /// CodeSystem name/id → canonical URL, populated by a pre-scan of all <see cref="FshDoc"/>
+    /// entities before compilation begins.  Used by the ValueSet compiler to resolve system names
+    /// in compose components (e.g. <c>TemporaryCodes#complete-questionnaire</c> →
+    /// <c>http://hl7.org/fhir/uv/sdc/CodeSystem/temp</c>).
+    /// </summary>
+    public Dictionary<string, string> CodeSystemUrls { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Non-fatal warnings accumulated during compilation.  Populated by rule processors when
     /// a rule is silently skipped or an unresolved reference is encountered.
     /// </summary>
