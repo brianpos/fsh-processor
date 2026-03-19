@@ -540,6 +540,7 @@ public static class FshCompiler
         fsh_processor.Models.CodeSystem cs, CompilerContext context, CompilerOptions? options = null)
     {
         var opts = options ?? new CompilerOptions();
+        var resolvedInspector = opts.Inspector ?? ModelInspector.ForAssembly(typeof(StructureDefinition).Assembly);
         var fcs = new FhirCodeSystem
         {
             Id = cs.Id,
@@ -553,6 +554,10 @@ public static class FshCompiler
             Concept = new List<FhirCodeSystem.ConceptDefinitionComponent>()
         };
 
+        // Soft-index state for top-level (CodeSystem) caret rules and per-concept caret rules.
+        var csIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
+        var conceptIndexStates = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+
         foreach (var rule in PropagateConceptCodesToCaretRules(cs.Rules))
         {
             switch (rule)
@@ -562,7 +567,7 @@ public static class FshCompiler
                     break;
 
                 case CsCaretValueRule caretRule:
-                    ApplyCsCaretValueRule(caretRule, fcs, opts.Inspector);
+                    ApplyCsCaretValueRule(caretRule, fcs, csIndexState, conceptIndexStates, resolvedInspector);
                     break;
 
                 case CsInsertRule insertRule:
@@ -1271,7 +1276,7 @@ public static class FshCompiler
         if (concept.Codes.Count == 0) return;
 
         // Build the concept hierarchy: first code is the parent, rest are hierarchical sub-codes
-        var rootCode = concept.Codes[0].TrimStart('#');
+        var rootCode = CleanConceptCode(concept.Codes[0]);
         var conceptDef = new FhirCodeSystem.ConceptDefinitionComponent
         {
             Code = rootCode,
@@ -1296,14 +1301,19 @@ public static class FshCompiler
         if (index >= codes.Count) return;
         var child = new FhirCodeSystem.ConceptDefinitionComponent
         {
-            Code = codes[index].TrimStart('#')
+            Code = CleanConceptCode(codes[index])
         };
         parent.Concept ??= new List<FhirCodeSystem.ConceptDefinitionComponent>();
         parent.Concept.Add(child);
         AddNestedConcept(child, codes, index + 1);
     }
 
-    private static void ApplyCsCaretValueRule(CsCaretValueRule rule, FhirCodeSystem fcs, ModelInspector? inspector)
+    private static void ApplyCsCaretValueRule(
+        CsCaretValueRule rule,
+        FhirCodeSystem fcs,
+        Dictionary<string, int> csIndexState,
+        Dictionary<string, Dictionary<string, int>> conceptIndexStates,
+        ModelInspector inspector)
     {
         var path = rule.CaretPath.TrimStart('^');
 
@@ -1312,15 +1322,21 @@ public static class FshCompiler
             // Per-concept caret: apply to the matching concept(s) rather than the CodeSystem itself
             foreach (var codeStr in rule.Codes)
             {
-                var concept = FindConceptByCode(fcs.Concept, codeStr.TrimStart('#'));
-                if (concept != null)
-                    FhirCaretValueWriter.TrySet(concept, path, rule.Value, inspector);
+                var cleanCode = CleanConceptCode(codeStr);
+                var concept = FindConceptByCode(fcs.Concept, cleanCode);
+                if (concept is null) continue;
+
+                if (!conceptIndexStates.TryGetValue(cleanCode, out var conceptState))
+                    conceptIndexStates[cleanCode] = conceptState = new Dictionary<string, int>(StringComparer.Ordinal);
+
+                var resolvedPath = ResolveSoftIndices(path, conceptState);
+                SetCsCaretPath(concept, resolvedPath, rule.Value, inspector);
             }
         }
         else
         {
-            FhirCaretValueWriter.TrySet(fcs, path, rule.Value, inspector);
-            // Silently ignore if the path is not in the CodeSystem model.
+            var resolvedPath = ResolveSoftIndices(path, csIndexState);
+            SetCsCaretPath(fcs, resolvedPath, rule.Value, inspector);
         }
     }
 
@@ -1334,6 +1350,10 @@ public static class FshCompiler
         var resolved = RuleSetResolver.Resolve(
             insertRule.RuleSetReference, insertRule.IsParameterized, insertRule.Parameters, context);
 
+        var inspector = opts.Inspector ?? ModelInspector.ForAssembly(typeof(StructureDefinition).Assembly);
+        var csIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
+        var conceptIndexStates = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+
         foreach (var rule in resolved)
         {
             switch (rule)
@@ -1342,11 +1362,11 @@ public static class FshCompiler
                     ApplyConceptRule(concept, fcs);
                     break;
                 case CsCaretValueRule csCaretRule:
-                    ApplyCsCaretValueRule(csCaretRule, fcs, opts.Inspector);
+                    ApplyCsCaretValueRule(csCaretRule, fcs, csIndexState, conceptIndexStates, inspector);
                     break;
                 case CaretValueRule sdCaret when string.IsNullOrEmpty(sdCaret.Path):
-                    var csPath = sdCaret.CaretPath.TrimStart('^');
-                    FhirCaretValueWriter.TrySet(fcs, csPath, sdCaret.Value, opts.Inspector);
+                    var csPath = ResolveSoftIndices(sdCaret.CaretPath.TrimStart('^'), csIndexState);
+                    SetCsCaretPath(fcs, csPath, sdCaret.Value, inspector);
                     break;
                 case CsInsertRule nestedInsert:
                     ApplyCsInsertRule(nestedInsert, fcs, context, opts);
@@ -1366,6 +1386,19 @@ public static class FshCompiler
             if (child != null) return child;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Strips the FSH code prefix (<c>#</c>) and, for codes with spaces that are delimited
+    /// by double-quotes in FSH (e.g. <c>#"More than half the days"</c>), also removes the
+    /// surrounding double-quote characters.
+    /// </summary>
+    private static string CleanConceptCode(string rawCode)
+    {
+        var code = rawCode.TrimStart('#');
+        if (code.StartsWith('"') && code.EndsWith('"') && code.Length >= 2)
+            code = code[1..^1];
+        return code;
     }
 
     // ─── Shared helpers ───────────────────────────────────────────────────────
@@ -1718,6 +1751,37 @@ public static class FshCompiler
         // Set the leaf.
         var (leafName, leafIdx) = ParseInstanceSegment(segments[segments.Length - 1]);
         return FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector);
+    }
+
+    /// <summary>
+    /// Sets a CodeSystem caret-value path on <paramref name="obj"/>, navigating dot-separated
+    /// segments and falling back to FHIR choice-type handling for the leaf element when the
+    /// direct property lookup fails.  This fallback is intentionally scoped to the CodeSystem
+    /// caret-value path so that it does not alter behavior for general instance rule paths.
+    /// </summary>
+    private static bool SetCsCaretPath(Base obj, string path, FshValue value, ModelInspector inspector)
+    {
+        var segments = SplitInstancePath(path);
+        if (segments.Length == 0) return false;
+
+        var current = obj;
+
+        // Navigate to the parent of the leaf element.
+        for (int i = 0; i < segments.Length - 1; i++)
+        {
+            var (segName, segIdx) = ParseInstanceSegment(segments[i]);
+            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector);
+            if (current is null) return false;
+        }
+
+        // Set the leaf — try normal path first, then choice-type fallback.
+        var (leafName, leafIdx) = ParseInstanceSegment(segments[^1]);
+        if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector))
+            return true;
+
+        // Choice-type fallback: e.g. "valueDecimal", "admitReasonCoding" — scan right-to-left
+        // for a suffix that is a recognised FHIR DataType name.
+        return FhirCaretValueWriter.TrySetChoiceTypeLeaf(current, leafName, value, inspector);
     }
 
     /// <summary>
