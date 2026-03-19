@@ -463,7 +463,16 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         }
         else if (context.STRING() != null)
         {
-            value = context.STRING().GetText();
+            // For STRING parameters in a rule set, FSH allows \, and \) as escape sequences
+            // so that commas and closing-parens can appear inside string arguments without
+            // being misinterpreted as parameter separators or rule set close tokens.
+            // Strip the surrounding quotes and unescape here so that the value can be
+            // safely substituted back into the template as a quoted FSH string.
+            var raw = context.STRING().GetText();
+            var inner = raw.Length >= 2 ? raw[1..^1] : raw;
+            // Unescape \, → , and \) → )
+            inner = inner.Replace("\\,", ",").Replace("\\)", ")");
+            value = $"\"{inner}\"";
         }
         else if (context.ruleSetParamText() != null)
         {

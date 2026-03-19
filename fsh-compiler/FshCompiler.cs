@@ -571,7 +571,7 @@ public static class FshCompiler
                     break;
 
                 case CsInsertRule insertRule:
-                    ApplyCsInsertRule(insertRule, fcs, context, opts);
+                    ApplyCsInsertRule(insertRule, fcs, context, opts, csIndexState, conceptIndexStates);
                     break;
             }
         }
@@ -1344,16 +1344,28 @@ public static class FshCompiler
     /// <summary>
     /// Expands a <see cref="CsInsertRule"/> by resolving the referenced <see cref="RuleSet"/>
     /// and replaying any applicable CS rules against the CodeSystem.
+    /// The caller's <paramref name="csIndexState"/> and <paramref name="conceptIndexStates"/> are
+    /// shared so that soft-index counters (<c>[+]</c>/<c>[=]</c>) remain continuous across
+    /// multiple insert rules at the same nesting level.
     /// </summary>
     private static void ApplyCsInsertRule(
-        CsInsertRule insertRule, FhirCodeSystem fcs, CompilerContext context, CompilerOptions opts)
+        CsInsertRule insertRule,
+        FhirCodeSystem fcs,
+        CompilerContext context,
+        CompilerOptions opts,
+        Dictionary<string, int>? csIndexState = null,
+        Dictionary<string, Dictionary<string, int>>? conceptIndexStates = null)
     {
         var resolved = RuleSetResolver.Resolve(
             insertRule.RuleSetReference, insertRule.IsParameterized, insertRule.Parameters, context);
 
         var inspector = opts.Inspector ?? ModelInspector.ForAssembly(typeof(StructureDefinition).Assembly);
-        var csIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
-        var conceptIndexStates = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+        // Use the caller's index-state dictionaries when provided so that [+] increments
+        // accumulate across multiple insert-rule invocations (e.g. two `insert propertyConcept`
+        // calls on the same CodeSystem should produce consecutive property[0] and property[1],
+        // not both overwrite property[0]).
+        csIndexState ??= new Dictionary<string, int>(StringComparer.Ordinal);
+        conceptIndexStates ??= new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
         Func<string, string> aliasResolver = context.ResolveAlias;
 
         foreach (var rule in resolved)
@@ -1371,7 +1383,7 @@ public static class FshCompiler
                     SetCsCaretPath(fcs, csPath, sdCaret.Value, inspector, aliasResolver);
                     break;
                 case CsInsertRule nestedInsert:
-                    ApplyCsInsertRule(nestedInsert, fcs, context, opts);
+                    ApplyCsInsertRule(nestedInsert, fcs, context, opts, csIndexState, conceptIndexStates);
                     break;
             }
         }
