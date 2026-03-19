@@ -255,6 +255,12 @@ public class SdcIgCompilerTests
     }
 
     [TestMethod]
+    public void Compile_VSTaskCode()
+    {
+        Compile_SpecificResource("TaskCode.fsh");
+    }
+
+    [TestMethod]
     public void Compile_Species()
     {
         Compile_SpecificResource("QuestionnaireContextSpecies.fsh");
