@@ -50,6 +50,15 @@ public class SdcIgCompilerTests
     private static List<string>? _compileFailures;
     private static IReadOnlyList<CompilerWarning>? _compileWarnings;
 
+    private static IResourceResolver? _source;
+
+    [TestInitialize]
+    public void TestInitialize()
+    {
+        if (_source == null)
+            _source = new CachedResolver(ZipSource.CreateValidationSource());
+    }
+
     /// <summary>
     /// Parses and compiles all SDC FSH files once.  Results are cached so that the
     /// expensive parse + compile step runs only once per test session.
@@ -117,7 +126,8 @@ public class SdcIgCompilerTests
         var sdcOptions = new CompilerOptions
         {
             CanonicalBase = "http://hl7.org/fhir/uv/sdc",
-            FhirVersion = R4FshCompiler.FhirVersion
+            FhirVersion = R4FshCompiler.FhirVersion,
+            Resolver = _source
         };
 
         var compileResult = R4FshCompiler.Compile(fshDocs, sdcOptions);
@@ -310,7 +320,8 @@ public class SdcIgCompilerTests
         var sdcOptions = new CompilerOptions
         {
             CanonicalBase = "http://hl7.org/fhir/uv/sdc",
-            FhirVersion = R4FshCompiler.FhirVersion
+            FhirVersion = R4FshCompiler.FhirVersion,
+            Resolver = _source
         };
 
         var compileResult = R4FshCompiler.Compile(

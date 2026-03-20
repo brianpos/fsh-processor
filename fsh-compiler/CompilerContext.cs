@@ -50,7 +50,12 @@ public class CompilerContext
     /// in compose components (e.g. <c>TemporaryCodes#complete-questionnaire</c> →
     /// <c>http://hl7.org/fhir/uv/sdc/CodeSystem/temp</c>).
     /// </summary>
-    public Dictionary<string, string> CodeSystemUrls { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, string> CodeSystemUrls { get; } = new([new KeyValuePair<string, string>("SNOMED_CT", "http://snomed.info/sct")], StringComparer.Ordinal);
+
+    /// <summary>
+    /// resource ID to Canonical URL that were loaded from the Core Specification.zip file
+    /// </summary>
+    public Dictionary<string, string> CanonicalsFromSpecificationZip { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Non-fatal warnings accumulated during compilation.  Populated by rule processors when

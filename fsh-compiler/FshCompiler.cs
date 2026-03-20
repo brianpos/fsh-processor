@@ -1,14 +1,14 @@
 using fsh_processor.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
+using Hl7.Fhir.Specification.Source;
 using Hl7.Fhir.Utility;
 using FhirCode = Hl7.Fhir.Model.Code;
+using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
 using FhirExtension = Hl7.Fhir.Model.Extension;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
-using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
 using FshCode = fsh_processor.Models.Code;
-using Hl7.Fhir.Specification.Source;
 
 namespace fsh_compiler;
 
@@ -87,7 +87,43 @@ public static class FshCompiler
             }
         }
 
+        // Pre-scan the system zip for ResourceId indexedCanonicals
+        IndexResolver(options.Resolver, context);
+
         return CompileWithContext(docList, context, opts);
+    }
+
+    private static void IndexResolver(IResourceResolver resolver, CompilerContext context)
+    {
+        if (resolver is CachedResolver cr)
+        {
+            IndexResolver(cr.Source, context);
+        }
+        if (resolver is MultiResolver mr)
+        {
+            foreach (var r in mr.Sources)
+            {
+                IndexResolver(r, context);
+            }
+        }
+
+        if (resolver is CommonZipSource zs)
+        {
+            foreach (var summary in zs.ListSummaries())
+            {
+                var resourceType = summary.GetTypeName();
+                var resourceName = summary.GetConformanceName();
+                var canonicalUrl = summary.GetConformanceCanonicalUrl();
+                var key = $"{resourceType}#{resourceName}";
+                if (!string.IsNullOrEmpty(canonicalUrl) && !string.IsNullOrEmpty(resourceName))
+                {
+                    if (!context.CanonicalsFromSpecificationZip.ContainsKey(key))
+                        context.CanonicalsFromSpecificationZip.Add(key, canonicalUrl);
+                    //else
+                    //    Console.WriteLine($"Duplicate Key {key} for {resourceType} - {canonicalUrl} - existing canonical {context.CanonicalsFromSpecificationZip[key]}");
+                }
+            }
+        }
     }
 
     private static CompileResult<List<FhirResource>> CompileWithContext(
@@ -1228,66 +1264,26 @@ public static class FshCompiler
     /// </summary>
     private static string ResolveSystemName(string name, CompilerContext context, CompilerOptions opts)
     {
-        // 1. Alias lookup (handles $-prefixed aliases and any bare alias names).
+        // Alias lookup (handles $-prefixed aliases and any bare alias names).
         var resolved = context.ResolveAlias(name);
         if (resolved != name || IsAbsoluteUrl(resolved)) return resolved;
 
-        // 2. Pre-scanned CodeSystem entity map (populated before compilation starts).
+        // Pre-scanned CodeSystem entity map (populated before compilation starts).
         if (context.CodeSystemUrls.TryGetValue(name, out var csUrl))
             return csUrl;
 
-        // 3. Resolver-based look-up for FHIR-core / terminology CodeSystems.
-        //    Convert PascalCase name to kebab-case and try well-known base URLs.
+        // Resolver-based look-up for FHIR-core / terminology CodeSystems.
         if (opts.Resolver != null)
         {
-            var resolverUrl = TryResolveCodeSystemUrlByName(name, opts.Resolver);
-            if (resolverUrl != null) return resolverUrl;
+            var cs = opts.Resolver.ResolveByCanonicalUri(name) as FhirCodeSystem;
+            if (cs != null) return cs.Url;
         }
 
-        // 4. Fallback: construct URL from the canonical base using the entity name.
-        //    Correct when the CodeSystem's URL last segment matches its FSH name
-        //    (e.g. AustralianStateCodes → .../CodeSystem/AustralianStateCodes).
-        return ResolveUrl(name, opts, "CodeSystem") ?? name;
-    }
+        // Check to see if the ID was in the Specification.zip
+        if (context.CanonicalsFromSpecificationZip.ContainsKey("CodeSystem#" + name))
+            return context.CanonicalsFromSpecificationZip["CodeSystem#" + name];
 
-    /// <summary>
-    /// Attempts to resolve a CodeSystem by name using the supplied resolver.
-    /// Converts the PascalCase <paramref name="name"/> to kebab-case and probes well-known
-    /// FHIR canonical URL patterns.  Returns the CodeSystem URL when a matching resource whose
-    /// <c>name</c> property equals <paramref name="name"/> is found; otherwise <c>null</c>.
-    /// </summary>
-    private static string? TryResolveCodeSystemUrlByName(string name, IResourceResolver resolver)
-    {
-        var kebabId = PascalCaseToKebabCase(name);
-        string[] candidates =
-        [
-            $"http://hl7.org/fhir/CodeSystem/{kebabId}",
-            $"http://terminology.hl7.org/CodeSystem/{kebabId}",
-        ];
-
-        foreach (var uri in candidates)
-        {
-            var cs = resolver.ResolveByCanonicalUri(uri) as FhirCodeSystem;
-            if (cs?.Name == name) return cs.Url;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Converts a PascalCase or camelCase identifier to kebab-case
-    /// (e.g. <c>TaskCode</c> → <c>task-code</c>).
-    /// </summary>
-    private static string PascalCaseToKebabCase(string name)
-    {
-        var sb = new System.Text.StringBuilder(name.Length + 4);
-        for (int i = 0; i < name.Length; i++)
-        {
-            if (i > 0 && char.IsUpper(name[i]))
-                sb.Append('-');
-            sb.Append(char.ToLower(name[i]));
-        }
-        return sb.ToString();
+        return name;
     }
 
     private static FilterOperator MapFilterOp(string op) =>
