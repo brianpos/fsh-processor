@@ -1897,13 +1897,13 @@ public static class FshCompiler
         // Navigate to the parent of the leaf element.
         for (int i = 0; i < segments.Length - 1; i++)
         {
-            var (segName, segIdx) = ParseInstanceSegment(segments[i]);
-            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector);
+            var (segName, segIdx, segNamedIdx) = ParseInstanceSegment(segments[i]);
+            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector, segNamedIdx, aliasResolver);
             if (current is null) return false;
         }
 
         // Set the leaf.
-        var (leafName, leafIdx) = ParseInstanceSegment(segments[segments.Length - 1]);
+        var (leafName, leafIdx, _) = ParseInstanceSegment(segments[segments.Length - 1]);
         if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver))
             return true;
 
@@ -1928,13 +1928,13 @@ public static class FshCompiler
         // Navigate to the parent of the leaf element.
         for (int i = 0; i < segments.Length - 1; i++)
         {
-            var (segName, segIdx) = ParseInstanceSegment(segments[i]);
-            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector);
+            var (segName, segIdx, segNamedIdx) = ParseInstanceSegment(segments[i]);
+            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector, segNamedIdx, aliasResolver);
             if (current is null) return false;
         }
 
         // Set the leaf — try normal path first, then choice-type fallback.
-        var (leafName, leafIdx) = ParseInstanceSegment(segments[^1]);
+        var (leafName, leafIdx, _) = ParseInstanceSegment(segments[^1]);
         if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver))
             return true;
 
@@ -1948,7 +1948,17 @@ public static class FshCompiler
     /// <paramref name="name"/> at list <paramref name="index"/>.
     /// Returns <c>null</c> when the property is not found or cannot be instantiated.
     /// </summary>
-    private static Base? GetOrCreateInstanceChild(Base parent, string name, int index, ModelInspector inspector)
+    /// <param name="namedIndex">
+    /// When the bracket content was not a numeric index (e.g. <c>extension[$alias]</c> or
+    /// <c>extension[http://...]</c>), this is the raw bracket text.  For Extension collections
+    /// the value is resolved via <paramref name="aliasResolver"/> and used as
+    /// <see cref="Extension.Url"/>.  When the extension list already contains an entry with that
+    /// url it is reused; otherwise a new entry is appended (regardless of
+    /// <paramref name="index"/>).
+    /// </param>
+    private static Base? GetOrCreateInstanceChild(
+        Base parent, string name, int index, ModelInspector inspector,
+        string? namedIndex = null, Func<string, string>? aliasResolver = null)
     {
         var classMap = inspector.FindClassMapping(parent.GetType());
         if (classMap is null) return null;
@@ -1968,6 +1978,27 @@ public static class FshCompiler
                 var listType = typeof(List<>).MakeGenericType(concreteType);
                 list = (System.Collections.IList)Activator.CreateInstance(listType)!;
                 propMap.SetValue(parent, list);
+            }
+
+            // Named-slice: when the bracket content is a non-numeric alias or URL reference
+            // (e.g. extension[$questionnaire-versionAlgorithm]) find-or-create by Extension.Url.
+            if (namedIndex is not null && concreteType == typeof(Hl7.Fhir.Model.Extension))
+            {
+                var resolvedUrl = aliasResolver is not null
+                    ? aliasResolver(namedIndex)
+                    : namedIndex;
+
+                // Reuse existing extension with the same url if present.
+                foreach (var item in list)
+                {
+                    if (item is Hl7.Fhir.Model.Extension existing && existing.Url == resolvedUrl)
+                        return existing;
+                }
+
+                // Create a new Extension with the resolved url.
+                var newExt = new Hl7.Fhir.Model.Extension { Url = resolvedUrl };
+                list.Add(newExt);
+                return newExt;
             }
 
             while (list.Count <= index)
@@ -1993,20 +2024,27 @@ public static class FshCompiler
         path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>
-    /// Parses a path segment such as <c>name</c> or <c>name[2]</c> into its name and
-    /// zero-based list index (defaulting to 0 when no brackets are present).
+    /// Parses a path segment such as <c>name</c>, <c>name[2]</c>, or
+    /// <c>name[$alias]</c> into its name, zero-based numeric index (defaulting to 0), and
+    /// optional named index string (non-<c>null</c> when the bracket content is not a plain
+    /// integer — e.g. an alias like <c>$questionnaire-versionAlgorithm</c> or a URL).
     /// </summary>
-    private static (string Name, int Index) ParseInstanceSegment(string segment)
+    private static (string Name, int Index, string? NamedIndex) ParseInstanceSegment(string segment)
     {
         var bracketStart = segment.IndexOf('[');
-        if (bracketStart < 0) return (segment, 0);
+        if (bracketStart < 0) return (segment, 0, null);
 
         var name = segment[..bracketStart];
         var bracketEnd = segment.IndexOf(']', bracketStart);
         var idxStr = bracketEnd > bracketStart + 1
             ? segment[(bracketStart + 1)..bracketEnd]
             : "0";
-        return (name, int.TryParse(idxStr, out var idx) ? idx : 0);
+
+        if (int.TryParse(idxStr, out var idx))
+            return (name, idx, null);
+
+        // Non-numeric bracket content — return it as the named index.
+        return (name, 0, idxStr);
     }
 
     // ─── Mapping compiler ─────────────────────────────────────────────────────

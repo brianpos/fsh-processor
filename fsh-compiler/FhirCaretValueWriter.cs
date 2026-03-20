@@ -218,6 +218,12 @@ public static class FhirCaretValueWriter
 
     private static object? ConvertValue(FshValue fshValue, Type targetType, ModelInspector inspector, Func<string, string>? aliasResolver = null)
     {
+        // Plain System.String property — e.g. Extension.Url in the Firely SDK is declared as a
+        // raw C# string rather than a FHIR PrimitiveType, so it has no string(string) constructor
+        // and CreatePrimitive returns null.  Handle it here before the FHIR-DataType switch.
+        if (targetType == typeof(string))
+            return GetStringFromFshValue(fshValue);
+
         // Code<TEnum> — use EnumUtility.ParseLiteral so that FHIR kebab-case literals
         // (e.g. "is-a", "grouped-by") are resolved correctly against [EnumLiteral] attributes.
         if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Code<>))
