@@ -225,7 +225,6 @@ public static class FshCompiler
         // Fall back to "resource" when the type can't be resolved (most common case).
         var parentTypeName = profile.Parent?.Value ?? "DomainResource";
         var resolvedParent = context.ResolveAlias(parentTypeName);
-        var kind = InferKindFromType(resolvedParent, opts.Inspector);
 
         // C-PR4: StructureDefinition.Type must be the bare FHIR type name.
         // When the parent is a URL (e.g. from an alias), strip to the last segment and
@@ -233,6 +232,8 @@ public static class FshCompiler
         // Only use the stripped name when it is a recognised type; otherwise fall back to
         // the pre-alias-resolution name so profiles-of-profiles don't produce a bogus type.
         var typeValue = ExtractBareTypeName(resolvedParent, parentTypeName, opts.Inspector);
+
+        var kind = InferKindFromType(typeValue, opts.Inspector);
 
         var sd = new StructureDefinition
         {
@@ -242,7 +243,6 @@ public static class FshCompiler
             Title = profile.Title?.Value,
             Description = profile.Description?.Value,
             Status = PublicationStatus.Active,
-            Experimental = false,
             Abstract = false,
             Kind = kind,
             Type = typeValue,
@@ -1723,7 +1723,7 @@ public static class FshCompiler
             else
                 instanceOfUrl = null; // can't determine URL; skip meta.profile
         }
-        if (!string.IsNullOrEmpty(instanceOfUrl))
+        if (!string.IsNullOrEmpty(instanceOfUrl) && !inspector.IsKnownResource(resolvedInstanceOf))
         {
             resource.Meta ??= new Meta();
             resource.Meta.Profile = [instanceOfUrl];
