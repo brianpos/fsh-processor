@@ -243,12 +243,13 @@ public class R4ProfileCompilerTests
         var ratio = (Ratio)ed.Pattern!;
         Assert.IsNotNull(ratio.Numerator);
         Assert.AreEqual(3m, ratio.Numerator.Value);
-        // The FSH parser preserves UCUM unit tokens including their surrounding single quotes
-        // (e.g. 'mg'), so the unit string in the model contains the quotes as written in FSH.
-        Assert.AreEqual("'mg'", ratio.Numerator.Unit);
+        // FSH UCUM units ('mg') are stored as Code + System, not the display Unit field.
+        Assert.AreEqual("mg", ratio.Numerator.Code);
+        Assert.AreEqual("http://unitsofmeasure.org", ratio.Numerator.System);
         Assert.IsNotNull(ratio.Denominator);
         Assert.AreEqual(1m, ratio.Denominator.Value);
-        Assert.AreEqual("'mg'", ratio.Denominator.Unit);
+        Assert.AreEqual("mg", ratio.Denominator.Code);
+        Assert.AreEqual("http://unitsofmeasure.org", ratio.Denominator.System);
     }
 
     [TestMethod]

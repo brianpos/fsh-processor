@@ -305,6 +305,24 @@ public static class FhirCaretValueWriter
         if (converted is Coding coding && targetType == typeof(CodeableConcept))
             return new CodeableConcept { Coding = [coding] };
 
+        // Quantity sub-types (Duration, Age, Distance, Count, MoneyQuantity, SimpleQuantity) —
+        // ToDataType always produces a plain Hl7.Fhir.Model.Quantity; copy its fields into a
+        // new instance of the requested concrete sub-type so that e.g. `valueDuration = 200 'a'`
+        // produces a Duration rather than a plain Quantity.
+        if (converted is Hl7.Fhir.Model.Quantity sourceQty
+            && converted.GetType().IsAssignableFrom(targetType))
+        {
+            if (Activator.CreateInstance(targetType) is Hl7.Fhir.Model.Quantity subQty)
+            {
+                subQty.Value = sourceQty.Value;
+                subQty.Comparator = sourceQty.Comparator;
+                subQty.Unit = sourceQty.Unit;
+                subQty.System = sourceQty.System;
+                subQty.Code = sourceQty.Code;
+                return subQty;
+            }
+        }
+
         // Both sides are string-backed FHIR primitives — extract the raw value and
         // create the correct target type (e.g. Canonical → FhirUri, FhirUrl → FhirString).
         if (converted is PrimitiveType primitive && primitive.ObjectValue is string rawValue)

@@ -163,10 +163,28 @@ public static class FhirValueMapper
         return null;
     }
 
-    private static Hl7.Fhir.Model.Quantity ToQuantity(FshQuantity q) =>
-        new()
+    private static Hl7.Fhir.Model.Quantity ToQuantity(FshQuantity q)
+    {
+        var unit = q.Unit;
+
+        // FSH UCUM units are wrapped in single quotes (e.g. 'a', 'mg').
+        // Strip the quotes and populate Code + System (UCUM canonical URL)
+        // rather than the human-readable Unit display field.
+        if (unit.Length >= 2 && unit[0] == '\'' && unit[^1] == '\'')
+        {
+            var code = unit[1..^1];
+            return new Hl7.Fhir.Model.Quantity
+            {
+                Value = q.Value,
+                Code = code,
+                System = "http://unitsofmeasure.org"
+            };
+        }
+
+        return new Hl7.Fhir.Model.Quantity
         {
             Value = q.Value,
-            Unit = q.Unit
+            Unit = unit
         };
+    }
 }
