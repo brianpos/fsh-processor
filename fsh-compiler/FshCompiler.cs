@@ -1676,20 +1676,11 @@ public static class FshCompiler
 
         // Resolve alias → type name, then strip any URL prefix to get the bare FHIR type name.
         var resolvedInstanceOf = context.ResolveAlias(instance.InstanceOf);
-        var typeName = resolvedInstanceOf;
-        var lastSlash = typeName.LastIndexOf('/');
-        if (lastSlash >= 0)
-            typeName = typeName[(lastSlash + 1)..];
 
-        var classMap = inspector.FindClassMapping(typeName);
-        if (classMap is null || !classMap.IsResource)
-        {
-            // typeName may be a profile identifier rather than a bare FHIR type.
-            // Walk compiled StructureDefinitions to resolve the actual base resource type.
-            var ar = new AliasResolver(context.CompiledStructureDefinitions);
-            IResourceResolver imr = (options?.Resolver == null) ? ar : new MultiResolver(ar, options?.Resolver);
-            classMap = context.ResolveClassMappingForProfile(typeName, inspector, imr);
-        }
+        // Resolve the type name
+        var ar = new AliasResolver(context.CompiledStructureDefinitions);
+        IResourceResolver imr = (options?.Resolver == null) ? ar : new MultiResolver(ar, options?.Resolver);
+        var classMap = context.ResolveClassMappingForProfile(resolvedInstanceOf, inspector, imr, out string? resolvedCanonicalUrl);
 
         if (classMap is null || !classMap.IsResource)
         {
@@ -1702,6 +1693,8 @@ public static class FshCompiler
             return null;
         }
 
+        var typeName = classMap.Name;
+
         if (Activator.CreateInstance(classMap.NativeType) is not FhirResource resource)
             return null;
 
@@ -1710,7 +1703,7 @@ public static class FshCompiler
 
         // C-IN2: Set meta.profile to the InstanceOf canonical URL when it looks like a URL,
         // or when a canonical base is set (so we can construct it).
-        var instanceOfUrl = resolvedInstanceOf;
+        var instanceOfUrl = resolvedCanonicalUrl;
         if (!IsAbsoluteUrl(instanceOfUrl))
         {
             // Not a URL — try to build one with the canonical base if available.
