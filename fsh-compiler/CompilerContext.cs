@@ -154,10 +154,11 @@ public class CompilerContext
     /// A <see cref="ClassMapping"/> for the resolved FHIR resource type, or <c>null</c> when
     /// the type cannot be resolved.
     /// </returns>
-    public ClassMapping? ResolveClassMappingForProfile(string typeName, ModelInspector inspector, IResourceResolver resolver)
+    public ClassMapping? ResolveClassMappingForProfile(string typeName, ModelInspector inspector, IResourceResolver resolver, out string? resolvedCanonicalUrl)
     {
         var sd = resolver.FindStructureDefinition(typeName);
         var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
+        resolvedCanonicalUrl = sd?.Url;
 
         while (sd is not null)
         {

@@ -261,7 +261,7 @@ public class SdcIgCompilerTests
     [TestMethod]
     public void Compile_AustralianStates()
     {
-        Compile_SpecificResource("AustralianStates.fsh");
+        Compile_SpecificResource("AustralianStates.fsh", "AustralianStateCodes.fsh");
     }
 
     [TestMethod]

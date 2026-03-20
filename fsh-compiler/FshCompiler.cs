@@ -1911,7 +1911,12 @@ public static class FshCompiler
 
         // Set the leaf.
         var (leafName, leafIdx) = ParseInstanceSegment(segments[segments.Length - 1]);
-        return FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver);
+        if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver))
+            return true;
+
+        // Choice-type fallback: e.g. "valueDecimal", "admitReasonCoding" — scan right-to-left
+        // for a suffix that is a recognised FHIR DataType name.
+        return FhirCaretValueWriter.TrySetChoiceTypeLeaf(current, leafName, value, inspector, aliasResolver);
     }
 
     /// <summary>

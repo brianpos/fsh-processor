@@ -42,7 +42,7 @@ public static class FhirValueMapper
             FshCode c => CodeToDataType(c, aliasResolver),
             FshQuantity q => ToQuantity(q),
             RegexValue rv => new FhirString(rv.Pattern),
-            Reference r => new ResourceReference(r.Type),
+            Reference r => new ResourceReference(r.Type, r.Display),
             FshCanonical can => new FhirCanonical(can.Version is null ? can.Url : $"{can.Url}|{can.Version}"),
             FshCodeableReference cr => new FhirCodeableReference { Reference = new ResourceReference(cr.Type) },
             FshRatio r => CreateRatio(r, inspector),

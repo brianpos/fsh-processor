@@ -1,4 +1,3 @@
-using System.Reflection;
 using fsh_processor.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
@@ -183,14 +182,15 @@ public static class FhirCaretValueWriter
             var baseName   = elementName[..i];
 
             // The suffix must be a recognised FHIR DataType name.
-            if (inspector.FindClassMapping(typeSuffix) is null) continue;
+            var suffixType = inspector.FindClassMapping(typeSuffix);
+            if (suffixType is null) continue;
 
             // The base must be a mapped property on the target class.
             var propMap = classMap.FindMappedElementByName(baseName);
             if (propMap is null) continue;
 
             // Produce a concrete DataType from the FSH value.
-            var dataType = FhirValueMapper.ToDataType(fshValue, inspector, aliasResolver);
+            var dataType = AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector, aliasResolver), suffixType.NativeType);
             if (dataType is null) return false;
 
             // Verify the concrete type is assignment-compatible with the property's implementing type.
