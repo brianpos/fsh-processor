@@ -23,7 +23,7 @@ public class R4ProfileCompilerTests
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyPatient");
         Assert.AreEqual("MyPatient", sd.Name);
         Assert.AreEqual("Patient", sd.Type);
-        Assert.AreEqual("Patient", sd.BaseDefinition);
+        Assert.AreEqual("http://hl7.org/fhir/StructureDefinition/Patient", sd.BaseDefinition);
         Assert.AreEqual(StructureDefinition.TypeDerivationRule.Constraint, sd.Derivation);
     }
 
