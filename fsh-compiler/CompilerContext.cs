@@ -156,6 +156,18 @@ public class CompilerContext
     /// </returns>
     public ClassMapping? ResolveClassMappingForProfile(string typeName, ModelInspector inspector, IResourceResolver resolver, out string? resolvedCanonicalUrl)
     {
+        if (inspector.IsKnownResource(typeName))
+        {
+            resolvedCanonicalUrl = inspector.CanonicalUriForFhirCoreType(typeName);
+            return inspector.FindClassMapping(typeName);
+        }
+        var cmCanonical = inspector.FindClassMappingByCanonical(typeName);
+        if (cmCanonical != null)
+        {
+            resolvedCanonicalUrl = typeName;
+            return cmCanonical;
+        }
+
         var sd = resolver.FindStructureDefinition(typeName);
         var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
         resolvedCanonicalUrl = sd?.Url;
