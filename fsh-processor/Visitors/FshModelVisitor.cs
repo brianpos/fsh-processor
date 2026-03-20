@@ -661,17 +661,21 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         if (desc != null && profile.Description == null)
         {
             string value;
+            bool isMultiline;
             if (context.description().STRING() != null)
             {
                 value = ExtractString(context.description().STRING().GetText());
+                isMultiline = false;
             }
             else
             {
                 value = ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+                isMultiline = true;
             }
             profile.Description = new Metadata()
             {
-                Value = value
+                Value = value,
+                IsMultiline = isMultiline
             };
         }
     }
@@ -696,6 +700,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             extension.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            extension.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -719,6 +724,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             logical.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            logical.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -742,6 +748,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             resource.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            resource.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -814,6 +821,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             instance.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            instance.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
         else if (context.usage() != null)
         {
@@ -830,6 +838,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             invariant.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            invariant.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
         else if (context.expression() != null)
         {
@@ -862,6 +871,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             valueSet.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            valueSet.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -882,6 +892,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             codeSystem.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            codeSystem.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -910,6 +921,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             mapping.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            mapping.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -1381,7 +1393,8 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             Flags = flags,
             TargetTypes = targetTypes,
             ShortDescription = shortDescription,
-            Definition = definition
+            Definition = definition,
+            IsDefinitionMultiline = context.MULTILINE_STRING() != null ? true : definition != null ? false : null
         };
     }
 
@@ -1427,7 +1440,8 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             Flags = flags,
             ContentReference = contentReference,
             ShortDescription = shortDescription,
-            Definition = definition
+            Definition = definition,
+            IsDefinitionMultiline = context.MULTILINE_STRING() != null ? true : definition != null ? false : null
         };
     }
 
@@ -1857,7 +1871,8 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             Indent = GetRuleIndent(context.STAR()),
             Codes = codes,
             Display = display,
-            Definition = definition
+            Definition = definition,
+            IsDefinitionMultiline = context.MULTILINE_STRING() != null ? true : definition != null ? false : null
         };
     }
 

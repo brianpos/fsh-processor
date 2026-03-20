@@ -153,7 +153,7 @@ public static class FshSerializer
         if (profile.Description != null)
         {
             sb.Append("Description: ");
-            SerializeQuotedString(sb, profile.Description.Value);
+            SerializeSmartQuotedString(sb, profile.Description.Value, profile.Description.IsMultiline);
             OutputTrailingHiddenTokens(sb, profile.Description);
             sb.AppendLine();
         }
@@ -213,7 +213,7 @@ public static class FshSerializer
         if (extension.Description != null)
         {
             sb.Append("Description: ");
-            SerializeQuotedString(sb, extension.Description);
+            SerializeSmartQuotedString(sb, extension.Description, extension.IsDescriptionMultiline);
             sb.AppendLine();
         }
     }
@@ -272,7 +272,7 @@ public static class FshSerializer
         if (logical.Description != null)
         {
             sb.Append("Description: ");
-            SerializeQuotedString(sb, logical.Description);
+            SerializeSmartQuotedString(sb, logical.Description, logical.IsDescriptionMultiline);
             sb.AppendLine();
         }
     }
@@ -318,7 +318,7 @@ public static class FshSerializer
         if (resource.Description != null)
         {
             sb.Append("Description: ");
-            SerializeQuotedString(sb, resource.Description);
+            SerializeSmartQuotedString(sb, resource.Description, resource.IsDescriptionMultiline);
             sb.AppendLine();
         }
     }
@@ -348,7 +348,7 @@ public static class FshSerializer
         if (instance.Description != null)
         {
             sb.Append("Description: ");
-            SerializeQuotedString(sb, instance.Description);
+            SerializeSmartQuotedString(sb, instance.Description, instance.IsDescriptionMultiline);
             sb.AppendLine();
         }
         if (instance.Usage != null)
@@ -378,7 +378,7 @@ public static class FshSerializer
         if (invariant.Description != null)
         {
             sb.Append("Description: ");
-            SerializeQuotedString(sb, invariant.Description);
+            SerializeSmartQuotedString(sb, invariant.Description, invariant.IsDescriptionMultiline);
             sb.AppendLine();
         }
         if (invariant.Expression != null)
@@ -431,7 +431,7 @@ public static class FshSerializer
         if (valueSet.Description != null)
         {
             sb.Append("Description: ");
-            SerializeQuotedString(sb, valueSet.Description);
+            SerializeSmartQuotedString(sb, valueSet.Description, valueSet.IsDescriptionMultiline);
             sb.AppendLine();
         }
 
@@ -467,7 +467,7 @@ public static class FshSerializer
         if (codeSystem.Description != null)
         {
             sb.Append("Description: ");
-            SerializeQuotedString(sb, codeSystem.Description);
+            SerializeSmartQuotedString(sb, codeSystem.Description, codeSystem.IsDescriptionMultiline);
             sb.AppendLine();
         }
 
@@ -573,7 +573,7 @@ public static class FshSerializer
         if (mapping.Description != null)
         {
             sb.Append("Description: ");
-            SerializeQuotedString(sb, mapping.Description);
+            SerializeSmartQuotedString(sb, mapping.Description, mapping.IsDescriptionMultiline);
             sb.AppendLine();
         }
 
@@ -1038,9 +1038,9 @@ public static class FshSerializer
         if (rule.Definition != null)
         {
             sb.Append(" ");
-            SerializeQuotedString(sb, rule.Definition);
+            SerializeSmartQuotedString(sb, rule.Definition, rule.IsDefinitionMultiline);
         }
-        
+
         OutputTrailingHiddenTokens(sb, rule);
         sb.AppendLine();
     }
@@ -1075,9 +1075,9 @@ public static class FshSerializer
         if (rule.Definition != null)
         {
             sb.Append(" ");
-            SerializeQuotedString(sb, rule.Definition);
+            SerializeSmartQuotedString(sb, rule.Definition, rule.IsDefinitionMultiline);
         }
-        
+
         OutputTrailingHiddenTokens(sb, rule);
         sb.AppendLine();
     }
@@ -1375,9 +1375,9 @@ public static class FshSerializer
         
         if (concept.Definition != null)
         {
-            SerializeQuotedString(sb, concept.Definition);
+            SerializeSmartQuotedString(sb, concept.Definition, concept.IsDefinitionMultiline);
         }
-        
+
         OutputTrailingHiddenTokens(sb, concept);
         sb.AppendLine();
     }
@@ -1494,7 +1494,7 @@ public static class FshSerializer
         switch (value)
         {
             case StringValue sv:
-                SerializeQuotedString(sb, sv.Value);
+                SerializeSmartQuotedString(sb, sv.Value, sv.IsMultiline);
                 break;
             case NumberValue nv:
                 sb.Append(nv.Value);
@@ -1614,18 +1614,33 @@ public static class FshSerializer
 
     private static void SerializeQuotedString(StringBuilder sb, string value)
     {
-        // Determine if we need multiline string
-        if (value.Contains('\n') || value.Contains('\r'))
+        sb.Append("\"");
+        sb.Append(EscapeString(value));
+        sb.Append("\"");
+    }
+
+    private static void SerializeMultilineQuotedString(StringBuilder sb, string value)
+    {
+        sb.Append("\"\"\"");
+        sb.Append(value);
+        sb.Append("\"\"\"");
+    }
+
+    /// <summary>
+    /// Serializes a string using the format indicated by <paramref name="isMultiline"/>.
+    /// <c>true</c> = triple-quoted; <c>false</c> = regular quoted; <c>null</c> = auto-detect
+    /// (uses multiline when the value contains a raw newline).
+    /// </summary>
+    private static void SerializeSmartQuotedString(StringBuilder sb, string value, bool? isMultiline)
+    {
+        bool useMultiline = isMultiline ?? value.Contains('\n');
+        if (useMultiline)
         {
-            sb.Append("\"\"\"");
-            sb.Append(value);
-            sb.Append("\"\"\"");
+            SerializeMultilineQuotedString(sb, value);
         }
         else
         {
-            sb.Append("\"");
-            sb.Append(EscapeString(value));
-            sb.Append("\"");
+            SerializeQuotedString(sb, value);
         }
     }
 
