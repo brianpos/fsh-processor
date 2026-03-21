@@ -14,12 +14,18 @@ public static class FshParser
     /// Parse FSH text and build a structured object model with position tracking.
     /// </summary>
     /// <param name="fshText">The FSH text to parse</param>
+    /// <param name="preserveSoftIndices">
+    /// When <c>true</c>, <c>[+]</c> and <c>[=]</c> soft-index tokens are preserved as-is
+    /// rather than being resolved to numeric indices during path post-processing.
+    /// Path composition (indented rules) is still applied.  Use this when re-parsing a
+    /// parameterised rule set so the compiler can manage indices against its own context.
+    /// </param>
     /// <returns>
     /// A <see cref="ParseResult"/> which is either:
     /// - <see cref="ParseResult.Success"/> with a <see cref="FshDoc"/> on successful parsing
     /// - <see cref="ParseResult.Failure"/> with a list of <see cref="ParseError"/> on failure
     /// </returns>
-    public static ParseResult Parse(string fshText)
+    public static ParseResult Parse(string fshText, bool preserveSoftIndices = false)
     {
         if (string.IsNullOrEmpty(fshText))
         {
@@ -67,9 +73,9 @@ public static class FshParser
             }
             
             // Build the object model using the visitor
-            var visitor = new FshModelVisitor(tokenStream);
+            var visitor = new FshModelVisitor(tokenStream, preserveSoftIndices);
             var document = visitor.Visit(tree) as FshDoc;
-            
+
             if (document == null)
             {
                 return new ParseResult.Failure(new List<ParseError>
@@ -85,7 +91,7 @@ public static class FshParser
                     }
                 });
             }
-            
+
             return new ParseResult.Success(document);
         }
         catch (Exception ex)

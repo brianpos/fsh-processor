@@ -17,10 +17,22 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
 {
     private readonly CommonTokenStream _tokenStream;
     private readonly HashSet<int> _claimedTokenIndexes = new();
+    private readonly bool _preserveSoftIndices;
 
-    public FshModelVisitor(CommonTokenStream tokenStream)
+    /// <summary>
+    /// Creates a new <see cref="FshModelVisitor"/>.
+    /// </summary>
+    /// <param name="tokenStream">The token stream from the ANTLR lexer.</param>
+    /// <param name="preserveSoftIndices">
+    /// When <c>true</c>, <c>[+]</c> and <c>[=]</c> soft-index tokens are left as-is rather
+    /// than being resolved to numeric indices during <see cref="PostProcessRules"/>.
+    /// Path composition (indented rules) is still applied.  Use this when re-parsing a
+    /// parameterised rule set so the compiler can resolve indices against the outer context.
+    /// </param>
+    public FshModelVisitor(CommonTokenStream tokenStream, bool preserveSoftIndices = false)
     {
         _tokenStream = tokenStream ?? throw new ArgumentNullException(nameof(tokenStream));
+        _preserveSoftIndices = preserveSoftIndices;
     }
 
     #region Document and Entity Root
@@ -940,7 +952,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     /// by 1, and [=] SHALL reference the same index that was last referenced."
     /// </para>
     /// </summary>
-    private static void PostProcessRules(IEnumerable<FshRule> rules)
+    private void PostProcessRules(IEnumerable<FshRule> rules)
     {
         // Stack entries: (indentLength, effectivePath)
         var pathStack = new Stack<(int IndentLen, string Path)>();
@@ -971,11 +983,24 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             }
 
             // P-FP2: Expand [+] and [=] soft-index tokens to numeric indices.
-            var expandedPath = composedPath != null ? ResolveSoftIndices(composedPath, softState) : null;
+            // When _preserveSoftIndices is true (re-parse for parameterised rule set expansion),
+            // skip expansion so the compiler can resolve indices against the outer context.
+            var expandedPath = (!_preserveSoftIndices && composedPath != null)
+                ? ResolveSoftIndices(composedPath, softState)
+                : composedPath;
 
             // Push effective path as context for deeper-indented children.
+            // When preserving soft indices: push with [+] replaced by [=] so that
+            // child paths reference the same slot (input[=].type) rather than
+            // requesting a new increment (input[+].type). The parent [+] rule keeps
+            // its own [+] so the compiler advances the counter via InstancePathRule.
             if (!string.IsNullOrEmpty(expandedPath))
-                pathStack.Push((indentLen, expandedPath));
+            {
+                var stackPath = _preserveSoftIndices
+                    ? expandedPath.Replace("[+]", "[=]")
+                    : expandedPath;
+                pathStack.Push((indentLen, stackPath));
+            }
 
             // Apply the composed, expanded path and flatten the indent.
             rule.Path = expandedPath;

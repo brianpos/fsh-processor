@@ -1758,24 +1758,33 @@ public static class FshCompiler
         FhirResource resource,
         CompilerContext context,
         CompilerOptions opts,
-        ModelInspector inspector)
+        ModelInspector inspector,
+        Dictionary<string, int>? softIndexState = null)
     {
         // C-FP2: Soft-index state — maps path prefix → current resolved index.
         // The state dictionary persists across ALL rules in this entity's rule list so that
         // each [+] accumulates sequentially and [=] can reference a [+] from a previous rule.
+        // When called recursively (for InstanceInsertRule expansion), the outer state is passed
+        // through so that [+] counters continue from wherever the outer rules left off.
         // [+] increments (or starts at 0) and stores the new index in state.
         // [=] reuses the stored index (defaults to 0 if no prior [+] has been seen for this prefix).
-        var softIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
+        softIndexState ??= new Dictionary<string, int>(StringComparer.Ordinal);
 
         foreach (var rule in rules)
         {
             switch (rule)
             {
+                // InstancePathRule (`* input[+]` with no value) acts as a soft-index
+                // counter advance when rules are expanded from parameterised RuleSets.
+                // The [+] in the path must be resolved to move softIndexState forward
+                // so that subsequent [=] references in sibling rules use the same slot.
+                case InstancePathRule pathRule when !string.IsNullOrEmpty(pathRule.Path):
+                    ResolveSoftIndices(pathRule.Path, softIndexState);
+                    break;
+
                 case InstanceFixedValueRule fixedRule when
                     !string.IsNullOrEmpty(fixedRule.Path) && fixedRule.Value != null:
                     var resolvedPath = ResolveSoftIndices(fixedRule.Path, softIndexState);
-
-                    // C-IN6: `* contained = <Name>` — embed a named Instance as a contained resource.
                     // The path base must be "contained" (with optional index, e.g. "contained[+]")
                     // and the value must be a NameValue (cross-instance reference).
                     if (fixedRule.Value is NameValue nameRef &&
@@ -1801,9 +1810,9 @@ public static class FshCompiler
                 case InstanceInsertRule insertRule:
                     var resolved = RuleSetResolver.Resolve(
                         insertRule.RuleSetReference, insertRule.IsParameterized,
-                        insertRule.Parameters, context);
+                        insertRule.Parameters, context, useInstanceWrapper: true);
                     ApplyInstanceRules(
-                        resolved.OfType<InstanceRule>(), resource, context, opts, inspector);
+                        resolved.OfType<InstanceRule>(), resource, context, opts, inspector, softIndexState);
                     break;
             }
         }
