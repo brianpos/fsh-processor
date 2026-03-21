@@ -1973,7 +1973,16 @@ public static class FshCompiler
         if (classMap is null) return null;
 
         var propMap = classMap.FindMappedElementByName(name);
-        if (propMap is null) return null;
+        if (propMap is null)
+        {
+            // Choice-type fallback: the path segment uses a typed variant name such as
+            // "valueExpression" where the underlying FHIR property is "value[x]".
+            // Scan right-to-left for an uppercase boundary, check whether the suffix names a
+            // recognised FHIR DataType, and whether the base is a mapped property.  When found,
+            // get-or-create an instance of the concrete DataType and return it so the caller can
+            // continue navigating into its children.
+            return GetOrCreateChoiceTypeChild(parent, name, classMap, inspector);
+        }
 
         // Determine the concrete instantiable type.
         var concreteType = propMap.ImplementingType;
@@ -2033,6 +2042,48 @@ public static class FshCompiler
             }
             return child;
         }
+    }
+
+    /// <summary>
+    /// Handles intermediate path segments that use FHIR choice-type syntax
+    /// (e.g. <c>valueExpression</c> → <c>value[x]</c> of type <c>Expression</c>).
+    /// When a matching base property and DataType suffix are found, gets or creates an instance
+    /// of the concrete DataType on the parent and returns it for further navigation.
+    /// Returns <c>null</c> when no valid split is found.
+    /// </summary>
+    private static Base? GetOrCreateChoiceTypeChild(
+        Base parent, string name, ClassMapping classMap, ModelInspector inspector)
+    {
+        for (int i = name.Length - 1; i >= 1; i--)
+        {
+            if (!char.IsUpper(name[i])) continue;
+
+            var typeSuffix = name[i..];
+            var baseName   = name[..i];
+
+            var suffixType = inspector.FindClassMapping(typeSuffix);
+            if (suffixType is null) continue;
+            if (suffixType.NativeType.IsAbstract) continue;
+
+            var basePropMap = classMap.FindMappedElementByName(baseName);
+            if (basePropMap is null) continue;
+
+            // The concrete type must be assignable to the property's implementing type.
+            if (!basePropMap.ImplementingType.IsAssignableFrom(suffixType.NativeType)) continue;
+            if (basePropMap.IsCollection) continue; // Don't handle collection value[x] here
+
+            // Return the existing child if it's already the right type; otherwise create new.
+            var existing = basePropMap.GetValue(parent) as Base;
+            if (existing is not null && suffixType.NativeType.IsAssignableFrom(existing.GetType()))
+                return existing;
+
+            var child = Activator.CreateInstance(suffixType.NativeType) as Base;
+            if (child is null) return null;
+            basePropMap.SetValue(parent, child);
+            return child;
+        }
+
+        return null;
     }
 
     /// <summary>Splits a FHIR instance path on <c>.</c> boundaries.</summary>

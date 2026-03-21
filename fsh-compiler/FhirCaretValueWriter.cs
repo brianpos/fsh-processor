@@ -222,7 +222,16 @@ public static class FhirCaretValueWriter
         // raw C# string rather than a FHIR PrimitiveType, so it has no string(string) constructor
         // and CreatePrimitive returns null.  Handle it here before the FHIR-DataType switch.
         if (targetType == typeof(string))
+        {
+            // NameValue: `$alias` used without a `#code` suffix is parsed as a name by the FSH
+            // grammar (not as a Code token).  For string targets such as Extension.Url, resolve
+            // the alias to its URL and return the resulting string directly — the raw C# string
+            // property does not need URI percent-encoding (unlike FhirUri/FhirUrl primitives).
+            if (fshValue is NameValue nameVal)
+                return aliasResolver?.Invoke(nameVal.Value) ?? nameVal.Value;
+
             return GetStringFromFshValue(fshValue);
+        }
 
         // Base64Binary — the Firely SDK stores binary data as byte[] and its only non-default
         // constructor takes byte[].  A FSH string value is treated as a base64-encoded string.
