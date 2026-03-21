@@ -1772,22 +1772,55 @@ public static class FshCompiler
                 case InstanceFixedValueRule fixedRule when
                     !string.IsNullOrEmpty(fixedRule.Path) && fixedRule.Value != null:
                     var resolvedPath = ResolveSoftIndices(fixedRule.Path, softIndexState);
-                    // The path base must be "contained" (with optional index, e.g. "contained[+]")
-                    // and the value must be a NameValue (cross-instance reference).
+                    // When the value is a NameValue (cross-instance reference) and the leaf
+                    // property accepts a Resource, build the referenced instance and embed it
+                    // inline.  This covers both DomainResource.contained[] and any other
+                    // Resource-typed leaf (e.g. Parameters.parameter[].resource).
                     if (fixedRule.Value is NameValue nameRef &&
-                        resource is DomainResource domRes)
+                        context.Instances.TryGetValue(nameRef.Value, out var refInstance))
                     {
-                        var pathBase = resolvedPath.Split('[')[0];
-                        if (string.Equals(pathBase, "contained", StringComparison.Ordinal) &&
-                            context.Instances.TryGetValue(nameRef.Value, out var refInstance))
+                        var segments = SplitInstancePath(resolvedPath);
+                        if (segments.Length > 0)
                         {
-                            var containedResource = BuildInstance(refInstance, context, opts, forContained: true);
-                            if (containedResource != null)
+                            // Navigate to the parent of the leaf.
+                            Base? parent = resource;
+                            for (int si = 0; si < segments.Length - 1 && parent != null; si++)
                             {
-                                domRes.Contained ??= [];
-                                domRes.Contained.Add(containedResource);
+                                var (sn, sIdx, sni) = ParseInstanceSegment(segments[si]);
+                                parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, context.ResolveAlias);
                             }
-                            break;
+                            if (parent != null)
+                            {
+                                var (leafName, _, _) = ParseInstanceSegment(segments[^1]);
+                                var parentClassMap = inspector.FindClassMapping(parent.GetType());
+                                var leafPropMap = parentClassMap?.FindMappedElementByName(leafName);
+                                if (leafPropMap != null &&
+                                    typeof(Hl7.Fhir.Model.Resource).IsAssignableFrom(leafPropMap.ImplementingType))
+                                {
+                                    var embeddedResource = BuildInstance(refInstance, context, opts, forContained: true);
+                                    if (embeddedResource != null)
+                                    {
+                                        if (leafPropMap.IsCollection)
+                                        {
+                                            // e.g. DomainResource.contained[]
+                                            var list = leafPropMap.GetValue(parent) as System.Collections.IList;
+                                            if (list is null)
+                                            {
+                                                var listType = typeof(List<>).MakeGenericType(leafPropMap.ImplementingType);
+                                                list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                                                leafPropMap.SetValue(parent, list);
+                                            }
+                                            list.Add(embeddedResource);
+                                        }
+                                        else
+                                        {
+                                            // e.g. Parameters.ParameterComponent.Resource
+                                            leafPropMap.SetValue(parent, embeddedResource);
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
                         }
                     }
 
@@ -2011,6 +2044,45 @@ public static class FshCompiler
                 var newExt = new Hl7.Fhir.Model.Extension { Url = resolvedUrl };
                 list.Add(newExt);
                 return newExt;
+            }
+
+            // Named-slice for non-Extension elements (e.g. Parameters.parameter[questionnaire]):
+            // find-or-create by the element's "name" property when the bracket content is a
+            // non-numeric slice name.
+            if (namedIndex is not null && concreteType != typeof(Hl7.Fhir.Model.Extension))
+            {
+                var elementClassMap = inspector.FindClassMapping(concreteType);
+                var namePropMap = elementClassMap?.FindMappedElementByName("name");
+                if (namePropMap != null)
+                {
+                    // Reuse an existing element whose "name" matches.
+                    foreach (var item in list)
+                    {
+                        if (item is Base existingBase)
+                        {
+                            var existingName = namePropMap.GetValue(existingBase);
+                            var existingNameStr = existingName switch
+                            {
+                                Hl7.Fhir.Model.FhirString fs => fs.Value,
+                                string s => s,
+                                _ => null
+                            };
+                            if (existingNameStr == namedIndex)
+                                return existingBase;
+                        }
+                    }
+                    // Create a new element and set its "name" property.
+                    var newElement = Activator.CreateInstance(concreteType) as Base;
+                    if (newElement != null)
+                    {
+                        var nameValue = namePropMap.ImplementingType == typeof(string)
+                            ? (object)namedIndex
+                            : new Hl7.Fhir.Model.FhirString(namedIndex);
+                        namePropMap.SetValue(newElement, nameValue);
+                        list.Add(newElement);
+                        return newElement;
+                    }
+                }
             }
 
             while (list.Count <= index)
