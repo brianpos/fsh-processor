@@ -293,7 +293,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                 instance.Rules.Add(instanceRule);
             }
         }
-        PostProcessRules(instance.Rules);
+        PostProcessRules(instance.Rules, preserveSoftIndices: true);
 
         return instance;
     }
@@ -952,8 +952,17 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     /// by 1, and [=] SHALL reference the same index that was last referenced."
     /// </para>
     /// </summary>
-    private void PostProcessRules(IEnumerable<FshRule> rules)
+    /// <param name="preserveSoftIndices">
+    /// When <c>true</c>, skip resolving <c>[+]</c>/<c>[=]</c> tokens to numeric indices so
+    /// the compiler can resolve them at runtime against the outer soft-index context.
+    /// Should be <c>true</c> for <see cref="Instance"/> entities because RuleSet insertions
+    /// can create <c>[+]</c> elements that the outer <c>[=]</c> references must see.
+    /// Defaults to the visitor-level <see cref="_preserveSoftIndices"/> flag.
+    /// </param>
+    private void PostProcessRules(IEnumerable<FshRule> rules, bool? preserveSoftIndices = null)
     {
+        var preserve = preserveSoftIndices ?? _preserveSoftIndices;
+
         // Stack entries: (indentLength, effectivePath)
         var pathStack = new Stack<(int IndentLen, string Path)>();
         // Soft-index state: path prefix → current resolved numeric index
@@ -983,9 +992,10 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             }
 
             // P-FP2: Expand [+] and [=] soft-index tokens to numeric indices.
-            // When _preserveSoftIndices is true (re-parse for parameterised rule set expansion),
+            // When preserving (re-parse for parameterised rule set expansion, or Instance entity
+            // whose indices must be resolved at compiler-time after RuleSet inserts have run),
             // skip expansion so the compiler can resolve indices against the outer context.
-            var expandedPath = (!_preserveSoftIndices && composedPath != null)
+            var expandedPath = (!preserve && composedPath != null)
                 ? ResolveSoftIndices(composedPath, softState)
                 : composedPath;
 
@@ -996,7 +1006,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             // its own [+] so the compiler advances the counter via InstancePathRule.
             if (!string.IsNullOrEmpty(expandedPath))
             {
-                var stackPath = _preserveSoftIndices
+                var stackPath = preserve
                     ? expandedPath.Replace("[+]", "[=]")
                     : expandedPath;
                 pathStack.Push((indentLen, stackPath));

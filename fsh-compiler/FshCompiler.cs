@@ -1718,19 +1718,6 @@ public static class FshCompiler
             resource.Meta.Profile = [instanceOfUrl];
         }
 
-        // C-IN3: Set Title and Description on conformance resources that support them.
-        if (!string.IsNullOrEmpty(instance.Title) || !string.IsNullOrEmpty(instance.Description))
-        {
-            var resClassMap = inspector.FindClassMapping(resource.GetType());
-            if (resClassMap != null)
-            {
-                if (!string.IsNullOrEmpty(instance.Title))
-                    TrySetStringProperty(resource, resClassMap, "title", instance.Title);
-                if (!string.IsNullOrEmpty(instance.Description))
-                    TrySetStringProperty(resource, resClassMap, "description", instance.Description);
-            }
-        }
-
         // Apply instance rules.
         ApplyInstanceRules(instance.Rules, resource, context, opts, inspector);
 
