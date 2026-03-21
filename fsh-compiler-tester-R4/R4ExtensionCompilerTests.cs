@@ -31,7 +31,7 @@ public class R4ExtensionCompilerTests
             Parent: Extension
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyExtension");
-        Assert.AreEqual("Extension", sd.BaseDefinition);
+        Assert.AreEqual("http://hl7.org/fhir/StructureDefinition/Extension", sd.BaseDefinition);
     }
 
     [TestMethod]

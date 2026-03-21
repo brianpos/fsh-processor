@@ -139,6 +139,226 @@ public static class FhirCaretValueWriter
     // ─── Value conversion ────────────────────────────────────────────────────
 
     /// <summary>
+    /// Attempts to set a potentially compound (dot-separated) caret path on a FHIR object,
+    /// supporting soft-index notation (<c>[+]</c>, <c>[=]</c>, <c>[N]</c>) and URL-keyed
+    /// extension navigation (<c>extension[$alias]</c>) for collection navigation.
+    /// Simple (single-segment, no brackets) paths are forwarded to <see cref="TrySet"/>.
+    /// </summary>
+    /// <param name="target">Root FHIR object to start navigation from.</param>
+    /// <param name="compoundPath">
+    /// Dot-separated path, e.g. <c>"context.type"</c>, <c>"context[+].type"</c>,
+    /// <c>"slicing.discriminator.path"</c>, <c>"binding.description"</c>,
+    /// <c>"extension[$alias].valueCode"</c>.
+    /// </param>
+    /// <param name="fshValue">The FSH value to set at the leaf segment.</param>
+    /// <param name="softIndexState">
+    /// Mutable dictionary tracking the current soft-index counter per path prefix.
+    /// Pass the same instance across sequential rule applications so <c>[+]</c>/<c>[=]</c>
+    /// pairs work correctly.
+    /// </param>
+    /// <param name="inspector">Version-specific model inspector.</param>
+    /// <param name="aliasResolver">FSH alias resolver.</param>
+    /// <returns><c>true</c> when the value was set; <c>false</c> otherwise.</returns>
+    public static bool TrySetCompound(
+        Base target,
+        string compoundPath,
+        FshValue? fshValue,
+        Dictionary<string, int> softIndexState,
+        ModelInspector? inspector = null,
+        Func<string, string>? aliasResolver = null)
+    {
+        if (fshValue is null) return false;
+
+        // Fast path: no compound navigation needed.
+        if (!compoundPath.Contains('.') && !compoundPath.Contains('['))
+            return TrySet(target, compoundPath, fshValue, inspector, aliasResolver);
+
+        var activeInspector = inspector ?? _conformanceFallback.Value;
+
+        // Split at the first dot outside brackets to get head segment and the remaining tail.
+        var dotIndex = FindFirstDotOutsideBrackets(compoundPath);
+        if (dotIndex < 0)
+        {
+            // No dot — has bracket notation only (e.g. "context[+]"), no leaf property.
+            return false;
+        }
+
+        var headSegment = compoundPath[..dotIndex];
+        var tailPath    = compoundPath[(dotIndex + 1)..];
+
+        // Navigate into the child indicated by headSegment.
+        var next = NavigateToChild(target, headSegment, softIndexState, activeInspector, create: true, aliasResolver);
+        if (next is not Base nextBase) return false;
+
+        // Recursively set the tail path; if still compound, recurse.
+        if (tailPath.Contains('.') || tailPath.Contains('['))
+            return TrySetCompound(nextBase, tailPath, fshValue, softIndexState, activeInspector, aliasResolver);
+
+        // Leaf segment: try plain TrySet first, then choice-type fallback.
+        if (TrySet(nextBase, tailPath, fshValue, activeInspector, aliasResolver)) return true;
+        return TrySetChoiceTypeLeaf(nextBase, tailPath, fshValue!, activeInspector, aliasResolver);
+    }
+
+    /// <summary>
+    /// Returns the index of the first <c>'.'</c> that is not inside square brackets,
+    /// or <c>-1</c> if no such dot exists.
+    /// </summary>
+    private static int FindFirstDotOutsideBrackets(string path)
+    {
+        int depth = 0;
+        for (int i = 0; i < path.Length; i++)
+        {
+            switch (path[i])
+            {
+                case '[': depth++; break;
+                case ']': if (depth > 0) depth--; break;
+                case '.' when depth == 0: return i;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Navigates one path segment on <paramref name="parent"/> and returns the child object.
+    /// Supports:
+    /// <list type="bullet">
+    ///   <item><description><c>name</c>  — scalar: get existing value or create one; collection: use last element or first.</description></item>
+    ///   <item><description><c>name[+]</c> — append a new element to the collection and track its index in <paramref name="softIndexState"/>.</description></item>
+    ///   <item><description><c>name[=]</c> — reuse the last index tracked in <paramref name="softIndexState"/> for the same name.</description></item>
+    ///   <item><description><c>name[N]</c> — use element at explicit integer index N.</description></item>
+    ///   <item><description><c>extension[$alias]</c> — find or create the extension whose URL matches the resolved alias.</description></item>
+    /// </list>
+    /// </summary>
+    private static object? NavigateToChild(
+        Base parent,
+        string segment,
+        Dictionary<string, int> softIndexState,
+        ModelInspector activeInspector,
+        bool create,
+        Func<string, string>? aliasResolver = null)
+    {
+        // Detect bracket notation.
+        var bracketStart = segment.IndexOf('[');
+        string baseName;
+        string? indexToken;
+
+        if (bracketStart >= 0)
+        {
+            baseName   = segment[..bracketStart];
+            var bracketEnd = segment.IndexOf(']', bracketStart);
+            indexToken = bracketEnd > bracketStart
+                ? segment[(bracketStart + 1)..bracketEnd]
+                : null;
+        }
+        else
+        {
+            baseName   = segment;
+            indexToken = null;
+        }
+
+        var classMap = activeInspector.FindClassMapping(parent.GetType());
+        if (classMap is null) return null;
+
+        var propMap = classMap.FindMappedElementByName(baseName);
+        if (propMap is null) return null;
+
+        if (propMap.IsCollection)
+        {
+            var list = propMap.GetValue(parent) as System.Collections.IList;
+
+            // URL-keyed extension navigation: extension[$alias] or extension[urlString]
+            // When the index is neither a soft-index (+/=) nor an integer, it's treated as
+            // a URL/alias key to find an extension by its url property.
+            if (indexToken != null
+                && indexToken != "+"
+                && indexToken != "="
+                && !int.TryParse(indexToken, out _))
+            {
+                var resolvedUrl = aliasResolver != null ? aliasResolver(indexToken) : indexToken;
+
+                // Try to find an existing Extension with this URL.
+                if (list != null)
+                {
+                    foreach (var item in list)
+                    {
+                        if (item is Hl7.Fhir.Model.Extension ext && ext.Url == resolvedUrl)
+                            return ext;
+                    }
+                }
+
+                if (!create) return null;
+
+                // Create a new extension with the resolved URL.
+                if (list is null)
+                {
+                    var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+                    list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                    propMap.SetValue(parent, list);
+                }
+                var newExt = new Hl7.Fhir.Model.Extension { Url = resolvedUrl };
+                list.Add(newExt);
+                return newExt;
+            }
+
+            int targetIndex;
+            if (indexToken == "+")
+            {
+                // Append a new element; record new index.
+                if (list is null)
+                {
+                    var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+                    list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                    propMap.SetValue(parent, list);
+                }
+                var newItem = Activator.CreateInstance(propMap.ImplementingType)!;
+                list.Add(newItem);
+                targetIndex = list.Count - 1;
+                softIndexState[baseName] = targetIndex;
+                return newItem;
+            }
+            else if (indexToken == "=")
+            {
+                // Reuse last index for this name.
+                softIndexState.TryGetValue(baseName, out targetIndex);
+            }
+            else if (indexToken != null && int.TryParse(indexToken, out var explicitIdx))
+            {
+                targetIndex = explicitIdx;
+            }
+            else
+            {
+                // No index: use index 0 (get-or-create).
+                targetIndex = 0;
+            }
+
+            if (list is null)
+            {
+                if (!create) return null;
+                var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+                list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                propMap.SetValue(parent, list);
+            }
+
+            while (list.Count <= targetIndex)
+                list.Add(Activator.CreateInstance(propMap.ImplementingType)!);
+
+            return list[targetIndex];
+        }
+        else
+        {
+            // Non-collection property: get or create.
+            var current = propMap.GetValue(parent);
+            if (current is null && create)
+            {
+                current = Activator.CreateInstance(propMap.ImplementingType);
+                if (current is not null)
+                    propMap.SetValue(parent, current);
+            }
+            return current;
+        }
+    }
+
+    /// <summary>
     /// Handles FHIR choice-type element names such as <c>valueDecimal</c>, <c>valueCoding</c>,
     /// or <c>admitReasonCoding</c> (where <c>admitReason</c> is the base property and
     /// <c>Coding</c> is the FHIR DataType suffix).

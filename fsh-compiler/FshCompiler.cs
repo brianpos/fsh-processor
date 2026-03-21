@@ -241,6 +241,13 @@ public static class FshCompiler
             }
         }
 
+        // Post-compilation fix-up: resolve BaseDefinition and Type for profiles-of-profiles.
+        // When a profile's parent is another compiled profile (not a core FHIR type), the
+        // BaseDefinition and Type may have been set to the parent's entity name rather than
+        // its canonical URL and underlying FHIR type.  Now that all SDs are compiled, we
+        // can walk the chain and fix these values.  Element path prefixes are updated too.
+        FixUpProfilesOfProfiles(resources.OfType<StructureDefinition>().ToList(), context, opts);
+
         return errors.Count > 0
             ? CompileResult<List<FhirResource>>.FromFailure(errors, context.Warnings)
             : CompileResult<List<FhirResource>>.FromSuccess(resources, context.Warnings);
@@ -282,7 +289,7 @@ public static class FshCompiler
             Abstract = false,
             Kind = kind,
             Type = typeValue,
-            BaseDefinition = resolvedParent,
+            BaseDefinition = ResolveBaseDefinitionCanonical(resolvedParent, parentTypeName, context, opts),
             Derivation = StructureDefinition.TypeDerivationRule.Constraint,
             Differential = new StructureDefinition.DifferentialComponent
             {
@@ -303,8 +310,8 @@ public static class FshCompiler
             };
         }
 
-        // Ensure root element (no ElementId — snapshot generator will derive it from the type)
-        sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type });
+        // Root element: explicit ElementId is required for correct round-trip and validation.
+        sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type, ElementId = sd.Type });
 
         ApplySdRules(profile.Rules, sd, context, opts);
         return sd;
@@ -399,7 +406,9 @@ public static class FshCompiler
             Experimental = false,
             Abstract = false,
             Type = "Extension",
-            BaseDefinition = context.ResolveAlias(ext.Parent ?? "http://hl7.org/fhir/StructureDefinition/Extension"),
+            BaseDefinition = ResolveBaseDefinitionCanonical(
+                context.ResolveAlias(ext.Parent ?? "http://hl7.org/fhir/StructureDefinition/Extension"),
+                "Extension", context),
             Derivation = StructureDefinition.TypeDerivationRule.Constraint,
             Kind = StructureDefinition.StructureDefinitionKind.ComplexType,
             Differential = new StructureDefinition.DifferentialComponent
@@ -408,7 +417,7 @@ public static class FshCompiler
             }
         };
 
-        sd.Differential.Element.Add(new ElementDefinition("Extension") { Path = "Extension" });
+        sd.Differential.Element.Add(new ElementDefinition("Extension") { Path = "Extension", ElementId = "Extension" });
 
         // Context — determine type from the grammar alternative that was matched (P-EX3).
         if (ext.Contexts.Count > 0)
@@ -455,7 +464,9 @@ public static class FshCompiler
             Experimental = false,
             Abstract = false,
             Type = logicalType,
-            BaseDefinition = context.ResolveAlias(logical.Parent ?? "http://hl7.org/fhir/StructureDefinition/Base"),
+            BaseDefinition = ResolveBaseDefinitionCanonical(
+                context.ResolveAlias(logical.Parent ?? "http://hl7.org/fhir/StructureDefinition/Base"),
+                "Base", context, opts),
             Derivation = StructureDefinition.TypeDerivationRule.Specialization,
             Kind = StructureDefinition.StructureDefinitionKind.Logical,
             Differential = new StructureDefinition.DifferentialComponent
@@ -464,7 +475,7 @@ public static class FshCompiler
             }
         };
 
-        sd.Differential.Element.Add(new ElementDefinition(logicalType) { Path = logicalType });
+        sd.Differential.Element.Add(new ElementDefinition(logicalType) { Path = logicalType, ElementId = logicalType });
 
         // C-LG1: Emit type-characteristics extension for each Characteristics code.
         if (logical.Characteristics.Count > 0)
@@ -502,7 +513,9 @@ public static class FshCompiler
             Experimental = false,
             Abstract = false,
             Type = fshResource.Name,
-            BaseDefinition = context.ResolveAlias(fshResource.Parent ?? "http://hl7.org/fhir/StructureDefinition/DomainResource"),
+            BaseDefinition = ResolveBaseDefinitionCanonical(
+                context.ResolveAlias(fshResource.Parent ?? "http://hl7.org/fhir/StructureDefinition/DomainResource"),
+                "DomainResource", context, opts),
             Derivation = StructureDefinition.TypeDerivationRule.Specialization,
             Kind = StructureDefinition.StructureDefinitionKind.Resource,
             Differential = new StructureDefinition.DifferentialComponent
@@ -511,7 +524,7 @@ public static class FshCompiler
             }
         };
 
-        sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type });
+        sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type, ElementId = sd.Type });
 
         ApplySdRules(fshResource.Rules, sd, context, opts);
         return sd;
@@ -782,6 +795,9 @@ public static class FshCompiler
         // C-FP1: Apply indented-rule path composition before processing.
         // This expands relative child paths (e.g. `* value[x]` under `* extension[x]`)
         // into their fully-qualified form (`extension[x].value[x]`).
+        // Soft-index state is shared across all caret rules so that [+]/[=] pairs on
+        // compound SD-level caret paths (e.g. ^context[+].type + ^context[=].expression) work.
+        var caretSoftIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var rule in ComposeIndentedPaths(rules))
         {
             switch (rule)
@@ -823,7 +839,7 @@ public static class FshCompiler
                     break;
 
                 case CaretValueRule caretValueRule:
-                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, context.ResolveAlias);
+                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, context.ResolveAlias, caretSoftIndexState);
                     break;
 
                 case InsertRule insertRule:
@@ -920,6 +936,15 @@ public static class FshCompiler
             return;
 
         var ed = GetOrCreateElement(valueSetRule.Path, sd);
+        var vsName = context.ResolveAlias(valueSetRule.ValueSetName);
+        // Resolve bare ValueSet names to canonical URLs using the specification-zip index.
+        if (!IsAbsoluteUrl(vsName))
+        {
+            var specKey = $"ValueSet#{vsName}";
+            if (context.CanonicalsFromSpecificationZip.TryGetValue(specKey, out var vsCanonical))
+                vsName = vsCanonical;
+        }
+
         ed.Binding = new ElementDefinition.ElementDefinitionBindingComponent
         {
             Strength = valueSetRule.Strength?.Trim('(', ')') switch
@@ -930,7 +955,7 @@ public static class FshCompiler
                 "required" => BindingStrength.Required,
                 _ => BindingStrength.Preferred
             },
-            ValueSet = context.ResolveAlias(valueSetRule.ValueSetName)
+            ValueSet = vsName
         };
     }
 
@@ -954,12 +979,29 @@ public static class FshCompiler
         if (string.IsNullOrEmpty(containsRule.Path) || containsRule.Items.Count == 0) return;
 
         var ed = GetOrCreateElement(containsRule.Path, sd);
-        ed.Slicing ??= new ElementDefinition.SlicingComponent
+        if (ed.Slicing == null)
         {
-            Rules = ElementDefinition.SlicingRules.Open,
-            Ordered = false,
-            Discriminator = new List<ElementDefinition.DiscriminatorComponent>()
-        };
+            // Per the FSH spec, the default discriminator for extension slicing is
+            // {type: "value", path: "url"}.  For other elements, the discriminator is
+            // typically set separately via caret rules (^slicing.discriminator.*).
+            var discriminators = IsExtensionPath(containsRule.Path)
+                ? new List<ElementDefinition.DiscriminatorComponent>
+                  {
+                      new()
+                      {
+                          Type  = ElementDefinition.DiscriminatorType.Value,
+                          Path  = "url"
+                      }
+                  }
+                : new List<ElementDefinition.DiscriminatorComponent>();
+
+            ed.Slicing = new ElementDefinition.SlicingComponent
+            {
+                Rules        = ElementDefinition.SlicingRules.Open,
+                Ordered      = false,
+                Discriminator = discriminators
+            };
+        }
 
         foreach (var item in containsRule.Items)
         {
@@ -987,6 +1029,22 @@ public static class FshCompiler
                 ];
             }
         }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="fshPath"/> refers to an extension element,
+    /// i.e. when the final segment (after the last <c>'.'</c>) is <c>"extension"</c> or
+    /// when the path itself is <c>"extension"</c>.
+    /// </summary>
+    private static bool IsExtensionPath(string fshPath)
+    {
+        if (string.IsNullOrEmpty(fshPath)) return false;
+        var lastDot = fshPath.LastIndexOf('.');
+        var lastSeg = lastDot >= 0 ? fshPath[(lastDot + 1)..] : fshPath;
+        // Strip slice notation if present (e.g. "extension:name" → "extension").
+        var colonPos = lastSeg.IndexOf(':');
+        if (colonPos >= 0) lastSeg = lastSeg[..colonPos];
+        return string.Equals(lastSeg, "extension", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void ApplyOnlyRule(OnlyRule onlyRule, StructureDefinition sd, CompilerContext context)
@@ -1075,28 +1133,51 @@ public static class FshCompiler
         }
     }
 
-    private static void ApplyCaretValueRule(CaretValueRule caretValueRule, StructureDefinition sd, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
+    private static void ApplyCaretValueRule(
+        CaretValueRule caretValueRule,
+        StructureDefinition sd,
+        ModelInspector? inspector,
+        Func<string, string>? aliasResolver = null,
+        Dictionary<string, int>? softIndexState = null)
     {
         if (string.IsNullOrEmpty(caretValueRule.CaretPath)) return;
 
         // Caret rules without a path target the StructureDefinition itself.
-        if (string.IsNullOrEmpty(caretValueRule.Path) || caretValueRule.Path == ".")
+        // Path "." refers to the root ElementDefinition, not the SD.
+        if (string.IsNullOrEmpty(caretValueRule.Path))
         {
-            ApplySdCaretPath(caretValueRule, sd, inspector, aliasResolver);
+            ApplySdCaretPath(caretValueRule, sd, inspector, aliasResolver, softIndexState);
         }
         else
         {
             var ed = GetOrCreateElement(caretValueRule.Path, sd);
+            // Each element gets its own soft-index state for element-level compound paths.
             ApplyEdCaretPath(caretValueRule, ed, inspector, aliasResolver);
         }
     }
 
-    private static void ApplySdCaretPath(CaretValueRule rule, StructureDefinition sd, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
+    private static void ApplySdCaretPath(
+        CaretValueRule rule,
+        StructureDefinition sd,
+        ModelInspector? inspector,
+        Func<string, string>? aliasResolver = null,
+        Dictionary<string, int>? softIndexState = null)
     {
         var path = rule.CaretPath.TrimStart('^');
-        if (FhirCaretValueWriter.TrySet(sd, path, rule.Value, inspector, aliasResolver)) return;
 
-        // Fall back to an extension for paths not in the StructureDefinition model
+        // Try compound-path navigation first (handles context.type, context[+].type, etc.).
+        if (path.Contains('.') || path.Contains('['))
+        {
+            var state = softIndexState ?? new Dictionary<string, int>(StringComparer.Ordinal);
+            if (FhirCaretValueWriter.TrySetCompound(sd, path, rule.Value, state, inspector, aliasResolver))
+                return;
+        }
+        else if (FhirCaretValueWriter.TrySet(sd, path, rule.Value, inspector, aliasResolver))
+        {
+            return;
+        }
+
+        // Fall back to an extension for paths not in the StructureDefinition model.
         sd.Extension ??= new List<FhirExtension>();
         sd.Extension.Add(new FhirExtension
         {
@@ -1105,12 +1186,27 @@ public static class FshCompiler
         });
     }
 
-    private static void ApplyEdCaretPath(CaretValueRule rule, ElementDefinition ed, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
+    private static void ApplyEdCaretPath(
+        CaretValueRule rule,
+        ElementDefinition ed,
+        ModelInspector? inspector,
+        Func<string, string>? aliasResolver = null)
     {
         var path = rule.CaretPath.TrimStart('^');
-        if (FhirCaretValueWriter.TrySet(ed, path, rule.Value, inspector, aliasResolver)) return;
 
-        // Fall back to an extension for paths not in the ElementDefinition model
+        // Try compound-path navigation first (handles binding.description, slicing.discriminator.*, etc.).
+        if (path.Contains('.') || path.Contains('['))
+        {
+            var state = new Dictionary<string, int>(StringComparer.Ordinal);
+            if (FhirCaretValueWriter.TrySetCompound(ed, path, rule.Value, state, inspector, aliasResolver))
+                return;
+        }
+        else if (FhirCaretValueWriter.TrySet(ed, path, rule.Value, inspector, aliasResolver))
+        {
+            return;
+        }
+
+        // Fall back to an extension for paths not in the ElementDefinition model.
         ed.Extension ??= new List<FhirExtension>();
         ed.Extension.Add(new FhirExtension
         {
@@ -1570,6 +1666,19 @@ public static class FshCompiler
             throw new ArgumentException("Path is required", nameof(path));
 
         var type = sd.Type ?? string.Empty;
+
+        // Path "." refers to the root element whose path equals the type itself.
+        if (path == ".")
+        {
+            var rootEd = sd.Differential.Element.FirstOrDefault(e => e.Path == type && e.SliceName == null);
+            if (rootEd == null)
+            {
+                rootEd = new ElementDefinition(type) { Path = type, ElementId = type };
+                sd.Differential.Element.Insert(0, rootEd);
+            }
+            return rootEd;
+        }
+
         var fullPath = string.IsNullOrEmpty(type) ? path : $"{type}.{path}";
 
         // Handle slice names: path:sliceName
@@ -1627,11 +1736,239 @@ public static class FshCompiler
     }
 
     /// <summary>
+    /// Post-compilation pass that corrects <see cref="StructureDefinition.BaseDefinition"/> and
+    /// <see cref="StructureDefinition.Type"/> for profiles-of-profiles compiled in the wrong order.
+    /// When a profile's parent was another in-IG profile that had not yet been compiled at the time
+    /// the child was built, the <c>BaseDefinition</c> was stored as the bare entity name and
+    /// <c>Type</c> was set to the same name instead of the underlying FHIR type.
+    /// This pass walks all compiled SDs, resolves these values, and also rewrites element path/id
+    /// prefixes to use the correct FHIR type name.
+    /// </summary>
+    private static void FixUpProfilesOfProfiles(
+        List<StructureDefinition> allSds, CompilerContext context, CompilerOptions opts)
+    {
+        // Build a quick lookup: canonical URL → SD, for all compiled SDs.
+        var byUrl = new Dictionary<string, StructureDefinition>(StringComparer.Ordinal);
+        foreach (var sd in allSds)
+            if (!string.IsNullOrEmpty(sd.Url))
+                byUrl.TryAdd(sd.Url, sd);
+
+        foreach (var sd in allSds)
+        {
+            if (sd.Derivation != StructureDefinition.TypeDerivationRule.Constraint)
+                continue;
+
+            // 1. Fix BaseDefinition to canonical URL if it is a bare name or was constructed
+            //    using the entity name (CamelCase) instead of the id (kebab-case).
+            //    We check for both bare names and absolute URLs whose last segment is a
+            //    CamelCase entity name rather than the proper id.
+            if (!string.IsNullOrEmpty(sd.BaseDefinition))
+            {
+                var fixedBase = TryResolveBaseDefinitionFromCompiledSds(sd.BaseDefinition, context, byUrl);
+                if (fixedBase != null && fixedBase != sd.BaseDefinition)
+                    sd.BaseDefinition = fixedBase;
+                else if (!IsAbsoluteUrl(sd.BaseDefinition))
+                {
+                    var resolved = ResolveBaseDefinitionCanonical(sd.BaseDefinition, sd.BaseDefinition, context, opts);
+                    if (resolved != sd.BaseDefinition)
+                        sd.BaseDefinition = resolved;
+                }
+            }
+
+            // 2. Fix Type: walk up the BaseDefinition chain to find the underlying FHIR type.
+            // Try both sd.Type and sd.BaseDefinition for resolution (the baseDefinition URL
+            // is more reliable when the type was set to a profile name).
+            if (!string.IsNullOrEmpty(sd.Type) && !IsKnownFhirType(sd.Type, opts.Inspector))
+            {
+                // First try to resolve via the type name; then via the baseDefinition URL.
+                var resolvedType = ResolveUnderlyingFhirType(sd.Type, context, opts, byUrl, depth: 0)
+                    ?? (!string.IsNullOrEmpty(sd.BaseDefinition)
+                        ? ResolveUnderlyingFhirType(sd.BaseDefinition, context, opts, byUrl, depth: 0)
+                        : null);
+                if (resolvedType != null && resolvedType != sd.Type)
+                {
+                    // Rewrite element path/id prefixes.
+                    var oldPrefix = sd.Type;
+                    sd.Type = resolvedType;
+                    RewriteElementPathPrefixes(sd, oldPrefix, resolvedType);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Attempts to resolve <paramref name="baseDefinition"/> to the canonical URL of a
+    /// compiled StructureDefinition.  Handles both bare entity names and absolute URLs
+    /// whose last path segment is an entity name rather than an id.
+    /// Returns the resolved canonical URL or <c>null</c> when no match is found.
+    /// </summary>
+    private static string? TryResolveBaseDefinitionFromCompiledSds(
+        string baseDefinition, CompilerContext context, Dictionary<string, StructureDefinition> byUrl)
+    {
+        // Try bare entity/id lookup first.
+        if (!IsAbsoluteUrl(baseDefinition))
+        {
+            if (context.CompiledStructureDefinitions.TryGetValue(baseDefinition, out var sd)
+                && !string.IsNullOrEmpty(sd.Url))
+                return sd.Url;
+            return null;
+        }
+
+        // For absolute URLs: check whether a compiled SD's URL exactly matches, or
+        // whether the last segment is an entity name that maps to a compiled SD with a
+        // different URL (entity-name-based URL vs id-based URL).
+        if (byUrl.ContainsKey(baseDefinition)) return null; // Already correct canonical URL.
+
+        var lastSlash = baseDefinition.LastIndexOf('/');
+        if (lastSlash < 0) return null;
+        var lastSegment = baseDefinition[(lastSlash + 1)..];
+
+        // Check if the segment is a known entity name (CamelCase) that resolves to a compiled SD.
+        if (context.CompiledStructureDefinitions.TryGetValue(lastSegment, out var compiledSd)
+            && !string.IsNullOrEmpty(compiledSd.Url)
+            && compiledSd.Url != baseDefinition)
+        {
+            return compiledSd.Url;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Walks the profile chain to find the underlying FHIR base type.
+    /// Returns the FHIR type name (e.g. <c>"Questionnaire"</c>) or <c>null</c> when unresolvable.
+    /// </summary>
+    private static string? ResolveUnderlyingFhirType(
+        string typeName,
+        CompilerContext context,
+        CompilerOptions opts,
+        Dictionary<string, StructureDefinition> byUrl,
+        int depth)
+    {
+        if (depth > 10) return null; // Prevent infinite loops.
+
+        if (IsKnownFhirType(typeName, opts.Inspector)) return typeName;
+
+        // Look up in compiled SDs by name/id.
+        StructureDefinition? parentSd;
+        if (!context.CompiledStructureDefinitions.TryGetValue(typeName, out parentSd))
+        {
+            // Try by URL in compiled SDs.
+            if (IsAbsoluteUrl(typeName))
+                byUrl.TryGetValue(typeName, out parentSd);
+        }
+
+        if (parentSd != null)
+        {
+            if (parentSd.Type == null) return null;
+            if (IsKnownFhirType(parentSd.Type, opts.Inspector)) return parentSd.Type;
+            return ResolveUnderlyingFhirType(parentSd.Type, context, opts, byUrl, depth + 1);
+        }
+
+        // Fall back to the resolver for profiles from external sources (e.g. specification.zip).
+        if (opts.Resolver != null && opts.Inspector != null)
+        {
+            var lookupName = IsAbsoluteUrl(typeName) ? typeName
+                : context.CanonicalsFromSpecificationZip.TryGetValue($"StructureDefinition#{typeName}", out var specUrl)
+                    ? specUrl : typeName;
+
+            var classMap = context.ResolveClassMappingForProfile(lookupName, opts.Inspector, opts.Resolver, out _);
+            if (classMap != null) return classMap.Name;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="typeName"/> is a base FHIR type known to the model
+    /// inspector (e.g. <c>"Questionnaire"</c>, <c>"Extension"</c>, <c>"string"</c>).
+    /// </summary>
+    private static bool IsKnownFhirType(string typeName, ModelInspector? inspector)
+    {
+        if (inspector == null) return false;
+        return inspector.FindClassMapping(typeName) != null;
+    }
+
+    /// <summary>
+    /// Rewrites <see cref="ElementDefinition.Path"/> and <see cref="ElementDefinition.ElementId"/>
+    /// for all elements whose path starts with <paramref name="oldPrefix"/> followed by <c>'.'</c>
+    /// or exactly equals <paramref name="oldPrefix"/> (root element).
+    /// </summary>
+    private static void RewriteElementPathPrefixes(
+        StructureDefinition sd, string oldPrefix, string newPrefix)
+    {
+        foreach (var el in sd.Differential.Element)
+        {
+            if (el.Path != null)
+            {
+                if (el.Path == oldPrefix)
+                    el.Path = newPrefix;
+                else if (el.Path.StartsWith(oldPrefix + ".", StringComparison.Ordinal))
+                    el.Path = newPrefix + el.Path[oldPrefix.Length..];
+            }
+            if (el.ElementId != null)
+            {
+                if (el.ElementId == oldPrefix)
+                    el.ElementId = newPrefix;
+                else if (el.ElementId.StartsWith(oldPrefix + ".", StringComparison.Ordinal)
+                      || el.ElementId.StartsWith(oldPrefix + ":", StringComparison.Ordinal))
+                    el.ElementId = newPrefix + el.ElementId[oldPrefix.Length..];
+            }
+        }
+    }
+
+    /// <summary>
     /// Returns <c>true</c> when <paramref name="url"/> is an absolute HTTP/HTTPS URL.
     /// </summary>
     private static bool IsAbsoluteUrl(string url) =>
         url.StartsWith("http://", StringComparison.Ordinal) ||
         url.StartsWith("https://", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Resolves a base-definition value to a canonical URL.
+    /// When <paramref name="resolvedName"/> is already an absolute URL it is returned unchanged.
+    /// Otherwise:
+    /// 1. The name is looked up in the specification-zip canonicals index as
+    ///    <c>"StructureDefinition#{name}"</c>.
+    /// 2. If the model inspector recognises it as a FHIR core type, the canonical is constructed
+    ///    as <c>http://hl7.org/fhir/StructureDefinition/{name}</c>.
+    /// 3. If a compiled StructureDefinition with this name/id has been registered, its URL is used.
+    /// 4. Falls back to constructing a URL using the IG canonical base for non-base-FHIR names.
+    /// </summary>
+    private static string ResolveBaseDefinitionCanonical(
+        string resolvedName, string fallbackTypeName, CompilerContext context, CompilerOptions? opts = null)
+    {
+        if (IsAbsoluteUrl(resolvedName)) return resolvedName;
+
+        // Check in the specification-zip index (keyed as "StructureDefinition#name").
+        var specKey = $"StructureDefinition#{resolvedName}";
+        if (context.CanonicalsFromSpecificationZip.TryGetValue(specKey, out var specCanonical))
+            return specCanonical;
+
+        // For known FHIR core types (e.g. Patient, Questionnaire, Extension), construct
+        // the standard canonical URL directly from the model inspector.
+        var inspector = opts?.Inspector;
+        if (inspector != null && inspector.FindClassMapping(resolvedName) != null)
+        {
+            var coreCanonical = inspector.CanonicalUriForFhirCoreType(resolvedName);
+            if (!string.IsNullOrEmpty(coreCanonical)) return coreCanonical;
+            // Fall back to the well-known FHIR base URL pattern.
+            return $"http://hl7.org/fhir/StructureDefinition/{resolvedName}";
+        }
+
+        // Check if a compiled StructureDefinition with this name/id has already been registered.
+        if (context.CompiledStructureDefinitions.TryGetValue(resolvedName, out var compiledSd)
+            && !string.IsNullOrEmpty(compiledSd.Url))
+            return compiledSd.Url;
+
+        // Construct a canonical URL using the IG canonical base when available,
+        // but only for non-base-FHIR names (base types are handled above).
+        if (opts != null && !string.IsNullOrEmpty(opts.CanonicalBase))
+            return $"{opts.CanonicalBase.TrimEnd('/')}/StructureDefinition/{resolvedName}";
+
+        // Last resort: return the name as-is (will be an invalid non-canonical but preserves data).
+        return resolvedName;
+    }
 
     /// <summary>
     /// Constructs a canonical URL for a resource given its local id/name and the
