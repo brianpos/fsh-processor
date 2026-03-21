@@ -26,6 +26,12 @@ public class Logical : FshEntity
     public string? Description { get; set; }
 
     /// <summary>
+    /// Whether Description was originally a multiline (triple-quoted) string.
+    /// <c>null</c> = auto-detect; <c>true</c> = always multiline; <c>false</c> = always single-line.
+    /// </summary>
+    public bool? IsDescriptionMultiline { get; set; }
+
+    /// <summary>
     /// Characteristics codes
     /// </summary>
     public List<string> Characteristics { get; set; } = new();

@@ -1,12 +1,12 @@
 {
   "resourceType": "ValueSet",
-  "status": "active",
-  "name": "QuestionnaireAssembleExpectation",
   "id": "assemble-expectation",
-  "title": "Questionnaire Assemble Expectation",
-  "description": "Defines codes describing how a Questionnaire relates to the 'assemble' process",
   "url": "http://hl7.org/fhir/uv/sdc/ValueSet/assemble-expectation",
+  "name": "QuestionnaireAssembleExpectation",
+  "title": "Questionnaire Assemble Expectation",
+  "status": "active",
   "experimental": false,
+  "description": "Defines codes describing how a Questionnaire relates to the 'assemble' process",
   "compose": {
     "include": [
       {

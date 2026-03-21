@@ -1,18 +1,18 @@
 {
   "resourceType": "ValueSet",
-  "status": "active",
-  "name": "AHRQMedicationQ1",
   "id": "sdc-profile-example",
-  "title": "SDC-ValueSet AHRQ_Medication_Q1",
-  "description": "The answer list for question 1 on the AHRQ 'Medication or Other Substance' form",
-  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/sdc-profile-example",
   "meta": {
     "profile": [
       "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset"
     ]
   },
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/sdc-profile-example",
+  "name": "AHRQMedicationQ1",
+  "title": "SDC-ValueSet AHRQ_Medication_Q1",
+  "status": "active",
   "experimental": true,
   "date": "2014",
+  "description": "The answer list for question 1 on the AHRQ 'Medication or Other Substance' form",
   "immutable": false,
   "copyright": "This material contains content from LOINC (http://loinc.org). LOINC is copyright © 1995-2020, Regenstrief Institute, Inc. and the Logical Observation Identifiers Names and Codes (LOINC) Committee and is available at no cost under the license at http://loinc.org/license. LOINC® is a registered United States trademark of Regenstrief Institute, Inc",
   "compose": {

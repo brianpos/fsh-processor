@@ -10,8 +10,8 @@
     {
       "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
       "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
+        "system": "http://hl7.org/fhir/version-algorithm",
+        "code": "semver"
       }
     },
     {
@@ -27,18 +27,26 @@
       "valueString": "person"
     }
   ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/sdc-modular-contact",
+  "name": "QuestionnaireSDCModularContact",
+  "title": "Example sub-module Questionnaire for contact",
+  "status": "active",
+  "experimental": true,
+  "description": "Example questionnaire module - represents a patient's contacts and is itself a modular questionnaire that references other questionnaires and element definitions",
   "item": [
     {
       "extension": [
         {
+          "url": "http://hl7.org/fhir/StructureDefinition/variable",
           "valueExpression": {
             "name": "linkIdPrefix",
             "language": "text/fhirpath",
             "expression": "%linkIdPrefix + 'name.'"
-          },
-          "url": "http://hl7.org/fhir/StructureDefinition/variable"
+          }
         }
       ],
+      "linkId": "1",
+      "type": "group",
       "item": [
         {
           "extension": [
@@ -51,18 +59,16 @@
           "text": "Unable to resolve 'name' sub-questionnaire",
           "type": "display"
         }
-      ],
-      "linkId": "1",
-      "type": "group"
+      ]
     },
     {
       "extension": [
         {
+          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
           "valueExpression": {
             "language": "text/fhirpath",
             "expression": "%person.telecom.where(use='phone').first()"
-          },
-          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+          }
         }
       ],
       "linkId": "2",
@@ -71,11 +77,5 @@
       "type": "string",
       "required": true
     }
-  ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/sdc-modular-contact",
-  "name": "QuestionnaireSDCModularContact",
-  "title": "Example sub-module Questionnaire for contact",
-  "status": "active",
-  "experimental": true,
-  "description": "Example questionnaire module - represents a patient's contacts and is itself a modular questionnaire that references other questionnaires and element definitions"
+  ]
 }

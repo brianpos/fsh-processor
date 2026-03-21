@@ -1,12 +1,15 @@
 {
   "resourceType": "CodeSystem",
-  "status": "active",
-  "content": "complete",
-  "name": "ObservationExtractRelationshipCodes",
   "id": "observation-extract-relationship",
-  "title": "Observation Extract Relationship Codes",
-  "description": "Defines the codes used to specify the relationship type in the ObservationExtractExtension.",
   "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/observation-extract-relationship",
+  "name": "ObservationExtractRelationshipCodes",
+  "title": "Observation Extract Relationship Codes",
+  "status": "active",
+  "experimental": false,
+  "description": "Defines the codes used to specify the relationship type in the ObservationExtractExtension.",
+  "caseSensitive": true,
+  "content": "complete",
+  "count": 4,
   "concept": [
     {
       "code": "component",
@@ -28,8 +31,5 @@
       "display": "Independent",
       "definition": "The child item will be extracted as a separate Observation and there will be no relationship asserted between parent and child"
     }
-  ],
-  "experimental": false,
-  "caseSensitive": true,
-  "count": 4
+  ]
 }

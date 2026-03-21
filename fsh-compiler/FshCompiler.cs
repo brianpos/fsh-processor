@@ -1,13 +1,14 @@
 using fsh_processor.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
+using Hl7.Fhir.Specification.Source;
 using Hl7.Fhir.Utility;
 using FhirCode = Hl7.Fhir.Model.Code;
+using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
 using FhirExtension = Hl7.Fhir.Model.Extension;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
-using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
-using Hl7.Fhir.Specification.Source;
+using FshCode = fsh_processor.Models.Code;
 
 namespace fsh_compiler;
 
@@ -68,7 +69,61 @@ public static class FshCompiler
             foreach (var kvp in opts.AliasOverrides)
                 context.Aliases[kvp.Key] = kvp.Value;
 
+        // Pre-scan: register CodeSystem name/id → canonical URL for system name resolution in
+        // ValueSet compose components (e.g. TemporaryCodes → .../CodeSystem/temp).
+        foreach (var doc in docList)
+        {
+            foreach (var entity in doc.Entities)
+            {
+                if (entity is fsh_processor.Models.CodeSystem cs)
+                {
+                    var csUrl = ResolveUrl(cs.Id ?? cs.Name, opts, "CodeSystem");
+                    if (csUrl is null) continue;
+                    if (!string.IsNullOrEmpty(cs.Name))
+                        context.CodeSystemUrls.TryAdd(cs.Name, csUrl);
+                    if (!string.IsNullOrEmpty(cs.Id))
+                        context.CodeSystemUrls.TryAdd(cs.Id, csUrl);
+                }
+            }
+        }
+
+        // Pre-scan the system zip for ResourceId indexedCanonicals
+        IndexResolver(options.Resolver, context);
+
         return CompileWithContext(docList, context, opts);
+    }
+
+    private static void IndexResolver(IResourceResolver resolver, CompilerContext context)
+    {
+        if (resolver is CachedResolver cr)
+        {
+            IndexResolver(cr.Source, context);
+        }
+        if (resolver is MultiResolver mr)
+        {
+            foreach (var r in mr.Sources)
+            {
+                IndexResolver(r, context);
+            }
+        }
+
+        if (resolver is CommonZipSource zs)
+        {
+            foreach (var summary in zs.ListSummaries())
+            {
+                var resourceType = summary.GetTypeName();
+                var resourceName = summary.GetConformanceName();
+                var canonicalUrl = summary.GetConformanceCanonicalUrl();
+                var key = $"{resourceType}#{resourceName}";
+                if (!string.IsNullOrEmpty(canonicalUrl) && !string.IsNullOrEmpty(resourceName))
+                {
+                    if (!context.CanonicalsFromSpecificationZip.ContainsKey(key))
+                        context.CanonicalsFromSpecificationZip.Add(key, canonicalUrl);
+                    //else
+                    //    Console.WriteLine($"Duplicate Key {key} for {resourceType} - {canonicalUrl} - existing canonical {context.CanonicalsFromSpecificationZip[key]}");
+                }
+            }
+        }
     }
 
     private static CompileResult<List<FhirResource>> CompileWithContext(
@@ -206,7 +261,6 @@ public static class FshCompiler
         // Fall back to "resource" when the type can't be resolved (most common case).
         var parentTypeName = profile.Parent?.Value ?? "DomainResource";
         var resolvedParent = context.ResolveAlias(parentTypeName);
-        var kind = InferKindFromType(resolvedParent, opts.Inspector);
 
         // C-PR4: StructureDefinition.Type must be the bare FHIR type name.
         // When the parent is a URL (e.g. from an alias), strip to the last segment and
@@ -214,6 +268,8 @@ public static class FshCompiler
         // Only use the stripped name when it is a recognised type; otherwise fall back to
         // the pre-alias-resolution name so profiles-of-profiles don't produce a bogus type.
         var typeValue = ExtractBareTypeName(resolvedParent, parentTypeName, opts.Inspector);
+
+        var kind = InferKindFromType(typeValue, opts.Inspector);
 
         var sd = new StructureDefinition
         {
@@ -223,7 +279,6 @@ public static class FshCompiler
             Title = profile.Title?.Value,
             Description = profile.Description?.Value,
             Status = PublicationStatus.Active,
-            Experimental = false,
             Abstract = false,
             Kind = kind,
             Type = typeValue,
@@ -493,11 +548,11 @@ public static class FshCompiler
             switch (rule)
             {
                 case VsComponentRule compRule:
-                    ApplyVsComponentRule(compRule, fvs, context);
+                    ApplyVsComponentRule(compRule, fvs, context, opts);
                     break;
 
                 case VsCaretValueRule caretRule:
-                    ApplyVsCaretValueRule(caretRule, fvs, opts.Inspector);
+                    ApplyVsCaretValueRule(caretRule, fvs, opts.Inspector, context.ResolveAlias);
                     break;
 
                 case VsInsertRule insertRule:
@@ -505,7 +560,7 @@ public static class FshCompiler
                     break;
 
                 case CodeCaretValueRule codeCaretRule:
-                    ApplyCodeCaretValueRule(codeCaretRule, fvs, opts.Inspector);
+                    ApplyCodeCaretValueRule(codeCaretRule, fvs, opts.Inspector, context.ResolveAlias);
                     break;
 
                 case CodeInsertRule codeInsertRule:
@@ -540,6 +595,7 @@ public static class FshCompiler
         fsh_processor.Models.CodeSystem cs, CompilerContext context, CompilerOptions? options = null)
     {
         var opts = options ?? new CompilerOptions();
+        var resolvedInspector = opts.Inspector ?? ModelInspector.ForAssembly(typeof(StructureDefinition).Assembly);
         var fcs = new FhirCodeSystem
         {
             Id = cs.Id,
@@ -553,6 +609,10 @@ public static class FshCompiler
             Concept = new List<FhirCodeSystem.ConceptDefinitionComponent>()
         };
 
+        // Soft-index state for top-level (CodeSystem) caret rules and per-concept caret rules.
+        var csIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
+        var conceptIndexStates = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+
         foreach (var rule in PropagateConceptCodesToCaretRules(cs.Rules))
         {
             switch (rule)
@@ -562,11 +622,11 @@ public static class FshCompiler
                     break;
 
                 case CsCaretValueRule caretRule:
-                    ApplyCsCaretValueRule(caretRule, fcs, opts.Inspector);
+                    ApplyCsCaretValueRule(caretRule, fcs, csIndexState, conceptIndexStates, resolvedInspector, context.ResolveAlias);
                     break;
 
                 case CsInsertRule insertRule:
-                    ApplyCsInsertRule(insertRule, fcs, context, opts);
+                    ApplyCsInsertRule(insertRule, fcs, context, opts, csIndexState, conceptIndexStates);
                     break;
             }
         }
@@ -763,7 +823,7 @@ public static class FshCompiler
                     break;
 
                 case CaretValueRule caretValueRule:
-                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector);
+                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, context.ResolveAlias);
                     break;
 
                 case InsertRule insertRule:
@@ -1015,47 +1075,47 @@ public static class FshCompiler
         }
     }
 
-    private static void ApplyCaretValueRule(CaretValueRule caretValueRule, StructureDefinition sd, ModelInspector? inspector)
+    private static void ApplyCaretValueRule(CaretValueRule caretValueRule, StructureDefinition sd, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
     {
         if (string.IsNullOrEmpty(caretValueRule.CaretPath)) return;
 
         // Caret rules without a path target the StructureDefinition itself.
         if (string.IsNullOrEmpty(caretValueRule.Path) || caretValueRule.Path == ".")
         {
-            ApplySdCaretPath(caretValueRule, sd, inspector);
+            ApplySdCaretPath(caretValueRule, sd, inspector, aliasResolver);
         }
         else
         {
             var ed = GetOrCreateElement(caretValueRule.Path, sd);
-            ApplyEdCaretPath(caretValueRule, ed, inspector);
+            ApplyEdCaretPath(caretValueRule, ed, inspector, aliasResolver);
         }
     }
 
-    private static void ApplySdCaretPath(CaretValueRule rule, StructureDefinition sd, ModelInspector? inspector)
+    private static void ApplySdCaretPath(CaretValueRule rule, StructureDefinition sd, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
     {
         var path = rule.CaretPath.TrimStart('^');
-        if (FhirCaretValueWriter.TrySet(sd, path, rule.Value, inspector)) return;
+        if (FhirCaretValueWriter.TrySet(sd, path, rule.Value, inspector, aliasResolver)) return;
 
         // Fall back to an extension for paths not in the StructureDefinition model
         sd.Extension ??= new List<FhirExtension>();
         sd.Extension.Add(new FhirExtension
         {
             Url = path,
-            Value = FhirValueMapper.ToDataType(rule.Value, inspector)
+            Value = FhirValueMapper.ToDataType(rule.Value, inspector, aliasResolver)
         });
     }
 
-    private static void ApplyEdCaretPath(CaretValueRule rule, ElementDefinition ed, ModelInspector? inspector)
+    private static void ApplyEdCaretPath(CaretValueRule rule, ElementDefinition ed, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
     {
         var path = rule.CaretPath.TrimStart('^');
-        if (FhirCaretValueWriter.TrySet(ed, path, rule.Value, inspector)) return;
+        if (FhirCaretValueWriter.TrySet(ed, path, rule.Value, inspector, aliasResolver)) return;
 
         // Fall back to an extension for paths not in the ElementDefinition model
         ed.Extension ??= new List<FhirExtension>();
         ed.Extension.Add(new FhirExtension
         {
             Url = path,
-            Value = FhirValueMapper.ToDataType(rule.Value, inspector)
+            Value = FhirValueMapper.ToDataType(rule.Value, inspector, aliasResolver)
         });
     }
 
@@ -1098,44 +1158,132 @@ public static class FshCompiler
     // ─── ValueSet rule processors ─────────────────────────────────────────────
 
     private static void ApplyVsComponentRule(
-        VsComponentRule rule, FhirValueSet fvs, CompilerContext context)
+        VsComponentRule rule, FhirValueSet fvs, CompilerContext context, CompilerOptions opts)
     {
-        var component = new FhirValueSet.ConceptSetComponent();
-
-        if (!string.IsNullOrEmpty(rule.FromSystem))
-            component.System = context.ResolveAlias(rule.FromSystem);
-
-        if (rule.FromValueSets.Count > 0)
-            component.ValueSet = rule.FromValueSets.Select(vs => context.ResolveAlias(vs)).ToList();
-
+        // ─── Explicit concept codes ──────────────────────────────────────────────
+        // Per the FSH spec, codes in a ValueSet component are written as System#code or
+        // #code (with an explicit "from system …").  All codes that share the same system
+        // are grouped into a single ConceptSetComponent in compose.include/exclude.
         if (rule.IsConceptComponent && rule.ConceptCode != null)
         {
-            component.Concept = new List<FhirValueSet.ConceptReferenceComponent>
+            // Split a system-qualified code (e.g. "AustralianStateCodes#ACT") into its
+            // system and code parts.
+            var (splitSystem, codeOnly) = FhirValueMapper.SplitCodeValue(rule.ConceptCode.Value);
+
+            // Prefer an explicit FromSystem; fall back to the system embedded in the code.
+            var resolvedSystem = !string.IsNullOrEmpty(rule.FromSystem)
+                ? ResolveSystemName(rule.FromSystem, context, opts)
+                : (!string.IsNullOrEmpty(splitSystem) ? ResolveSystemName(splitSystem, context, opts) : null);
+
+            // Find an existing include/exclude component for this system so that all codes
+            // from the same system end up in one ConceptSetComponent (as sushi/FSH spec requires).
+            var targetList = rule.IsInclude == false ? fvs.Compose!.Exclude : fvs.Compose!.Include;
+            var existing = resolvedSystem != null
+                ? targetList.FirstOrDefault(c => c.System == resolvedSystem && (c.Filter == null || c.Filter.Count == 0))
+                : null;
+
+            var concept = new FhirValueSet.ConceptReferenceComponent
             {
-                new FhirValueSet.ConceptReferenceComponent
-                {
-                    Code = rule.ConceptCode.Value.TrimStart('#'),
-                    Display = rule.ConceptCode.Display
-                }
+                Code = codeOnly,
+                Display = rule.ConceptCode.Display
             };
+
+            if (existing != null)
+            {
+                // Append to the existing component rather than creating a duplicate.
+                existing.Concept ??= new List<FhirValueSet.ConceptReferenceComponent>();
+                existing.Concept.Add(concept);
+                return;
+            }
+
+            // No existing component for this system — create a new one.
+            var component = new FhirValueSet.ConceptSetComponent
+            {
+                System = resolvedSystem,
+                Concept = new List<FhirValueSet.ConceptReferenceComponent> { concept }
+            };
+
+            if (rule.FromValueSets.Count > 0)
+                component.ValueSet = rule.FromValueSets.Select(vs => context.ResolveAlias(vs)).ToList();
+
+            targetList.Add(component);
+            return;
         }
 
-        if (rule.Filters.Count > 0)
+        // ─── Filter component or system/valueset-only component ─────────────────
         {
-            component.Filter = rule.Filters
-                .Select(f => new FhirValueSet.FilterComponent
-                {
-                    Property = f.Property,
-                    Op = MapFilterOp(f.Operator),
-                    Value = f.Value is StringValue sv ? sv.Value : f.Operator
-                })
-                .ToList();
+            var component = new FhirValueSet.ConceptSetComponent();
+
+            if (!string.IsNullOrEmpty(rule.FromSystem))
+                component.System = ResolveSystemName(rule.FromSystem, context, opts);
+
+            if (rule.FromValueSets.Count > 0)
+                component.ValueSet = rule.FromValueSets.Select(vs => context.ResolveAlias(vs)).ToList();
+
+            if (rule.Filters.Count > 0)
+            {
+                component.Filter = rule.Filters
+                    .Select(f => new FhirValueSet.FilterComponent
+                    {
+                        Property = f.Property,
+                        Op = MapFilterOp(f.Operator),
+                        // FSH filter values may be bare codes (#410607006) or strings.
+                        // Extract the code-only part for FshCode values.
+                        Value = f.Value switch
+                        {
+                            StringValue sv  => sv.Value,
+                            FshCode fshCode => FhirValueMapper.SplitCodeValue(fshCode.Value).Code,
+                            _               => f.Operator
+                        }
+                    })
+                    .ToList();
+            }
+
+            if (rule.IsInclude == false)
+                fvs.Compose!.Exclude.Add(component);
+            else
+                fvs.Compose!.Include.Add(component);
+        }
+    }
+
+    /// <summary>
+    /// Resolves a system name or alias reference to a full URI.
+    /// <list type="number">
+    ///   <item>Exact alias lookup.</item>
+    ///   <item>Pre-scanned CodeSystem entity map (<see cref="CompilerContext.CodeSystemUrls"/>).</item>
+    ///   <item>
+    ///     Resolver look-up using common FHIR base URL patterns with the name converted to
+    ///     kebab-case (covers FHIR-core CodeSystems such as <c>TaskCode</c> →
+    ///     <c>http://hl7.org/fhir/CodeSystem/task-code</c>).
+    ///   </item>
+    ///   <item>
+    ///     Canonical-base fallback: <c>{canonical}/CodeSystem/{name}</c> for project-local
+    ///     CodeSystem names whose URL last segment matches the entity name.
+    ///   </item>
+    /// </list>
+    /// </summary>
+    private static string ResolveSystemName(string name, CompilerContext context, CompilerOptions opts)
+    {
+        // Alias lookup (handles $-prefixed aliases and any bare alias names).
+        var resolved = context.ResolveAlias(name);
+        if (resolved != name || IsAbsoluteUrl(resolved)) return resolved;
+
+        // Pre-scanned CodeSystem entity map (populated before compilation starts).
+        if (context.CodeSystemUrls.TryGetValue(name, out var csUrl))
+            return csUrl;
+
+        // Resolver-based look-up for FHIR-core / terminology CodeSystems.
+        if (opts.Resolver != null)
+        {
+            var cs = opts.Resolver.ResolveByCanonicalUri(name) as FhirCodeSystem;
+            if (cs != null) return cs.Url;
         }
 
-        if (rule.IsInclude == false)
-            fvs.Compose!.Exclude.Add(component);
-        else
-            fvs.Compose!.Include.Add(component);
+        // Check to see if the ID was in the Specification.zip
+        if (context.CanonicalsFromSpecificationZip.ContainsKey("CodeSystem#" + name))
+            return context.CanonicalsFromSpecificationZip["CodeSystem#" + name];
+
+        return name;
     }
 
     private static FilterOperator MapFilterOp(string op) =>
@@ -1153,10 +1301,14 @@ public static class FshCompiler
             _ => FilterOperator.Equal
         };
 
-    private static void ApplyVsCaretValueRule(VsCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector)
+    private static void ApplyVsCaretValueRule(VsCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
     {
         var path = rule.CaretPath.TrimStart('^');
-        FhirCaretValueWriter.TrySet(fvs, path, rule.Value, inspector);
+        // Use SetCsCaretPath so that multi-level dot-separated paths (e.g. "contact.telecom.system")
+        // are navigated correctly by creating/reusing intermediate child objects.  A single-segment
+        // path is handled identically to the previous TrySet call.
+        var activeInspector = inspector ?? ModelInspector.ForAssembly(typeof(StructureDefinition).Assembly);
+        SetCsCaretPath(fvs, path, rule.Value, activeInspector, aliasResolver);
         // Silently ignore if the path is not in the ValueSet model.
     }
 
@@ -1175,16 +1327,16 @@ public static class FshCompiler
             switch (rule)
             {
                 case VsComponentRule compRule:
-                    ApplyVsComponentRule(compRule, fvs, context);
+                    ApplyVsComponentRule(compRule, fvs, context, opts);
                     break;
                 case VsCaretValueRule vsCaretRule:
-                    ApplyVsCaretValueRule(vsCaretRule, fvs, opts.Inspector);
+                    ApplyVsCaretValueRule(vsCaretRule, fvs, opts.Inspector, context.ResolveAlias);
                     break;
                 // CaretValueRule (SD-style, no path) can appear in a RuleSet re-parsed
                 // via a synthetic Profile wrapper and applies to the VS root.
                 case CaretValueRule sdCaret when string.IsNullOrEmpty(sdCaret.Path):
                     var vsPath = sdCaret.CaretPath.TrimStart('^');
-                    FhirCaretValueWriter.TrySet(fvs, vsPath, sdCaret.Value, opts.Inspector);
+                    FhirCaretValueWriter.TrySet(fvs, vsPath, sdCaret.Value, opts.Inspector, context.ResolveAlias);
                     break;
                 case VsInsertRule nestedInsert:
                     ApplyVsInsertRule(nestedInsert, fvs, context, opts);
@@ -1200,7 +1352,7 @@ public static class FshCompiler
     /// <see cref="FhirValueSet.ConceptReferenceComponent"/>.
     /// </summary>
     private static void ApplyCodeCaretValueRule(
-        CodeCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector)
+        CodeCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
     {
         if (rule.Codes.Count == 0 || string.IsNullOrEmpty(rule.CaretPath)) return;
         var path = rule.CaretPath.TrimStart('^');
@@ -1210,7 +1362,7 @@ public static class FshCompiler
             var bare = codeStr.TrimStart('#');
             var concept = FindConceptReferenceByCode(fvs, bare);
             if (concept != null)
-                FhirCaretValueWriter.TrySet(concept, path, rule.Value, inspector);
+                FhirCaretValueWriter.TrySet(concept, path, rule.Value, inspector, aliasResolver);
         }
     }
 
@@ -1271,7 +1423,7 @@ public static class FshCompiler
         if (concept.Codes.Count == 0) return;
 
         // Build the concept hierarchy: first code is the parent, rest are hierarchical sub-codes
-        var rootCode = concept.Codes[0].TrimStart('#');
+        var rootCode = CleanConceptCode(concept.Codes[0]);
         var conceptDef = new FhirCodeSystem.ConceptDefinitionComponent
         {
             Code = rootCode,
@@ -1296,14 +1448,20 @@ public static class FshCompiler
         if (index >= codes.Count) return;
         var child = new FhirCodeSystem.ConceptDefinitionComponent
         {
-            Code = codes[index].TrimStart('#')
+            Code = CleanConceptCode(codes[index])
         };
         parent.Concept ??= new List<FhirCodeSystem.ConceptDefinitionComponent>();
         parent.Concept.Add(child);
         AddNestedConcept(child, codes, index + 1);
     }
 
-    private static void ApplyCsCaretValueRule(CsCaretValueRule rule, FhirCodeSystem fcs, ModelInspector? inspector)
+    private static void ApplyCsCaretValueRule(
+        CsCaretValueRule rule,
+        FhirCodeSystem fcs,
+        Dictionary<string, int> csIndexState,
+        Dictionary<string, Dictionary<string, int>> conceptIndexStates,
+        ModelInspector inspector,
+        Func<string, string>? aliasResolver = null)
     {
         var path = rule.CaretPath.TrimStart('^');
 
@@ -1312,27 +1470,50 @@ public static class FshCompiler
             // Per-concept caret: apply to the matching concept(s) rather than the CodeSystem itself
             foreach (var codeStr in rule.Codes)
             {
-                var concept = FindConceptByCode(fcs.Concept, codeStr.TrimStart('#'));
-                if (concept != null)
-                    FhirCaretValueWriter.TrySet(concept, path, rule.Value, inspector);
+                var cleanCode = CleanConceptCode(codeStr);
+                var concept = FindConceptByCode(fcs.Concept, cleanCode);
+                if (concept is null) continue;
+
+                if (!conceptIndexStates.TryGetValue(cleanCode, out var conceptState))
+                    conceptIndexStates[cleanCode] = conceptState = new Dictionary<string, int>(StringComparer.Ordinal);
+
+                var resolvedPath = ResolveSoftIndices(path, conceptState);
+                SetCsCaretPath(concept, resolvedPath, rule.Value, inspector, aliasResolver);
             }
         }
         else
         {
-            FhirCaretValueWriter.TrySet(fcs, path, rule.Value, inspector);
-            // Silently ignore if the path is not in the CodeSystem model.
+            var resolvedPath = ResolveSoftIndices(path, csIndexState);
+            SetCsCaretPath(fcs, resolvedPath, rule.Value, inspector, aliasResolver);
         }
     }
 
     /// <summary>
     /// Expands a <see cref="CsInsertRule"/> by resolving the referenced <see cref="RuleSet"/>
     /// and replaying any applicable CS rules against the CodeSystem.
+    /// The caller's <paramref name="csIndexState"/> and <paramref name="conceptIndexStates"/> are
+    /// shared so that soft-index counters (<c>[+]</c>/<c>[=]</c>) remain continuous across
+    /// multiple insert rules at the same nesting level.
     /// </summary>
     private static void ApplyCsInsertRule(
-        CsInsertRule insertRule, FhirCodeSystem fcs, CompilerContext context, CompilerOptions opts)
+        CsInsertRule insertRule,
+        FhirCodeSystem fcs,
+        CompilerContext context,
+        CompilerOptions opts,
+        Dictionary<string, int>? csIndexState = null,
+        Dictionary<string, Dictionary<string, int>>? conceptIndexStates = null)
     {
         var resolved = RuleSetResolver.Resolve(
             insertRule.RuleSetReference, insertRule.IsParameterized, insertRule.Parameters, context);
+
+        var inspector = opts.Inspector ?? ModelInspector.ForAssembly(typeof(StructureDefinition).Assembly);
+        // Use the caller's index-state dictionaries when provided so that [+] increments
+        // accumulate across multiple insert-rule invocations (e.g. two `insert propertyConcept`
+        // calls on the same CodeSystem should produce consecutive property[0] and property[1],
+        // not both overwrite property[0]).
+        csIndexState ??= new Dictionary<string, int>(StringComparer.Ordinal);
+        conceptIndexStates ??= new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+        Func<string, string> aliasResolver = context.ResolveAlias;
 
         foreach (var rule in resolved)
         {
@@ -1342,14 +1523,14 @@ public static class FshCompiler
                     ApplyConceptRule(concept, fcs);
                     break;
                 case CsCaretValueRule csCaretRule:
-                    ApplyCsCaretValueRule(csCaretRule, fcs, opts.Inspector);
+                    ApplyCsCaretValueRule(csCaretRule, fcs, csIndexState, conceptIndexStates, inspector, aliasResolver);
                     break;
                 case CaretValueRule sdCaret when string.IsNullOrEmpty(sdCaret.Path):
-                    var csPath = sdCaret.CaretPath.TrimStart('^');
-                    FhirCaretValueWriter.TrySet(fcs, csPath, sdCaret.Value, opts.Inspector);
+                    var csPath = ResolveSoftIndices(sdCaret.CaretPath.TrimStart('^'), csIndexState);
+                    SetCsCaretPath(fcs, csPath, sdCaret.Value, inspector, aliasResolver);
                     break;
                 case CsInsertRule nestedInsert:
-                    ApplyCsInsertRule(nestedInsert, fcs, context, opts);
+                    ApplyCsInsertRule(nestedInsert, fcs, context, opts, csIndexState, conceptIndexStates);
                     break;
             }
         }
@@ -1366,6 +1547,19 @@ public static class FshCompiler
             if (child != null) return child;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Strips the FSH code prefix (<c>#</c>) and, for codes with spaces that are delimited
+    /// by double-quotes in FSH (e.g. <c>#"More than half the days"</c>), also removes the
+    /// surrounding double-quote characters.
+    /// </summary>
+    private static string CleanConceptCode(string rawCode)
+    {
+        var code = rawCode.TrimStart('#');
+        if (code.StartsWith('"') && code.EndsWith('"') && code.Length >= 2)
+            code = code[1..^1];
+        return code;
     }
 
     // ─── Shared helpers ───────────────────────────────────────────────────────
@@ -1482,20 +1676,11 @@ public static class FshCompiler
 
         // Resolve alias → type name, then strip any URL prefix to get the bare FHIR type name.
         var resolvedInstanceOf = context.ResolveAlias(instance.InstanceOf);
-        var typeName = resolvedInstanceOf;
-        var lastSlash = typeName.LastIndexOf('/');
-        if (lastSlash >= 0)
-            typeName = typeName[(lastSlash + 1)..];
 
-        var classMap = inspector.FindClassMapping(typeName);
-        if (classMap is null || !classMap.IsResource)
-        {
-            // typeName may be a profile identifier rather than a bare FHIR type.
-            // Walk compiled StructureDefinitions to resolve the actual base resource type.
-            var ar = new AliasResolver(context.CompiledStructureDefinitions);
-            IResourceResolver imr = (options?.Resolver == null) ? ar : new MultiResolver(ar, options?.Resolver);
-            classMap = context.ResolveClassMappingForProfile(typeName, inspector, imr);
-        }
+        // Resolve the type name
+        var ar = new AliasResolver(context.CompiledStructureDefinitions);
+        IResourceResolver imr = (options?.Resolver == null) ? ar : new MultiResolver(ar, options?.Resolver);
+        var classMap = context.ResolveClassMappingForProfile(resolvedInstanceOf, inspector, imr, out string? resolvedCanonicalUrl);
 
         if (classMap is null || !classMap.IsResource)
         {
@@ -1508,6 +1693,8 @@ public static class FshCompiler
             return null;
         }
 
+        var typeName = classMap.Name;
+
         if (Activator.CreateInstance(classMap.NativeType) is not FhirResource resource)
             return null;
 
@@ -1516,7 +1703,7 @@ public static class FshCompiler
 
         // C-IN2: Set meta.profile to the InstanceOf canonical URL when it looks like a URL,
         // or when a canonical base is set (so we can construct it).
-        var instanceOfUrl = resolvedInstanceOf;
+        var instanceOfUrl = resolvedCanonicalUrl;
         if (!IsAbsoluteUrl(instanceOfUrl))
         {
             // Not a URL — try to build one with the canonical base if available.
@@ -1525,23 +1712,10 @@ public static class FshCompiler
             else
                 instanceOfUrl = null; // can't determine URL; skip meta.profile
         }
-        if (!string.IsNullOrEmpty(instanceOfUrl))
+        if (!string.IsNullOrEmpty(instanceOfUrl) && !inspector.IsKnownResource(resolvedInstanceOf))
         {
             resource.Meta ??= new Meta();
             resource.Meta.Profile = [instanceOfUrl];
-        }
-
-        // C-IN3: Set Title and Description on conformance resources that support them.
-        if (!string.IsNullOrEmpty(instance.Title) || !string.IsNullOrEmpty(instance.Description))
-        {
-            var resClassMap = inspector.FindClassMapping(resource.GetType());
-            if (resClassMap != null)
-            {
-                if (!string.IsNullOrEmpty(instance.Title))
-                    TrySetStringProperty(resource, resClassMap, "title", instance.Title);
-                if (!string.IsNullOrEmpty(instance.Description))
-                    TrySetStringProperty(resource, resClassMap, "description", instance.Description);
-            }
         }
 
         // Apply instance rules.
@@ -1571,52 +1745,94 @@ public static class FshCompiler
         FhirResource resource,
         CompilerContext context,
         CompilerOptions opts,
-        ModelInspector inspector)
+        ModelInspector inspector,
+        Dictionary<string, int>? softIndexState = null)
     {
         // C-FP2: Soft-index state — maps path prefix → current resolved index.
         // The state dictionary persists across ALL rules in this entity's rule list so that
         // each [+] accumulates sequentially and [=] can reference a [+] from a previous rule.
+        // When called recursively (for InstanceInsertRule expansion), the outer state is passed
+        // through so that [+] counters continue from wherever the outer rules left off.
         // [+] increments (or starts at 0) and stores the new index in state.
         // [=] reuses the stored index (defaults to 0 if no prior [+] has been seen for this prefix).
-        var softIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
+        softIndexState ??= new Dictionary<string, int>(StringComparer.Ordinal);
 
         foreach (var rule in rules)
         {
             switch (rule)
             {
+                // InstancePathRule (`* input[+]` with no value) acts as a soft-index
+                // counter advance when rules are expanded from parameterised RuleSets.
+                // The [+] in the path must be resolved to move softIndexState forward
+                // so that subsequent [=] references in sibling rules use the same slot.
+                case InstancePathRule pathRule when !string.IsNullOrEmpty(pathRule.Path):
+                    ResolveSoftIndices(pathRule.Path, softIndexState);
+                    break;
+
                 case InstanceFixedValueRule fixedRule when
                     !string.IsNullOrEmpty(fixedRule.Path) && fixedRule.Value != null:
                     var resolvedPath = ResolveSoftIndices(fixedRule.Path, softIndexState);
-
-                    // C-IN6: `* contained = <Name>` — embed a named Instance as a contained resource.
-                    // The path base must be "contained" (with optional index, e.g. "contained[+]")
-                    // and the value must be a NameValue (cross-instance reference).
+                    // When the value is a NameValue (cross-instance reference) and the leaf
+                    // property accepts a Resource, build the referenced instance and embed it
+                    // inline.  This covers both DomainResource.contained[] and any other
+                    // Resource-typed leaf (e.g. Parameters.parameter[].resource).
                     if (fixedRule.Value is NameValue nameRef &&
-                        resource is DomainResource domRes)
+                        context.Instances.TryGetValue(nameRef.Value, out var refInstance))
                     {
-                        var pathBase = resolvedPath.Split('[')[0];
-                        if (string.Equals(pathBase, "contained", StringComparison.Ordinal) &&
-                            context.Instances.TryGetValue(nameRef.Value, out var refInstance))
+                        var segments = SplitInstancePath(resolvedPath);
+                        if (segments.Length > 0)
                         {
-                            var containedResource = BuildInstance(refInstance, context, opts, forContained: true);
-                            if (containedResource != null)
+                            // Navigate to the parent of the leaf.
+                            Base? parent = resource;
+                            for (int si = 0; si < segments.Length - 1 && parent != null; si++)
                             {
-                                domRes.Contained ??= [];
-                                domRes.Contained.Add(containedResource);
+                                var (sn, sIdx, sni) = ParseInstanceSegment(segments[si]);
+                                parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, context.ResolveAlias);
                             }
-                            break;
+                            if (parent != null)
+                            {
+                                var (leafName, _, _) = ParseInstanceSegment(segments[^1]);
+                                var parentClassMap = inspector.FindClassMapping(parent.GetType());
+                                var leafPropMap = parentClassMap?.FindMappedElementByName(leafName);
+                                if (leafPropMap != null &&
+                                    typeof(Hl7.Fhir.Model.Resource).IsAssignableFrom(leafPropMap.ImplementingType))
+                                {
+                                    var embeddedResource = BuildInstance(refInstance, context, opts, forContained: true);
+                                    if (embeddedResource != null)
+                                    {
+                                        if (leafPropMap.IsCollection)
+                                        {
+                                            // e.g. DomainResource.contained[]
+                                            var list = leafPropMap.GetValue(parent) as System.Collections.IList;
+                                            if (list is null)
+                                            {
+                                                var listType = typeof(List<>).MakeGenericType(leafPropMap.ImplementingType);
+                                                list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                                                leafPropMap.SetValue(parent, list);
+                                            }
+                                            list.Add(embeddedResource);
+                                        }
+                                        else
+                                        {
+                                            // e.g. Parameters.ParameterComponent.Resource
+                                            leafPropMap.SetValue(parent, embeddedResource);
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
                         }
                     }
 
-                    SetInstancePath(resource, resolvedPath, fixedRule.Value, inspector);
+                    SetInstancePath(resource, resolvedPath, fixedRule.Value, inspector, context.ResolveAlias);
                     break;
 
                 case InstanceInsertRule insertRule:
                     var resolved = RuleSetResolver.Resolve(
                         insertRule.RuleSetReference, insertRule.IsParameterized,
-                        insertRule.Parameters, context);
+                        insertRule.Parameters, context, useInstanceWrapper: true);
                     ApplyInstanceRules(
-                        resolved.OfType<InstanceRule>(), resource, context, opts, inspector);
+                        resolved.OfType<InstanceRule>(), resource, context, opts, inspector, softIndexState);
                     break;
             }
         }
@@ -1700,7 +1916,7 @@ public static class FshCompiler
     /// <paramref name="path"/>, creating intermediate objects and list elements as needed.
     /// Returns <c>true</c> when the leaf value was set successfully.
     /// </summary>
-    private static bool SetInstancePath(Base obj, string path, FshValue value, ModelInspector inspector)
+    private static bool SetInstancePath(Base obj, string path, FshValue value, ModelInspector inspector, Func<string, string>? aliasResolver = null)
     {
         var segments = SplitInstancePath(path);
         if (segments.Length == 0) return false;
@@ -1710,14 +1926,50 @@ public static class FshCompiler
         // Navigate to the parent of the leaf element.
         for (int i = 0; i < segments.Length - 1; i++)
         {
-            var (segName, segIdx) = ParseInstanceSegment(segments[i]);
-            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector);
+            var (segName, segIdx, segNamedIdx) = ParseInstanceSegment(segments[i]);
+            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector, segNamedIdx, aliasResolver);
             if (current is null) return false;
         }
 
         // Set the leaf.
-        var (leafName, leafIdx) = ParseInstanceSegment(segments[segments.Length - 1]);
-        return FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector);
+        var (leafName, leafIdx, _) = ParseInstanceSegment(segments[segments.Length - 1]);
+        if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver))
+            return true;
+
+        // Choice-type fallback: e.g. "valueDecimal", "admitReasonCoding" — scan right-to-left
+        // for a suffix that is a recognised FHIR DataType name.
+        return FhirCaretValueWriter.TrySetChoiceTypeLeaf(current, leafName, value, inspector, aliasResolver);
+    }
+
+    /// <summary>
+    /// Sets a CodeSystem caret-value path on <paramref name="obj"/>, navigating dot-separated
+    /// segments and falling back to FHIR choice-type handling for the leaf element when the
+    /// direct property lookup fails.  This fallback is intentionally scoped to the CodeSystem
+    /// caret-value path so that it does not alter behavior for general instance rule paths.
+    /// </summary>
+    private static bool SetCsCaretPath(Base obj, string path, FshValue value, ModelInspector inspector, Func<string, string>? aliasResolver = null)
+    {
+        var segments = SplitInstancePath(path);
+        if (segments.Length == 0) return false;
+
+        var current = obj;
+
+        // Navigate to the parent of the leaf element.
+        for (int i = 0; i < segments.Length - 1; i++)
+        {
+            var (segName, segIdx, segNamedIdx) = ParseInstanceSegment(segments[i]);
+            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector, segNamedIdx, aliasResolver);
+            if (current is null) return false;
+        }
+
+        // Set the leaf — try normal path first, then choice-type fallback.
+        var (leafName, leafIdx, _) = ParseInstanceSegment(segments[^1]);
+        if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver))
+            return true;
+
+        // Choice-type fallback: e.g. "valueDecimal", "admitReasonCoding" — scan right-to-left
+        // for a suffix that is a recognised FHIR DataType name.
+        return FhirCaretValueWriter.TrySetChoiceTypeLeaf(current, leafName, value, inspector, aliasResolver);
     }
 
     /// <summary>
@@ -1725,13 +1977,32 @@ public static class FshCompiler
     /// <paramref name="name"/> at list <paramref name="index"/>.
     /// Returns <c>null</c> when the property is not found or cannot be instantiated.
     /// </summary>
-    private static Base? GetOrCreateInstanceChild(Base parent, string name, int index, ModelInspector inspector)
+    /// <param name="namedIndex">
+    /// When the bracket content was not a numeric index (e.g. <c>extension[$alias]</c> or
+    /// <c>extension[http://...]</c>), this is the raw bracket text.  For Extension collections
+    /// the value is resolved via <paramref name="aliasResolver"/> and used as
+    /// <see cref="Extension.Url"/>.  When the extension list already contains an entry with that
+    /// url it is reused; otherwise a new entry is appended (regardless of
+    /// <paramref name="index"/>).
+    /// </param>
+    private static Base? GetOrCreateInstanceChild(
+        Base parent, string name, int index, ModelInspector inspector,
+        string? namedIndex = null, Func<string, string>? aliasResolver = null)
     {
         var classMap = inspector.FindClassMapping(parent.GetType());
         if (classMap is null) return null;
 
         var propMap = classMap.FindMappedElementByName(name);
-        if (propMap is null) return null;
+        if (propMap is null)
+        {
+            // Choice-type fallback: the path segment uses a typed variant name such as
+            // "valueExpression" where the underlying FHIR property is "value[x]".
+            // Scan right-to-left for an uppercase boundary, check whether the suffix names a
+            // recognised FHIR DataType, and whether the base is a mapped property.  When found,
+            // get-or-create an instance of the concrete DataType and return it so the caller can
+            // continue navigating into its children.
+            return GetOrCreateChoiceTypeChild(parent, name, classMap, inspector);
+        }
 
         // Determine the concrete instantiable type.
         var concreteType = propMap.ImplementingType;
@@ -1745,6 +2016,34 @@ public static class FshCompiler
                 var listType = typeof(List<>).MakeGenericType(concreteType);
                 list = (System.Collections.IList)Activator.CreateInstance(listType)!;
                 propMap.SetValue(parent, list);
+            }
+
+            // Named-slice: when the bracket content is a non-numeric alias or URL reference
+            // (e.g. extension[$questionnaire-versionAlgorithm]) find-or-create by Extension.Url.
+            if (namedIndex is not null && concreteType == typeof(Hl7.Fhir.Model.Extension))
+            {
+                var resolvedUrl = aliasResolver is not null
+                    ? aliasResolver(namedIndex)
+                    : namedIndex;
+                // Percent-encode bracket characters in absolute URLs so that FHIR choice-type
+                // markers like [x] serialise as %5Bx%5D.  Only applied to absolute URLs;
+                // relative identifiers and slice names are left unchanged.
+                // Uri.AbsoluteUri is not used here: it appends a trailing slash to bare-host
+                // URIs and does not encode [ ] in paths on .NET.
+                if (IsAbsoluteUrl(resolvedUrl))
+                    resolvedUrl = resolvedUrl.Replace("[", "%5B").Replace("]", "%5D");
+
+                // Reuse existing extension with the same url if present.
+                foreach (var item in list)
+                {
+                    if (item is Hl7.Fhir.Model.Extension existing && existing.Url == resolvedUrl)
+                        return existing;
+                }
+
+                // Create a new Extension with the resolved url.
+                var newExt = new Hl7.Fhir.Model.Extension { Url = resolvedUrl };
+                list.Add(newExt);
+                return newExt;
             }
 
             while (list.Count <= index)
@@ -1765,25 +2064,74 @@ public static class FshCompiler
         }
     }
 
+    /// <summary>
+    /// Handles intermediate path segments that use FHIR choice-type syntax
+    /// (e.g. <c>valueExpression</c> → <c>value[x]</c> of type <c>Expression</c>).
+    /// When a matching base property and DataType suffix are found, gets or creates an instance
+    /// of the concrete DataType on the parent and returns it for further navigation.
+    /// Returns <c>null</c> when no valid split is found.
+    /// </summary>
+    private static Base? GetOrCreateChoiceTypeChild(
+        Base parent, string name, ClassMapping classMap, ModelInspector inspector)
+    {
+        for (int i = name.Length - 1; i >= 1; i--)
+        {
+            if (!char.IsUpper(name[i])) continue;
+
+            var typeSuffix = name[i..];
+            var baseName   = name[..i];
+
+            var suffixType = inspector.FindClassMapping(typeSuffix);
+            if (suffixType is null) continue;
+            if (suffixType.NativeType.IsAbstract) continue;
+
+            var basePropMap = classMap.FindMappedElementByName(baseName);
+            if (basePropMap is null) continue;
+
+            // The concrete type must be assignable to the property's implementing type.
+            if (!basePropMap.ImplementingType.IsAssignableFrom(suffixType.NativeType)) continue;
+            if (basePropMap.IsCollection) continue; // Don't handle collection value[x] here
+
+            // Return the existing child if it's already the right type; otherwise create new.
+            var existing = basePropMap.GetValue(parent) as Base;
+            if (existing is not null && suffixType.NativeType.IsAssignableFrom(existing.GetType()))
+                return existing;
+
+            var child = Activator.CreateInstance(suffixType.NativeType) as Base;
+            if (child is null) return null;
+            basePropMap.SetValue(parent, child);
+            return child;
+        }
+
+        return null;
+    }
+
     /// <summary>Splits a FHIR instance path on <c>.</c> boundaries.</summary>
     private static string[] SplitInstancePath(string path) =>
         path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>
-    /// Parses a path segment such as <c>name</c> or <c>name[2]</c> into its name and
-    /// zero-based list index (defaulting to 0 when no brackets are present).
+    /// Parses a path segment such as <c>name</c>, <c>name[2]</c>, or
+    /// <c>name[$alias]</c> into its name, zero-based numeric index (defaulting to 0), and
+    /// optional named index string (non-<c>null</c> when the bracket content is not a plain
+    /// integer — e.g. an alias like <c>$questionnaire-versionAlgorithm</c> or a URL).
     /// </summary>
-    private static (string Name, int Index) ParseInstanceSegment(string segment)
+    private static (string Name, int Index, string? NamedIndex) ParseInstanceSegment(string segment)
     {
         var bracketStart = segment.IndexOf('[');
-        if (bracketStart < 0) return (segment, 0);
+        if (bracketStart < 0) return (segment, 0, null);
 
         var name = segment[..bracketStart];
         var bracketEnd = segment.IndexOf(']', bracketStart);
         var idxStr = bracketEnd > bracketStart + 1
             ? segment[(bracketStart + 1)..bracketEnd]
             : "0";
-        return (name, int.TryParse(idxStr, out var idx) ? idx : 0);
+
+        if (int.TryParse(idxStr, out var idx))
+            return (name, idx, null);
+
+        // Non-numeric bracket content — return it as the named index.
+        return (name, 0, idxStr);
     }
 
     // ─── Mapping compiler ─────────────────────────────────────────────────────

@@ -1,12 +1,27 @@
 {
   "resourceType": "CodeSystem",
-  "status": "active",
-  "content": "complete",
-  "name": "CodeSystemCSPHQ9",
   "id": "CSPHQ9",
-  "title": "SDC-CodeSystem PHQ9",
-  "description": "The answer list for questions 1 through 9 on the Patient Health Questionnaire (9 item) form",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem"
+    ]
+  },
   "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/CSPHQ9",
+  "name": "CodeSystemCSPHQ9",
+  "title": "SDC-CodeSystem PHQ9",
+  "status": "active",
+  "experimental": true,
+  "description": "The answer list for questions 1 through 9 on the Patient Health Questionnaire (9 item) form",
+  "caseSensitive": true,
+  "content": "complete",
+  "count": 4,
+  "property": [
+    {
+      "code": "itemWeight",
+      "uri": "http://hl7.org/fhir/concept-properties#itemWeight",
+      "type": "decimal"
+    }
+  ],
   "concept": [
     {
       "code": "Not-at-all",
@@ -14,7 +29,7 @@
       "property": [
         {
           "code": "itemWeight",
-          "valueDecimal": 0
+          "valueDecimal": 0.0
         }
       ]
     },
@@ -24,7 +39,7 @@
       "property": [
         {
           "code": "itemWeight",
-          "valueDecimal": 1
+          "valueDecimal": 1.0
         }
       ]
     },
@@ -34,7 +49,7 @@
       "property": [
         {
           "code": "itemWeight",
-          "valueDecimal": 2
+          "valueDecimal": 2.0
         }
       ]
     },
@@ -44,24 +59,9 @@
       "property": [
         {
           "code": "itemWeight",
-          "valueDecimal": 3
+          "valueDecimal": 3.0
         }
       ]
     }
-  ],
-  "meta": {
-    "profile": [
-      "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem"
-    ]
-  },
-  "experimental": true,
-  "caseSensitive": true,
-  "property": [
-    {
-      "code": "itemWeight",
-      "uri": "http://hl7.org/fhir/concept-properties#itemWeight",
-      "type": "decimal"
-    }
-  ],
-  "count": 4
+  ]
 }

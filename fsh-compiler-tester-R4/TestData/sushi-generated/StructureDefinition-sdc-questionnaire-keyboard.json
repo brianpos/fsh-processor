@@ -53,8 +53,8 @@
         ],
         "binding": {
           "strength": "extensible",
-          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/keyboardType",
-          "description": "Keyboard types that can be used for text entry."
+          "description": "Keyboard types that can be used for text entry.",
+          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/keyboardType"
         }
       }
     ]

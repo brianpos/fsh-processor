@@ -10,41 +10,53 @@
     {
       "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
+        "system": "http://hl7.org/fhir/version-algorithm",
+        "code": "semver"
       }
     }
   ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-cap",
+  "name": "QuestionnaireSDCProfileExampleCap",
+  "title": "Questionnaire SDC Profile Cap",
+  "status": "active",
   "item": [
     {
+      "linkId": "1",
+      "text": "MARGINS",
+      "type": "group",
+      "required": true,
       "item": [
         {
+          "linkId": "1.1",
+          "text": "Status of surgical margin involvement by tumor (observable entity)",
+          "type": "choice",
+          "required": true,
           "answerOption": [
             {
               "valueCoding": {
-                "code": "M1",
                 "system": "http://example.org",
+                "code": "M1",
                 "display": "Margins univolved by tumor"
               }
             },
             {
               "valueCoding": {
-                "code": "M2",
                 "system": "http://example.org",
+                "code": "M2",
                 "display": "Margin(s) involved by tumor"
               }
             },
             {
               "valueCoding": {
-                "code": "M3",
                 "system": "http://example.org",
+                "code": "M3",
                 "display": "Cannot be determined"
               }
             },
             {
               "valueCoding": {
-                "code": "M4",
                 "system": "http://example.org",
+                "code": "M4",
                 "display": "Not applicable"
               }
             }
@@ -57,30 +69,36 @@
                   "valueCode": "hidden"
                 }
               ],
+              "linkId": "1.1.1",
+              "type": "group",
               "enableWhen": [
                 {
                   "question": "1.1",
                   "operator": "=",
                   "answerCoding": {
-                    "code": "M1",
-                    "system": "http://example.org"
+                    "system": "http://example.org",
+                    "code": "M1"
                   }
                 }
               ],
+              "required": true,
               "item": [
                 {
+                  "linkId": "1.1.1.1",
+                  "text": "Distance from Closest Margin",
+                  "type": "choice",
                   "answerOption": [
                     {
                       "valueCoding": {
-                        "code": "D1",
                         "system": "http://example.org",
+                        "code": "D1",
                         "display": "Specify (mm)"
                       }
                     },
                     {
                       "valueCoding": {
-                        "code": "D2",
                         "system": "http://example.org",
+                        "code": "D2",
                         "display": "Cannot be assessed (explain)"
                       }
                     }
@@ -112,24 +130,24 @@
                       "type": "string",
                       "required": true
                     }
-                  ],
-                  "linkId": "1.1.1.1",
-                  "text": "Distance from Closest Margin",
-                  "type": "choice"
+                  ]
                 },
                 {
+                  "linkId": "1.1.1.2",
+                  "text": "Specify Margin, if possible",
+                  "type": "choice",
                   "answerOption": [
                     {
                       "valueCoding": {
-                        "code": "W1",
                         "system": "http://example.org",
+                        "code": "W1",
                         "display": "Specify margin"
                       }
                     },
                     {
                       "valueCoding": {
-                        "code": "W2",
                         "system": "http://example.org",
+                        "code": "W2",
                         "display": "Cannot be determined (explain)"
                       }
                     }
@@ -147,29 +165,27 @@
                       "type": "string",
                       "required": true
                     }
-                  ],
-                  "linkId": "1.1.1.2",
-                  "text": "Specify Margin, if possible",
-                  "type": "choice"
+                  ]
                 }
-              ],
-              "linkId": "1.1.1",
-              "type": "group",
-              "required": true
+              ]
             },
             {
+              "linkId": "1.1.2.1",
+              "text": "Specify Margin(s), if possible",
+              "type": "choice",
+              "required": true,
               "answerOption": [
                 {
                   "valueCoding": {
-                    "code": "I1",
                     "system": "http://example.org",
+                    "code": "I1",
                     "display": "Specify margin(s)"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "I2",
                     "system": "http://example.org",
+                    "code": "I2",
                     "display": "Cannot be determined (explain)"
                   }
                 }
@@ -187,11 +203,7 @@
                   "type": "string",
                   "required": true
                 }
-              ],
-              "linkId": "1.1.2.1",
-              "text": "Specify Margin(s), if possible",
-              "type": "choice",
-              "required": true
+              ]
             },
             {
               "linkId": "1.1.3.1",
@@ -205,40 +217,39 @@
               "type": "string",
               "required": true
             }
-          ],
-          "linkId": "1.1",
-          "text": "Status of surgical margin involvement by tumor (observable entity)",
-          "type": "choice",
-          "required": true
+          ]
         }
-      ],
-      "linkId": "1",
-      "text": "MARGINS",
-      "type": "group",
-      "required": true
+      ]
     },
     {
+      "linkId": "2",
+      "text": "ACCESSORY FINDINGS",
+      "type": "group",
+      "required": true,
       "item": [
         {
+          "linkId": "2.1",
+          "text": "Treatment Effect (applicable to carcinomas treated with neoadjuvant therapy)",
+          "type": "choice",
           "answerOption": [
             {
               "valueCoding": {
-                "code": "E1",
                 "system": "http://example.org",
+                "code": "E1",
                 "display": "Not identified"
               }
             },
             {
               "valueCoding": {
-                "code": "E2",
                 "system": "http://example.org",
+                "code": "E2",
                 "display": "Present (specify)"
               }
             },
             {
               "valueCoding": {
-                "code": "E3",
                 "system": "http://example.org",
+                "code": "E3",
                 "display": "Indeterminate"
               }
             }
@@ -262,63 +273,68 @@
               "type": "string",
               "required": true
             }
-          ],
-          "linkId": "2.1",
-          "text": "Treatment Effect (applicable to carcinomas treated with neoadjuvant therapy)",
-          "type": "choice"
+          ]
         },
         {
+          "linkId": "2.2",
+          "text": "Tumor Description",
+          "type": "choice",
+          "repeats": true,
           "answerOption": [
             {
               "valueCoding": {
-                "code": "U1",
                 "system": "http://example.org",
+                "code": "U1",
                 "display": "Hemorrhagic"
               }
             },
             {
               "valueCoding": {
-                "code": "U2",
                 "system": "http://example.org",
+                "code": "U2",
                 "display": "Necrotic"
               }
             },
             {
               "valueCoding": {
-                "code": "U3",
                 "system": "http://example.org",
+                "code": "U3",
                 "display": "Invasion"
               }
             },
             {
               "valueCoding": {
-                "code": "U4",
                 "system": "http://example.org",
+                "code": "U4",
                 "display": "Other (specify)"
               }
             }
           ],
           "item": [
             {
+              "linkId": "2.2.1.1",
+              "text": "??",
+              "type": "choice",
+              "repeats": true,
               "answerOption": [
                 {
                   "valueCoding": {
-                    "code": "V1",
                     "system": "http://example.org",
+                    "code": "V1",
                     "display": "Capsule"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "V2",
                     "system": "http://example.org",
+                    "code": "V2",
                     "display": "Vessels"
                   }
                 },
                 {
                   "valueCoding": {
-                    "code": "V3",
                     "system": "http://example.org",
+                    "code": "V3",
                     "display": "Extra-adrenal (specify)"
                   }
                 }
@@ -330,11 +346,7 @@
                   "type": "string",
                   "required": true
                 }
-              ],
-              "linkId": "2.2.1.1",
-              "text": "??",
-              "type": "choice",
-              "repeats": true
+              ]
             },
             {
               "linkId": "2.2.2.1",
@@ -342,21 +354,9 @@
               "type": "string",
               "required": true
             }
-          ],
-          "linkId": "2.2",
-          "text": "Tumor Description",
-          "type": "choice",
-          "repeats": true
+          ]
         }
-      ],
-      "linkId": "2",
-      "text": "ACCESSORY FINDINGS",
-      "type": "group",
-      "required": true
+      ]
     }
-  ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-profile-example-cap",
-  "name": "QuestionnaireSDCProfileExampleCap",
-  "title": "Questionnaire SDC Profile Cap",
-  "status": "active"
+  ]
 }

@@ -67,8 +67,8 @@
         "patternCodeableConcept": {
           "coding": [
             {
-              "code": "complete-questionnaire",
-              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
+              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+              "code": "complete-questionnaire"
             }
           ]
         },

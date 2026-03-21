@@ -51,8 +51,8 @@
         ],
         "binding": {
           "strength": "required",
-          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/collapsible",
-          "description": "Defines mechanism of displaying child items."
+          "description": "Defines mechanism of displaying child items.",
+          "valueSet": "http://hl7.org/fhir/uv/sdc/ValueSet/collapsible"
         }
       }
     ]

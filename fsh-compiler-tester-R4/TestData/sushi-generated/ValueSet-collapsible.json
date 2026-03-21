@@ -1,12 +1,12 @@
 {
   "resourceType": "ValueSet",
-  "status": "active",
-  "name": "QuestionnaireItemCollapsible",
   "id": "collapsible",
-  "title": "Questionnaire Item Collapsible",
-  "description": "Defines mechanisms of displaying child items in collapsible form",
   "url": "http://hl7.org/fhir/uv/sdc/ValueSet/collapsible",
+  "name": "QuestionnaireItemCollapsible",
+  "title": "Questionnaire Item Collapsible",
+  "status": "active",
   "experimental": false,
+  "description": "Defines mechanisms of displaying child items in collapsible form",
   "compose": {
     "include": [
       {

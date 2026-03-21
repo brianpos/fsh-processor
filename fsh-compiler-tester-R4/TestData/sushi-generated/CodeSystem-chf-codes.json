@@ -1,12 +1,37 @@
 {
   "resourceType": "CodeSystem",
-  "status": "active",
-  "content": "complete",
-  "name": "CHFCodes",
   "id": "chf-codes",
-  "title": "CHF Codes",
-  "description": "Codes used in the congestive heart failure pathway. Ideally these shouldn't exist, but where I couldn't find an appropriate code in a standard terminology, I defined codes here.",
   "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/chf-codes",
+  "version": "1.0.0",
+  "name": "CHFCodes",
+  "title": "CHF Codes",
+  "status": "active",
+  "experimental": true,
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "url",
+          "value": "http://www.hl7.org/Special/committees/dss/index.cfm"
+        }
+      ]
+    }
+  ],
+  "description": "Codes used in the congestive heart failure pathway. Ideally these shouldn't exist, but where I couldn't find an appropriate code in a standard terminology, I defined codes here.",
+  "jurisdiction": [
+    {
+      "coding": [
+        {
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "001",
+          "display": "World"
+        }
+      ]
+    }
+  ],
+  "caseSensitive": true,
+  "content": "complete",
+  "count": 9,
   "concept": [
     {
       "code": "body-weight-change",
@@ -53,30 +78,5 @@
       "display": "Cardiology Consultation",
       "definition": "Cardiology consultation"
     }
-  ],
-  "version": "1.0.0",
-  "experimental": true,
-  "contact": [
-    {
-      "telecom": [
-        {
-          "system": "url",
-          "value": "http://www.hl7.org/Special/committees/dss/index.cfm"
-        }
-      ]
-    }
-  ],
-  "jurisdiction": [
-    {
-      "coding": [
-        {
-          "code": "001",
-          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
-          "display": "World"
-        }
-      ]
-    }
-  ],
-  "caseSensitive": true,
-  "count": 9
+  ]
 }

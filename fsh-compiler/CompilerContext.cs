@@ -45,6 +45,19 @@ public class CompilerContext
         new(StringComparer.Ordinal);
 
     /// <summary>
+    /// CodeSystem name/id → canonical URL, populated by a pre-scan of all <see cref="FshDoc"/>
+    /// entities before compilation begins.  Used by the ValueSet compiler to resolve system names
+    /// in compose components (e.g. <c>TemporaryCodes#complete-questionnaire</c> →
+    /// <c>http://hl7.org/fhir/uv/sdc/CodeSystem/temp</c>).
+    /// </summary>
+    public Dictionary<string, string> CodeSystemUrls { get; } = new([new KeyValuePair<string, string>("SNOMED_CT", "http://snomed.info/sct")], StringComparer.Ordinal);
+
+    /// <summary>
+    /// resource ID to Canonical URL that were loaded from the Core Specification.zip file
+    /// </summary>
+    public Dictionary<string, string> CanonicalsFromSpecificationZip { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Non-fatal warnings accumulated during compilation.  Populated by rule processors when
     /// a rule is silently skipped or an unresolved reference is encountered.
     /// </summary>
@@ -141,10 +154,23 @@ public class CompilerContext
     /// A <see cref="ClassMapping"/> for the resolved FHIR resource type, or <c>null</c> when
     /// the type cannot be resolved.
     /// </returns>
-    public ClassMapping? ResolveClassMappingForProfile(string typeName, ModelInspector inspector, IResourceResolver resolver)
+    public ClassMapping? ResolveClassMappingForProfile(string typeName, ModelInspector inspector, IResourceResolver resolver, out string? resolvedCanonicalUrl)
     {
+        if (inspector.IsKnownResource(typeName))
+        {
+            resolvedCanonicalUrl = inspector.CanonicalUriForFhirCoreType(typeName);
+            return inspector.FindClassMapping(typeName);
+        }
+        var cmCanonical = inspector.FindClassMappingByCanonical(typeName);
+        if (cmCanonical != null)
+        {
+            resolvedCanonicalUrl = typeName;
+            return cmCanonical;
+        }
+
         var sd = resolver.FindStructureDefinition(typeName);
         var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
+        resolvedCanonicalUrl = sd?.Url;
 
         while (sd is not null)
         {

@@ -2,17 +2,24 @@
   "resourceType": "CapabilityStatement",
   "id": "sdc-form-manager",
   "url": "http://hl7.org/fhir/uv/sdc/CapabilityStatement/sdc-form-manager",
+  "name": "SDCFormManager",
   "title": "SDC Form Manager",
+  "status": "active",
+  "date": "2014-07-06",
   "description": "This profile defines the expected capabilities of the *SDC Form Manager* role when conforming to this implementation guide.  This role builds on the [SDC Form Fill Manager](CapabilityStatement-sdc-form-fill-manager.html) by adding the ability to create and maintain Questionnaires and their associated resources.",
+  "kind": "requirements",
+  "imports": [
+    "http://hl7.org/fhir/uv/sdc/CapabilityStatement/sdc-form-fill-manager"
+  ],
+  "fhirVersion": "4.0.1",
   "format": [
     "xml",
     "json"
   ],
-  "imports": [
-    "http://hl7.org/fhir/uv/sdc/CapabilityStatement/sdc-form-fill-manager"
-  ],
   "rest": [
     {
+      "mode": "server",
+      "documentation": "The primary focus is being able to create and update [[[Questionnaire]]]s.  However, creation and maintenance of [[[ValueSet]]]s, [[[CodeSystem]]]s, [[[Library]]]s, and other associated resources is also potentially relevant, though in some cases these might be maintained on separate servers.",
       "security": {
         "description": "Implementations must meet the [general security requirements](security.html) documented in this implementation guide.html."
       },
@@ -24,6 +31,9 @@
               "valueCode": "SHALL"
             }
           ],
+          "type": "Questionnaire",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire",
+          "documentation": "Form mamagers are responsible for creating and updating forms.",
           "interaction": [
             {
               "extension": [
@@ -124,10 +134,7 @@
               "definition": "http://hl7.org/fhir/uv/sdc/OperationDefinition/Questionnaire-assemble",
               "documentation": "Needed as part of the authoring process if modular questionnaires are used and assembly isn't done locally"
             }
-          ],
-          "type": "Questionnaire",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire",
-          "documentation": "Form mamagers are responsible for creating and updating forms."
+          ]
         },
         {
           "extension": [
@@ -136,6 +143,9 @@
               "valueCode": "SHALL"
             }
           ],
+          "type": "ValueSet",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset",
+          "documentation": "Needed if Questionnaire valuesets will be stored on the form server as opposed to a separate terminology service.",
           "interaction": [
             {
               "extension": [
@@ -300,10 +310,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/conformance-publisher",
               "type": "string"
             }
-          ],
-          "type": "ValueSet",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset",
-          "documentation": "Needed if Questionnaire valuesets will be stored on the form server as opposed to a separate terminology service."
+          ]
         },
         {
           "extension": [
@@ -312,6 +319,9 @@
               "valueCode": "SHOULD"
             }
           ],
+          "type": "CodeSystem",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem",
+          "documentation": "Needed if Questionnaire codes will be stored on the form server as opposed to a separate terminology service.",
           "interaction": [
             {
               "extension": [
@@ -498,10 +508,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/CodeSystem-language",
               "type": "token"
             }
-          ],
-          "type": "CodeSystem",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-codesystem",
-          "documentation": "Needed if Questionnaire codes will be stored on the form server as opposed to a separate terminology service."
+          ]
         },
         {
           "extension": [
@@ -510,6 +517,9 @@
               "valueCode": "SHOULD"
             }
           ],
+          "type": "Library",
+          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-library",
+          "documentation": "Allows managing libraries relevant to population, extraction, or other logic",
           "interaction": [
             {
               "extension": [
@@ -685,10 +695,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/Library-jurisdiction",
               "type": "token"
             }
-          ],
-          "type": "Library",
-          "profile": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-library",
-          "documentation": "Allows managing libraries relevant to population, extraction, or other logic"
+          ]
         },
         {
           "extension": [
@@ -697,6 +704,9 @@
               "valueCode": "MAY"
             }
           ],
+          "type": "StructureMap",
+          "profile": "http://hl7.org/fhir/StructureDefinition/StructureMap",
+          "documentation": "Allows managing maps relevant to population or extraction",
           "interaction": [
             {
               "extension": [
@@ -861,10 +871,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/conformance-jurisdiction",
               "type": "token"
             }
-          ],
-          "type": "StructureMap",
-          "profile": "http://hl7.org/fhir/StructureDefinition/StructureMap",
-          "documentation": "Allows managing maps relevant to population or extraction"
+          ]
         },
         {
           "extension": [
@@ -873,6 +880,9 @@
               "valueCode": "MAY"
             }
           ],
+          "type": "StructureDefinition",
+          "profile": "http://hl7.org/fhir/StructureDefinition/StructureDefinition",
+          "documentation": "Allows managing structures relevant to map-based population and/or map-based or definition-based extraction",
           "interaction": [
             {
               "extension": [
@@ -1048,10 +1058,7 @@
               "definition": "http://hl7.org/fhir/SearchParameter/conformance-jurisdiction",
               "type": "token"
             }
-          ],
-          "type": "StructureDefinition",
-          "profile": "http://hl7.org/fhir/StructureDefinition/StructureDefinition",
-          "documentation": "Allows managing structures relevant to map-based population and/or map-based or definition-based extraction"
+          ]
         },
         {
           "extension": [
@@ -1060,6 +1067,9 @@
               "valueCode": "MAY"
             }
           ],
+          "type": "ConceptMap",
+          "profile": "http://hl7.org/fhir/StructureDefinition/ConceptMap",
+          "documentation": "Allows managing code maps relevant to population or extraction",
           "interaction": [
             {
               "extension": [
@@ -1246,19 +1256,9 @@
               "definition": "http://hl7.org/fhir/SearchParameter/conformance-jurisdiction",
               "type": "token"
             }
-          ],
-          "type": "ConceptMap",
-          "profile": "http://hl7.org/fhir/StructureDefinition/ConceptMap",
-          "documentation": "Allows managing code maps relevant to population or extraction"
+          ]
         }
-      ],
-      "mode": "server",
-      "documentation": "The primary focus is being able to create and update [[[Questionnaire]]]s.  However, creation and maintenance of [[[ValueSet]]]s, [[[CodeSystem]]]s, [[[Library]]]s, and other associated resources is also potentially relevant, though in some cases these might be maintained on separate servers."
+      ]
     }
-  ],
-  "name": "SDCFormManager",
-  "status": "active",
-  "date": "2014-07-06",
-  "kind": "requirements",
-  "fhirVersion": "4.0.1"
+  ]
 }

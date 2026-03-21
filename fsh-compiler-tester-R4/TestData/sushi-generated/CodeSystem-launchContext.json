@@ -1,12 +1,15 @@
 {
   "resourceType": "CodeSystem",
-  "status": "active",
-  "content": "complete",
-  "name": "LaunchContext",
   "id": "launchContext",
-  "title": "Launch Context",
-  "description": "The standard context for Questionnaire at launch time",
   "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext",
+  "name": "LaunchContext",
+  "title": "Launch Context",
+  "status": "active",
+  "experimental": false,
+  "description": "The standard context for Questionnaire at launch time",
+  "caseSensitive": true,
+  "content": "complete",
+  "count": 6,
   "concept": [
     {
       "code": "patient",
@@ -38,8 +41,5 @@
       "display": "Clinical",
       "definition": "Indicates the current clinical resource being manipulated or reviewed by the user launching the Questionnaire.  Common uses included 'current diagnostic report', 'current diagnostic image', 'current order', etc.  In a situation where multiple clinical resources are being reviewed simultaneously, there could be multiple resources passed in as context.  (i.e. the 'clinical' variable set in the FHIRPath engine will be a collection.)"
     }
-  ],
-  "experimental": false,
-  "caseSensitive": true,
-  "count": 6
+  ]
 }

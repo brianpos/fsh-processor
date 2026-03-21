@@ -12,8 +12,8 @@
     {
       "coding": [
         {
-          "code": "001",
-          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm"
+          "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "001"
         }
       ]
     }

@@ -10,8 +10,8 @@
     {
       "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
+        "system": "http://hl7.org/fhir/version-algorithm",
+        "code": "semver"
       }
     },
     {
@@ -19,8 +19,8 @@
         {
           "url": "name",
           "valueCoding": {
-            "code": "patient",
-            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext"
+            "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext",
+            "code": "patient"
           }
         },
         {
@@ -40,9 +40,15 @@
       "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-definitionExtract"
     }
   ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/demographics",
+  "name": "DemographicExample",
+  "title": "Questionnaire - Demographics Example",
+  "status": "active",
+  "experimental": true,
   "subjectType": [
     "Patient"
   ],
+  "description": "A sample questionnaire using context-based population and extraction",
   "item": [
     {
       "extension": [
@@ -51,11 +57,11 @@
           "valueBoolean": true
         },
         {
+          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
           "valueExpression": {
             "language": "text/fhirpath",
             "expression": "%patient.id"
-          },
-          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+          }
         }
       ],
       "linkId": "patient.id",
@@ -67,11 +73,11 @@
     {
       "extension": [
         {
+          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
           "valueExpression": {
             "language": "text/fhirpath",
             "expression": "%patient.birthDate"
-          },
-          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+          }
         }
       ],
       "linkId": "patient.birthDate",
@@ -83,23 +89,28 @@
     {
       "extension": [
         {
+          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext",
           "valueExpression": {
             "name": "patientName",
             "language": "text/fhirpath",
             "expression": "%patient.name"
-          },
-          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext"
+          }
         }
       ],
+      "linkId": "patient.name",
+      "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.name",
+      "text": "Name(s)",
+      "type": "group",
+      "repeats": true,
       "item": [
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
               "valueExpression": {
                 "language": "text/fhirpath",
                 "expression": "%patientName.family"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+              }
             }
           ],
           "linkId": "patient.name.family",
@@ -111,11 +122,11 @@
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
               "valueExpression": {
                 "language": "text/fhirpath",
                 "expression": "%patientName.given"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+              }
             }
           ],
           "linkId": "patient.name.given",
@@ -125,22 +136,17 @@
           "required": true,
           "repeats": true
         }
-      ],
-      "linkId": "patient.name",
-      "definition": "http://hl7.org/fhir/StructureDefinition/Patient#Patient.name",
-      "text": "Name(s)",
-      "type": "group",
-      "repeats": true
+      ]
     },
     {
       "extension": [
         {
+          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext",
           "valueExpression": {
             "name": "relative",
             "language": "application/x-fhir-query",
             "expression": "RelatedPerson?patient={{%patient.id}}"
-          },
-          "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext"
+          }
         },
         {
           "extension": [
@@ -152,6 +158,10 @@
           "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-definitionExtract"
         }
       ],
+      "linkId": "relative",
+      "text": "Relatives, caregivers and other personal relationships",
+      "type": "group",
+      "repeats": true,
       "item": [
         {
           "extension": [
@@ -160,11 +170,11 @@
               "valueBoolean": true
             },
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
               "valueExpression": {
                 "language": "text/fhirpath",
                 "expression": "%relative.id"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+              }
             }
           ],
           "linkId": "relative.id",
@@ -176,11 +186,11 @@
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
               "valueExpression": {
                 "language": "text/fhirpath",
                 "expression": "%relative.relationship"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+              }
             }
           ],
           "linkId": "relative.relationship",
@@ -194,23 +204,28 @@
         {
           "extension": [
             {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext",
               "valueExpression": {
                 "name": "relativeName",
                 "language": "text/fhirpath",
                 "expression": "%relative.name"
-              },
-              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext"
+              }
             }
           ],
+          "linkId": "relative.name",
+          "definition": "http://hl7.org/fhir/StructureDefinition/RelatedPerson#RelatedPerson.name",
+          "text": "Name(s)",
+          "type": "group",
+          "repeats": true,
           "item": [
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "language": "text/fhirpath",
                     "expression": "%relativeName.family"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                  }
                 }
               ],
               "linkId": "relative.name.family",
@@ -222,11 +237,11 @@
             {
               "extension": [
                 {
+                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                   "valueExpression": {
                     "language": "text/fhirpath",
                     "expression": "%relativeName.given"
-                  },
-                  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                  }
                 }
               ],
               "linkId": "relative.name.given",
@@ -236,25 +251,9 @@
               "required": true,
               "repeats": true
             }
-          ],
-          "linkId": "relative.name",
-          "definition": "http://hl7.org/fhir/StructureDefinition/RelatedPerson#RelatedPerson.name",
-          "text": "Name(s)",
-          "type": "group",
-          "repeats": true
+          ]
         }
-      ],
-      "linkId": "relative",
-      "definition": "",
-      "text": "Relatives, caregivers and other personal relationships",
-      "type": "group",
-      "repeats": true
+      ]
     }
-  ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/demographics",
-  "name": "DemographicExample",
-  "title": "Questionnaire - Demographics Example",
-  "status": "active",
-  "experimental": true,
-  "description": "A sample questionnaire using context-based population and extraction"
+  ]
 }

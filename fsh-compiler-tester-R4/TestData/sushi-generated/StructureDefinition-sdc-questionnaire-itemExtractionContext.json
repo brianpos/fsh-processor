@@ -68,8 +68,8 @@
         ],
         "binding": {
           "strength": "required",
-          "valueSet": "http://hl7.org/fhir/ValueSet/resource-types",
-          "description": "If value is of type 'code', then the extraction is always the creation of a new resource of the specified type."
+          "description": "If value is of type 'code', then the extraction is always the creation of a new resource of the specified type.",
+          "valueSet": "http://hl7.org/fhir/ValueSet/resource-types"
         }
       }
     ]

@@ -10,13 +10,22 @@
     {
       "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm%5Bx%5D",
       "valueCoding": {
-        "code": "semver",
-        "system": "http://hl7.org/fhir/version-algorithm"
+        "system": "http://hl7.org/fhir/version-algorithm",
+        "code": "semver"
       }
     }
   ],
+  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-test-all-data-types",
+  "name": "AllDataTypes",
+  "title": "Bit of everything",
+  "status": "active",
+  "experimental": true,
+  "description": "A test form that has one of each data type included, useful when testing",
   "item": [
     {
+      "linkId": "02a7536f-06b2-4dee-94e1-f5cfcb0e8622",
+      "text": "Bit of everything - data types",
+      "type": "group",
       "item": [
         {
           "linkId": "id-string",
@@ -95,8 +104,8 @@
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "drop-down",
-                    "system": "http://hl7.org/fhir/questionnaire-item-control"
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down"
                   }
                 ]
               }
@@ -115,8 +124,8 @@
               "valueCodeableConcept": {
                 "coding": [
                   {
-                    "code": "autocomplete",
-                    "system": "http://hl7.org/fhir/questionnaire-item-control"
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "autocomplete"
                   }
                 ]
               }
@@ -135,16 +144,7 @@
           "repeats": false,
           "answerValueSet": "http://terminology.hl7.org/ValueSet/v3-Country2"
         }
-      ],
-      "linkId": "02a7536f-06b2-4dee-94e1-f5cfcb0e8622",
-      "text": "Bit of everything - data types",
-      "type": "group"
+      ]
     }
-  ],
-  "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/questionnaire-sdc-test-all-data-types",
-  "name": "AllDataTypes",
-  "title": "Bit of everything",
-  "status": "active",
-  "experimental": true,
-  "description": "A test form that has one of each data type included, useful when testing"
+  ]
 }

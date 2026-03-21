@@ -16,6 +16,12 @@ public class Metadata : FshValue
     /// The name/identifier
     /// </summary>
     public string Value { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the original source used a multiline (triple-quoted) string.
+    /// <c>null</c> = auto-detect; <c>true</c> = always multiline; <c>false</c> = always single-line.
+    /// </summary>
+    public bool? IsMultiline { get; set; }
 }
 
 /// <summary>

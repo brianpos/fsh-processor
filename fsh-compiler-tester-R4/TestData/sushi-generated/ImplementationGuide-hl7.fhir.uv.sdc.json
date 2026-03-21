@@ -8,7 +8,7 @@
     },
     {
       "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-fmm",
-      "valueInteger": "4"
+      "valueInteger": 4
     },
     {
       "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-wg",
@@ -45,8 +45,8 @@
     {
       "coding": [
         {
-          "code": "001",
           "system": "http://unstats.un.org/unsd/methods/m49/m49.htm",
+          "code": "001",
           "display": "World"
         }
       ]
@@ -60,14 +60,14 @@
   "dependsOn": [
     {
       "id": "examples",
-      "packageId": "hl7.fhir.r4.examples",
       "uri": "http://hl7.org/fhir/ImplementationGuide/fhir",
+      "packageId": "hl7.fhir.r4.examples",
       "version": "4.0.1"
     },
     {
       "id": "ext",
-      "packageId": "hl7.fhir.uv.extensions.r4",
       "uri": "http://hl7.org/fhir/extensions/ImplementationGuide/hl7.fhir.uv.extensions",
+      "packageId": "hl7.fhir.uv.extensions.r4",
       "version": "5.3.0-ballot-tc1"
     }
   ],
@@ -277,33 +277,33 @@
         "reference": {
           "reference": "Questionnaire/extract-complex-defn3"
         },
+        "name": "Complex Extract Demonstration - Definition",
         "description": "Complex definition-based extraction example",
-        "exampleBoolean": false,
-        "name": "Complex Extract Demonstration - Definition"
+        "exampleBoolean": false
       },
       {
         "reference": {
           "reference": "Questionnaire/extract-complex-smap"
         },
+        "name": "Complex Extract Demonstration - StructureMap",
         "description": "Complex StructureMap extraction questionnaire example",
-        "exampleBoolean": false,
-        "name": "Complex Extract Demonstration - StructureMap"
+        "exampleBoolean": false
       },
       {
         "reference": {
           "reference": "Questionnaire/extract-complex-template"
         },
+        "name": "Complex Extract Demonstration - Template",
         "description": "Complex template-based extraction example",
-        "exampleBoolean": false,
-        "name": "Complex Extract Demonstration - Template"
+        "exampleBoolean": false
       },
       {
         "reference": {
           "reference": "Questionnaire/extract-complex-template2"
         },
+        "name": "Complex Extract Demonstration - Template Bundle",
         "description": "Example Questionnaire demonstrating extraction using the template approach",
-        "exampleBoolean": false,
-        "name": "Complex Extract Demonstration - Template Bundle"
+        "exampleBoolean": false
       },
       {
         "reference": {
@@ -557,9 +557,9 @@
         "reference": {
           "reference": "StructureMap/ExtractComplexSmap"
         },
+        "name": "ExtractComplexSmap",
         "description": "An example of a StructureMap used to support extraction from a QuestionnaireResponse",
-        "exampleBoolean": false,
-        "name": "ExtractComplexSmap"
+        "exampleBoolean": false
       },
       {
         "reference": {
@@ -1069,9 +1069,9 @@
         "reference": {
           "reference": "StructureMap/QuestionnairePopulationTransform"
         },
+        "name": "QuestionnairePopulationTransform",
         "description": "An example of a StructureMap used to support population of a QuestionnaireResponse from a search bundle",
-        "exampleBoolean": false,
-        "name": "QuestionnairePopulationTransform"
+        "exampleBoolean": false
       },
       {
         "reference": {
@@ -1541,9 +1541,9 @@
         "reference": {
           "reference": "StructureMap/SDOHCCHungerVitalSignMap"
         },
+        "name": "SDOHCCHungerVitalSignMap",
         "description": "A StructureMap instance that represents the resource that transforms a specific question and answer from the LOINC Hunger Vital Sign [HVS] questionnaire (LOINC code 88121-9) into a corresponding Observation (SDOHCC Observation response Hunger Vital Sign Q3 Example) and derived Condition (SDOHCC Condition Food Insecurity Example).",
-        "exampleBoolean": false,
-        "name": "SDOHCCHungerVitalSignMap"
+        "exampleBoolean": false
       },
       {
         "reference": {
@@ -1671,136 +1671,136 @@
           "generation": "html"
         },
         {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
+              "valueCode": "trial-use"
+            }
+          ],
           "nameUrl": "workflow.html",
           "title": "Basic SDC workflow",
-          "generation": "html",
+          "generation": "html"
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
-        },
-        {
+          ],
           "nameUrl": "expressions.html",
           "title": "Using Expressions",
-          "generation": "html",
+          "generation": "html"
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
-        },
-        {
+          ],
           "nameUrl": "search.html",
           "title": "Finding a Questionnaire",
-          "generation": "html",
+          "generation": "html"
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
-        },
-        {
+          ],
           "nameUrl": "rendering.html",
           "title": "Advanced Form Rendering",
-          "generation": "html",
+          "generation": "html"
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
-        },
-        {
+          ],
           "nameUrl": "behavior.html",
           "title": "Form Behavior and Calculation",
-          "generation": "html",
+          "generation": "html"
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
-        },
-        {
+          ],
           "nameUrl": "derive.html",
           "title": "Form Derivation",
-          "generation": "html",
+          "generation": "html"
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
-        },
-        {
+          ],
           "nameUrl": "modular.html",
           "title": "Modular Forms",
-          "generation": "html",
+          "generation": "html"
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
-        },
-        {
+          ],
           "nameUrl": "adaptive.html",
           "title": "Adaptive Forms",
-          "generation": "html",
+          "generation": "html"
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
-        },
-        {
+          ],
           "nameUrl": "populate.html",
           "title": "Form Population",
-          "generation": "html",
+          "generation": "html"
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
-        },
-        {
+          ],
           "nameUrl": "extraction.html",
           "title": "Form Data Extraction",
-          "generation": "html",
+          "generation": "html"
+        },
+        {
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
-        },
-        {
+          ],
           "nameUrl": "conformance.html",
           "title": "Conformance Expectations",
-          "generation": "html",
-          "extension": [
-            {
-              "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
-              "valueCode": "trial-use"
-            }
-          ]
+          "generation": "html"
         },
         {
-          "nameUrl": "security.html",
-          "title": "Security Details",
-          "generation": "html",
           "extension": [
             {
               "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status",
               "valueCode": "trial-use"
             }
-          ]
+          ],
+          "nameUrl": "security.html",
+          "title": "Security Details",
+          "generation": "html"
         },
         {
           "nameUrl": "artifacts.html",

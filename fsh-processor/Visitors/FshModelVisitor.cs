@@ -17,10 +17,22 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
 {
     private readonly CommonTokenStream _tokenStream;
     private readonly HashSet<int> _claimedTokenIndexes = new();
+    private readonly bool _preserveSoftIndices;
 
-    public FshModelVisitor(CommonTokenStream tokenStream)
+    /// <summary>
+    /// Creates a new <see cref="FshModelVisitor"/>.
+    /// </summary>
+    /// <param name="tokenStream">The token stream from the ANTLR lexer.</param>
+    /// <param name="preserveSoftIndices">
+    /// When <c>true</c>, <c>[+]</c> and <c>[=]</c> soft-index tokens are left as-is rather
+    /// than being resolved to numeric indices during <see cref="PostProcessRules"/>.
+    /// Path composition (indented rules) is still applied.  Use this when re-parsing a
+    /// parameterised rule set so the compiler can resolve indices against the outer context.
+    /// </param>
+    public FshModelVisitor(CommonTokenStream tokenStream, bool preserveSoftIndices = false)
     {
         _tokenStream = tokenStream ?? throw new ArgumentNullException(nameof(tokenStream));
+        _preserveSoftIndices = preserveSoftIndices;
     }
 
     #region Document and Entity Root
@@ -281,7 +293,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                 instance.Rules.Add(instanceRule);
             }
         }
-        PostProcessRules(instance.Rules);
+        PostProcessRules(instance.Rules, preserveSoftIndices: true);
 
         return instance;
     }
@@ -463,7 +475,16 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         }
         else if (context.STRING() != null)
         {
-            value = context.STRING().GetText();
+            // For STRING parameters in a rule set, FSH allows \, and \) as escape sequences
+            // so that commas and closing-parens can appear inside string arguments without
+            // being misinterpreted as parameter separators or rule set close tokens.
+            // Strip the surrounding quotes and unescape here so that the value can be
+            // safely substituted back into the template as a quoted FSH string.
+            var raw = context.STRING().GetText();
+            var inner = raw.Length >= 2 ? raw[1..^1] : raw;
+            // Unescape \, → , and \) → )
+            inner = inner.Replace("\\,", ",").Replace("\\)", ")");
+            value = $"\"{inner}\"";
         }
         else if (context.ruleSetParamText() != null)
         {
@@ -652,17 +673,21 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         if (desc != null && profile.Description == null)
         {
             string value;
+            bool isMultiline;
             if (context.description().STRING() != null)
             {
                 value = ExtractString(context.description().STRING().GetText());
+                isMultiline = false;
             }
             else
             {
                 value = ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+                isMultiline = true;
             }
             profile.Description = new Metadata()
             {
-                Value = value
+                Value = value,
+                IsMultiline = isMultiline
             };
         }
     }
@@ -687,6 +712,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             extension.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            extension.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -710,6 +736,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             logical.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            logical.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -733,6 +760,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             resource.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            resource.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -805,6 +833,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             instance.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            instance.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
         else if (context.usage() != null)
         {
@@ -821,6 +850,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             invariant.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            invariant.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
         else if (context.expression() != null)
         {
@@ -853,6 +883,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             valueSet.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            valueSet.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -873,6 +904,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             codeSystem.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            codeSystem.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -901,6 +933,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             mapping.Description = context.description().STRING() != null
                 ? ExtractString(context.description().STRING().GetText())
                 : ExtractMulitLineString(context.description().MULTILINE_STRING().GetText());
+            mapping.IsDescriptionMultiline = context.description().MULTILINE_STRING() != null;
         }
     }
 
@@ -919,8 +952,17 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     /// by 1, and [=] SHALL reference the same index that was last referenced."
     /// </para>
     /// </summary>
-    private static void PostProcessRules(IEnumerable<FshRule> rules)
+    /// <param name="preserveSoftIndices">
+    /// When <c>true</c>, skip resolving <c>[+]</c>/<c>[=]</c> tokens to numeric indices so
+    /// the compiler can resolve them at runtime against the outer soft-index context.
+    /// Should be <c>true</c> for <see cref="Instance"/> entities because RuleSet insertions
+    /// can create <c>[+]</c> elements that the outer <c>[=]</c> references must see.
+    /// Defaults to the visitor-level <see cref="_preserveSoftIndices"/> flag.
+    /// </param>
+    private void PostProcessRules(IEnumerable<FshRule> rules, bool? preserveSoftIndices = null)
     {
+        var preserve = preserveSoftIndices ?? _preserveSoftIndices;
+
         // Stack entries: (indentLength, effectivePath)
         var pathStack = new Stack<(int IndentLen, string Path)>();
         // Soft-index state: path prefix → current resolved numeric index
@@ -950,11 +992,25 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             }
 
             // P-FP2: Expand [+] and [=] soft-index tokens to numeric indices.
-            var expandedPath = composedPath != null ? ResolveSoftIndices(composedPath, softState) : null;
+            // When preserving (re-parse for parameterised rule set expansion, or Instance entity
+            // whose indices must be resolved at compiler-time after RuleSet inserts have run),
+            // skip expansion so the compiler can resolve indices against the outer context.
+            var expandedPath = (!preserve && composedPath != null)
+                ? ResolveSoftIndices(composedPath, softState)
+                : composedPath;
 
             // Push effective path as context for deeper-indented children.
+            // When preserving soft indices: push with [+] replaced by [=] so that
+            // child paths reference the same slot (input[=].type) rather than
+            // requesting a new increment (input[+].type). The parent [+] rule keeps
+            // its own [+] so the compiler advances the counter via InstancePathRule.
             if (!string.IsNullOrEmpty(expandedPath))
-                pathStack.Push((indentLen, expandedPath));
+            {
+                var stackPath = preserve
+                    ? expandedPath.Replace("[+]", "[=]")
+                    : expandedPath;
+                pathStack.Push((indentLen, stackPath));
+            }
 
             // Apply the composed, expanded path and flatten the indent.
             rule.Path = expandedPath;
@@ -1372,7 +1428,8 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             Flags = flags,
             TargetTypes = targetTypes,
             ShortDescription = shortDescription,
-            Definition = definition
+            Definition = definition,
+            IsDefinitionMultiline = context.MULTILINE_STRING() != null ? true : definition != null ? false : null
         };
     }
 
@@ -1418,7 +1475,8 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             Flags = flags,
             ContentReference = contentReference,
             ShortDescription = shortDescription,
-            Definition = definition
+            Definition = definition,
+            IsDefinitionMultiline = context.MULTILINE_STRING() != null ? true : definition != null ? false : null
         };
     }
 
@@ -1848,7 +1906,8 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             Indent = GetRuleIndent(context.STAR()),
             Codes = codes,
             Display = display,
-            Definition = definition
+            Definition = definition,
+            IsDefinitionMultiline = context.MULTILINE_STRING() != null ? true : definition != null ? false : null
         };
     }
 
@@ -2162,10 +2221,35 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
 
     private static string ExtractString(string quotedString)
     {
-        // Remove quotes from strings
+        // Remove quotes and process FSH/JSON-compatible escape sequences.
         if (quotedString.StartsWith("\"") && quotedString.EndsWith("\"") && quotedString.Length >= 2)
         {
-            return quotedString[1..^1];
+            var inner = quotedString[1..^1];
+            if (!inner.Contains('\\')) return inner;
+
+            var sb = new System.Text.StringBuilder(inner.Length);
+            for (int i = 0; i < inner.Length; i++)
+            {
+                if (inner[i] == '\\' && i + 1 < inner.Length)
+                {
+                    i++;
+                    sb.Append(inner[i] switch
+                    {
+                        '"'  => '"',
+                        '\\' => '\\',
+                        '/'  => '/',
+                        'n'  => '\n',
+                        'r'  => '\r',
+                        't'  => '\t',
+                        _    => inner[i]
+                    });
+                }
+                else
+                {
+                    sb.Append(inner[i]);
+                }
+            }
+            return sb.ToString();
         }
         return quotedString;
     }

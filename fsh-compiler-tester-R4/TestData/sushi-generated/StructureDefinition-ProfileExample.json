@@ -27,8 +27,8 @@
   "mapping": [
     {
       "identity": "c-cda",
-      "name": "Consolidated CDA R2",
-      "uri": "http://hl7.org/C-CDA-not-a-real-url"
+      "uri": "http://hl7.org/C-CDA-not-a-real-url",
+      "name": "Consolidated CDA R2"
     }
   ],
   "kind": "logical",
@@ -46,8 +46,8 @@
         "mapping": [
           {
             "identity": "c-cda",
-            "map": "/ClinicalDocument/recordTarget/patientRole/patient/administrativeGender",
-            "language": "text/xpath"
+            "language": "text/xpath",
+            "map": "/ClinicalDocument/recordTarget/patientRole/patient/administrativeGender"
           }
         ]
       },

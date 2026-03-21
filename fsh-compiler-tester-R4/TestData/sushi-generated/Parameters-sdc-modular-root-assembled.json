@@ -21,8 +21,8 @@
           {
             "url": "http://hl7.org/fhir/5.0/StructureDefinition/extension-Questionnaire.versionAlgorithm[x]",
             "valueCoding": {
-              "code": "semver",
-              "system": "http://hl7.org/fhir/version-algorithm"
+              "system": "http://hl7.org/fhir/version-algorithm",
+              "code": "semver"
             }
           },
           {
@@ -38,8 +38,8 @@
               {
                 "url": "name",
                 "valueCoding": {
-                  "code": "patient",
-                  "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext"
+                  "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext",
+                  "code": "patient"
                 }
               },
               {
@@ -50,24 +50,29 @@
             "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-launchContext"
           },
           {
+            "url": "http://hl7.org/fhir/StructureDefinition/variable",
             "valueExpression": {
               "name": "person",
               "language": "text/fhirpath",
               "expression": "%patient"
-            },
-            "url": "http://hl7.org/fhir/StructureDefinition/variable"
+            }
           }
         ],
+        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/sdc-modular-root",
+        "name": "QuestionnaireSDCModularRoot",
+        "title": "Example modular Questionnaire",
+        "status": "active",
+        "experimental": true,
         "item": [
           {
             "extension": [
               {
+                "url": "http://hl7.org/fhir/StructureDefinition/variable",
                 "valueExpression": {
                   "name": "linkIdPrefix",
                   "language": "text/fhirpath",
                   "expression": "'patientname.'"
-                },
-                "url": "http://hl7.org/fhir/StructureDefinition/variable"
+                }
               },
               {
                 "extension": [
@@ -84,35 +89,43 @@
                     "valueString": "Must have either first or last name"
                   },
                   {
+                    "url": "expression",
                     "valueExpression": {
                       "language": "text/fhirpath",
                       "expression": "item.where(linkId=%linkIdPrefix+'1').exists() or item.where(linkId=%linkIdPrefix+'2').exists()"
-                    },
-                    "url": "expression"
+                    }
                   }
                 ],
                 "url": "http://hl7.org/fhir/StructureDefinition/targetConstraint"
               },
               {
+                "url": "http://hl7.org/fhir/StructureDefinition/variable",
                 "valueExpression": {
                   "name": "name",
                   "language": "text/fhirpath",
                   "expression": "iif(%person.name.where(use='official').exists(),%person.name.where(use='official').first(),%person.name.first())"
-                },
-                "url": "http://hl7.org/fhir/StructureDefinition/variable"
+                }
               }
             ],
+            "linkId": "1",
+            "definition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary#SdcQuestionLibrary.name",
+            "text": "What is the person's official name?",
+            "type": "group",
             "item": [
               {
                 "extension": [
                   {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                     "valueExpression": {
                       "language": "text/fhirpath",
                       "expression": "%name.prefix.where($this in ('Mr.'|'Miss'|'Mrs'|'Ms.'))first()"
-                    },
-                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                    }
                   }
                 ],
+                "linkId": "patientname.1",
+                "text": "Title",
+                "type": "string",
+                "required": true,
                 "answerOption": [
                   {
                     "valueString": "Mr."
@@ -126,20 +139,16 @@
                   {
                     "valueString": "Ms."
                   }
-                ],
-                "linkId": "patientname.1",
-                "text": "Title",
-                "type": "string",
-                "required": true
+                ]
               },
               {
                 "extension": [
                   {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                     "valueExpression": {
                       "language": "text/fhirpath",
                       "expression": "%name.given.first()"
-                    },
-                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                    }
                   }
                 ],
                 "linkId": "patientname.2",
@@ -152,11 +161,11 @@
               {
                 "extension": [
                   {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                     "valueExpression": {
                       "language": "text/fhirpath",
                       "expression": "%name.family"
-                    },
-                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                    }
                   }
                 ],
                 "linkId": "patientname.3",
@@ -166,11 +175,7 @@
                 "required": true,
                 "maxLength": 100
               }
-            ],
-            "linkId": "1",
-            "definition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary#SdcQuestionLibrary.name",
-            "text": "What is the person's official name?",
-            "type": "group"
+            ]
           },
           {
             "extension": [
@@ -183,11 +188,11 @@
                 "_valueDate": {
                   "extension": [
                     {
+                      "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression",
                       "valueExpression": {
                         "language": "text/fhirpath",
                         "expression": "now() as date + 1 day"
-                      },
-                      "url": "http://hl7.org/fhir/StructureDefinition/cqf-expression"
+                      }
                     }
                   ]
                 }
@@ -208,6 +213,11 @@
             "answerValueSet": "http://hl7.org/fhir/ValueSet/administrative-gender"
           },
           {
+            "linkId": "4",
+            "definition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary#SdcQuestionLibrary.address",
+            "text": "What is this person's current mailing address?",
+            "type": "group",
+            "required": true,
             "item": [
               {
                 "linkId": "4.1",
@@ -253,11 +263,11 @@
                         "valueString": "Postal code must be a 4-digit number"
                       },
                       {
+                        "url": "expression",
                         "valueExpression": {
                           "language": "text/fhirpath",
                           "expression": "value.matches('^[0-9]{4}$')"
-                        },
-                        "url": "expression"
+                        }
                       }
                     ],
                     "url": "http://hl7.org/fhir/StructureDefinition/targetConstraint"
@@ -269,42 +279,40 @@
                 "type": "string",
                 "required": true
               }
-            ],
-            "linkId": "4",
-            "definition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary#SdcQuestionLibrary.address",
-            "text": "What is this person's current mailing address?",
-            "type": "group",
-            "required": true
+            ]
           },
           {
             "extension": [
               {
+                "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext",
                 "valueExpression": {
                   "name": "person",
                   "language": "text/fhirpath",
                   "expression": "%patient.contact"
-                },
-                "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-itemPopulationContext"
+                }
               },
               {
+                "url": "http://hl7.org/fhir/StructureDefinition/variable",
                 "valueExpression": {
                   "name": "linkIdPrefix",
                   "language": "text/fhirpath",
                   "expression": "'patientcontact.'"
-                },
-                "url": "http://hl7.org/fhir/StructureDefinition/variable"
+                }
               }
             ],
+            "linkId": "5",
+            "type": "group",
+            "required": true,
             "item": [
               {
                 "extension": [
                   {
+                    "url": "http://hl7.org/fhir/StructureDefinition/variable",
                     "valueExpression": {
                       "name": "linkIdPrefix",
                       "language": "text/fhirpath",
                       "expression": "%linkIdPrefix + 'name.'"
-                    },
-                    "url": "http://hl7.org/fhir/StructureDefinition/variable"
+                    }
                   },
                   {
                     "extension": [
@@ -321,35 +329,42 @@
                         "valueString": "Must have either first or last name"
                       },
                       {
+                        "url": "expression",
                         "valueExpression": {
                           "language": "text/fhirpath",
                           "expression": "item.where(linkId=%linkIdPrefix+'1').exists() or item.where(linkId=%linkIdPrefix+'2').exists()"
-                        },
-                        "url": "expression"
+                        }
                       }
                     ],
                     "url": "http://hl7.org/fhir/StructureDefinition/targetConstraint"
                   },
                   {
+                    "url": "http://hl7.org/fhir/StructureDefinition/variable",
                     "valueExpression": {
                       "name": "name",
                       "language": "text/fhirpath",
                       "expression": "iif(%person.name.where(use='official').exists(),%person.name.where(use='official').first(),%person.name.first())"
-                    },
-                    "url": "http://hl7.org/fhir/StructureDefinition/variable"
+                    }
                   }
                 ],
+                "linkId": "patientcontact.1",
+                "definition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary#SdcQuestionLibrary.name",
+                "text": "What is the person's official name?",
+                "type": "group",
                 "item": [
                   {
                     "extension": [
                       {
+                        "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                         "valueExpression": {
                           "language": "text/fhirpath",
                           "expression": "%name.prefix.where($this in ('Mr.'|'Miss'|'Mrs'|'Ms.')).first()"
-                        },
-                        "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                        }
                       }
                     ],
+                    "linkId": "patientcontact.name.1",
+                    "type": "string",
+                    "required": true,
                     "answerOption": [
                       {
                         "valueString": "Mr."
@@ -363,19 +378,16 @@
                       {
                         "valueString": "Ms."
                       }
-                    ],
-                    "linkId": "patientcontact.name.1",
-                    "type": "string",
-                    "required": true
+                    ]
                   },
                   {
                     "extension": [
                       {
+                        "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                         "valueExpression": {
                           "language": "text/fhirpath",
                           "expression": "%name.given[0]"
-                        },
-                        "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                        }
                       }
                     ],
                     "linkId": "patientcontact.name.2",
@@ -388,11 +400,11 @@
                   {
                     "extension": [
                       {
+                        "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                         "valueExpression": {
                           "language": "text/fhirpath",
                           "expression": "%name.family"
-                        },
-                        "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                        }
                       }
                     ],
                     "linkId": "patientcontact.name.3",
@@ -402,20 +414,16 @@
                     "required": true,
                     "maxLength": 100
                   }
-                ],
-                "linkId": "patientcontact.1",
-                "definition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary#SdcQuestionLibrary.name",
-                "text": "What is the person's official name?",
-                "type": "group"
+                ]
               },
               {
                 "extension": [
                   {
+                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression",
                     "valueExpression": {
                       "language": "text/fhirpath",
                       "expression": "%person.telecom.where(use='phone').first()"
-                    },
-                    "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-initialExpression"
+                    }
                   }
                 ],
                 "linkId": "patientcontact.2",
@@ -424,17 +432,9 @@
                 "type": "string",
                 "required": true
               }
-            ],
-            "linkId": "5",
-            "type": "group",
-            "required": true
+            ]
           }
-        ],
-        "url": "http://hl7.org/fhir/uv/sdc/Questionnaire/sdc-modular-root",
-        "name": "QuestionnaireSDCModularRoot",
-        "title": "Example modular Questionnaire",
-        "status": "active",
-        "experimental": true
+        ]
       }
     },
     {
@@ -448,24 +448,24 @@
         },
         "issue": [
           {
+            "severity": "warning",
+            "code": "informational",
             "details": {
               "text": "Unable to resolve element definition http://example.org/StructureDefinition/non-existent-library#Stuff.phone when assembling Questionnaire/sdc-modular-contact.  Some constraints and behavior may not be represented"
             },
             "expression": [
               "Questionnaire.item[1].definition"
-            ],
-            "severity": "warning",
-            "code": "informational"
+            ]
           },
           {
+            "severity": "warning",
+            "code": "informational",
             "details": {
               "text": "Unable to resolve element definition http://example.org/StructureDefinition/non-existent-library#Stuff.phone when assembling Questionnaire/sdc-modular-contact.  Some constraints and behavior may not be represented"
             },
             "expression": [
               "Questionnaire.item[1].definition"
-            ],
-            "severity": "warning",
-            "code": "informational"
+            ]
           }
         ]
       }

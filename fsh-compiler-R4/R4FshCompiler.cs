@@ -1,6 +1,7 @@
 using fsh_compiler;
 using fsh_processor.Models;
 using Hl7.Fhir.Model;
+using Hl7.Fhir.Specification.Source;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
 namespace fsh_compiler_r4;
@@ -43,7 +44,11 @@ public static class R4FshCompiler
         var opts = options ?? new CompilerOptions();
         opts.FhirVersion ??= FhirVersion;
         opts.Inspector ??= ModelInfo.ModelInspector;
-        opts.Resolver = Hl7.Fhir.Specification.Source.ZipSource.CreateValidationSource();
+        if (opts.Resolver == null)
+        {
+            var source = ZipSource.CreateValidationSource();
+            opts.Resolver = source;
+        }
         return FshCompiler.Compile(docs, opts);
     }
 }

@@ -19,8 +19,8 @@
         "id": "UsageContext.code",
         "path": "UsageContext.code",
         "patternCoding": {
-          "code": "workflow",
-          "system": "http://terminology.hl7.org/CodeSystem/usage-context-type"
+          "system": "http://terminology.hl7.org/CodeSystem/usage-context-type",
+          "code": "workflow"
         }
       },
       {
@@ -35,8 +35,8 @@
         "patternCodeableConcept": {
           "coding": [
             {
-              "code": "question-library",
-              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp"
+              "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+              "code": "question-library"
             }
           ]
         }

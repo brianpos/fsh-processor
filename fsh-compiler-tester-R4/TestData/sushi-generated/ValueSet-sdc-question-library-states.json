@@ -1,17 +1,17 @@
 {
   "resourceType": "ValueSet",
-  "status": "active",
-  "name": "AustralianStates",
   "id": "sdc-question-library-states",
-  "title": "Australian States - example value set",
-  "description": "An example value set (using fake codes) used by a modular Questionnaire",
-  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/sdc-question-library-states",
   "meta": {
     "profile": [
       "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset"
     ]
   },
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/sdc-question-library-states",
+  "name": "AustralianStates",
+  "title": "Australian States - example value set",
+  "status": "active",
   "experimental": true,
+  "description": "An example value set (using fake codes) used by a modular Questionnaire",
   "immutable": false,
   "compose": {
     "include": [
