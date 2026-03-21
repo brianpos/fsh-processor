@@ -222,7 +222,7 @@ public static class FhirCaretValueWriter
     /// Navigates one path segment on <paramref name="parent"/> and returns the child object.
     /// Supports:
     /// <list type="bullet">
-    ///   <item><description><c>name</c>  — scalar: get existing value or create one; collection: use last element or first.</description></item>
+    ///   <item><description><c>name</c>  — scalar: get existing value or create one when <paramref name="create"/> is <c>true</c>; collection: uses element at index 0, creating it if absent.</description></item>
     ///   <item><description><c>name[+]</c> — append a new element to the collection and track its index in <paramref name="softIndexState"/>.</description></item>
     ///   <item><description><c>name[=]</c> — reuse the last index tracked in <paramref name="softIndexState"/> for the same name.</description></item>
     ///   <item><description><c>name[N]</c> — use element at explicit integer index N.</description></item>

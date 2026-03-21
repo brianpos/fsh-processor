@@ -248,6 +248,13 @@ public static class FshCompiler
         // can walk the chain and fix these values.  Element path prefixes are updated too.
         FixUpProfilesOfProfiles(resources.OfType<StructureDefinition>().ToList(), context, opts);
 
+        // Post-compilation fix-up: resolve in-IG ValueSet binding URLs.
+        // Binding rules that reference a ValueSet by entity name (e.g. "QuestionnaireLaunchContext")
+        // cannot be resolved during SD compilation because the VS might not be compiled yet.
+        // Now that all resources are built, walk every StructureDefinition's element bindings
+        // and replace bare ValueSet names with their compiled canonical URLs.
+        FixUpValueSetBindings(resources.OfType<StructureDefinition>().ToList(), resources, context, opts);
+
         return errors.Count > 0
             ? CompileResult<List<FhirResource>>.FromFailure(errors, context.Warnings)
             : CompileResult<List<FhirResource>>.FromSuccess(resources, context.Warnings);
@@ -1834,6 +1841,49 @@ public static class FshCompiler
         return null;
     }
 
+    /// <summary>
+    /// Post-compilation pass that resolves in-IG ValueSet names used in element bindings to
+    /// their canonical URLs.  Binding rules compiled during SD construction store the entity
+    /// name when the ValueSet is defined in the same IG but had not yet been compiled.
+    /// </summary>
+    private static void FixUpValueSetBindings(
+        List<StructureDefinition> allSds,
+        List<FhirResource> allResources,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        // Build a lookup of ValueSet name → canonical URL from compiled resources.
+        var vsUrlByName = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var resource in allResources.OfType<FhirValueSet>())
+        {
+            if (!string.IsNullOrEmpty(resource.Name) && !string.IsNullOrEmpty(resource.Url))
+                vsUrlByName.TryAdd(resource.Name, resource.Url);
+            if (!string.IsNullOrEmpty(resource.Id) && !string.IsNullOrEmpty(resource.Url))
+                vsUrlByName.TryAdd(resource.Id, resource.Url);
+        }
+
+        foreach (var sd in allSds)
+        {
+            foreach (var element in sd.Differential?.Element ?? [])
+            {
+                var binding = element.Binding;
+                if (binding is null || string.IsNullOrEmpty(binding.ValueSet)) continue;
+                if (IsAbsoluteUrl(binding.ValueSet)) continue;
+
+                // Try in-IG compiled ValueSets first.
+                if (vsUrlByName.TryGetValue(binding.ValueSet, out var vsUrl))
+                {
+                    binding.ValueSet = vsUrl;
+                    continue;
+                }
+
+                // Try specification-zip ValueSets (keyed as "ValueSet#name").
+                var specKey = $"ValueSet#{binding.ValueSet}";
+                if (context.CanonicalsFromSpecificationZip.TryGetValue(specKey, out var specVsUrl))
+                    binding.ValueSet = specVsUrl;
+            }
+        }
+    }
     /// <summary>
     /// Walks the profile chain to find the underlying FHIR base type.
     /// Returns the FHIR type name (e.g. <c>"Questionnaire"</c>) or <c>null</c> when unresolvable.
