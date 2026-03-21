@@ -1987,6 +1987,13 @@ public static class FshCompiler
                 var resolvedUrl = aliasResolver is not null
                     ? aliasResolver(namedIndex)
                     : namedIndex;
+                // Percent-encode bracket characters in absolute URLs so that FHIR choice-type
+                // markers like [x] serialise as %5Bx%5D.  Only applied to absolute URLs;
+                // relative identifiers and slice names are left unchanged.
+                // Uri.AbsoluteUri is not used here: it appends a trailing slash to bare-host
+                // URIs and does not encode [ ] in paths on .NET.
+                if (IsAbsoluteUrl(resolvedUrl))
+                    resolvedUrl = resolvedUrl.Replace("[", "%5B").Replace("]", "%5D");
 
                 // Reuse existing extension with the same url if present.
                 foreach (var item in list)

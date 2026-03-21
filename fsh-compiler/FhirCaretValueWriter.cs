@@ -224,6 +224,14 @@ public static class FhirCaretValueWriter
         if (targetType == typeof(string))
             return GetStringFromFshValue(fshValue);
 
+        // Base64Binary — the Firely SDK stores binary data as byte[] and its only non-default
+        // constructor takes byte[].  A FSH string value is treated as a base64-encoded string.
+        if (targetType == typeof(Base64Binary) && fshValue is StringValue b64sv)
+        {
+            try { return new Base64Binary(Convert.FromBase64String(b64sv.Value)); }
+            catch (FormatException) { return null; }
+        }
+
         // Code<TEnum> — use EnumUtility.ParseLiteral so that FHIR kebab-case literals
         // (e.g. "is-a", "grouped-by") are resolved correctly against [EnumLiteral] attributes.
         if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Code<>))
@@ -253,16 +261,44 @@ public static class FhirCaretValueWriter
         };
     }
 
+    // URI-backed FHIR primitive types whose values must be RFC 3986–normalised
+    // before construction so that e.g. choice-type markers like [x] serialise as %5Bx%5D.
+    private static readonly HashSet<Type> _uriTypes =
+    [
+        typeof(FhirUri), typeof(FhirUrl), typeof(Hl7.Fhir.Model.Canonical), typeof(Oid), typeof(Uuid)
+    ];
+
     /// <summary>
     /// Creates a FHIR PrimitiveType instance from a string value using the type's
     /// <c>(string)</c> constructor (handles <see cref="FhirString"/>, <see cref="Markdown"/>,
     /// <see cref="FhirUri"/>, <see cref="FhirUrl"/>, etc.).
+    /// URI-typed targets are normalised via <see cref="NormalizeUri"/> before construction.
     /// </summary>
     private static object? CreatePrimitive(Type targetType, string strValue)
     {
+        if (_uriTypes.Contains(targetType))
+            strValue = NormalizeUri(strValue);
         var ctor = targetType.GetConstructor([typeof(string)]);
         return ctor?.Invoke([strValue]);
     }
+
+    /// <summary>
+    /// Returns an RFC 3986–compliant URI string by percent-encoding characters that
+    /// are invalid unescaped in URI path segments.
+    /// <para>
+    /// <c>[</c> and <c>]</c> are the primary targets: they appear in FHIR canonical URLs
+    /// as choice-type markers (e.g. <c>versionAlgorithm[x]</c>) but are not valid
+    /// unescaped in path segments per RFC 3986.  Already-encoded sequences such as
+    /// <c>%5B</c> are left unchanged — only literal bracket characters are encoded.
+    /// </para>
+    /// <para>
+    /// <see cref="Uri.AbsoluteUri"/> is intentionally avoided here: on .NET it does not
+    /// encode <c>[</c>/<c>]</c> in paths, and it normalises bare-host URIs by appending
+    /// a trailing slash (<c>http://loinc.org</c> → <c>http://loinc.org/</c>).
+    /// </para>
+    /// </summary>
+    private static string NormalizeUri(string url) =>
+        url.Replace("[", "%5B").Replace("]", "%5D");
 
     /// <summary>
     /// Creates a numeric FHIR PrimitiveType instance

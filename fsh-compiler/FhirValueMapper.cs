@@ -108,13 +108,23 @@ public static class FhirValueMapper
     internal static (string? System, string Code) SplitCodeValue(string rawValue)
     {
         if (rawValue.StartsWith('#'))
-            return (null, rawValue[1..]);
+            return (null, StripQuotes(rawValue[1..]));
 
         var hashIdx = rawValue.IndexOf('#');
         return hashIdx >= 0
-            ? (rawValue[..hashIdx], rawValue[(hashIdx + 1)..])
+            ? (rawValue[..hashIdx], StripQuotes(rawValue[(hashIdx + 1)..]))
             : (null, rawValue);
     }
+
+    /// <summary>
+    /// Strips surrounding double-quotes from FSH quoted code identifiers such as
+    /// <c>"Body Weight"</c> → <c>Body Weight</c>.  Codes without surrounding quotes
+    /// are returned unchanged.
+    /// </summary>
+    private static string StripQuotes(string code) =>
+        code.Length >= 2 && code[0] == '"' && code[^1] == '"'
+            ? code[1..^1]
+            : code;
 
     /// <summary>
     /// Dynamically creates a version-specific FHIR <c>Ratio</c> instance using the supplied
