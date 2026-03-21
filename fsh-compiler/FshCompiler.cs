@@ -2046,45 +2046,6 @@ public static class FshCompiler
                 return newExt;
             }
 
-            // Named-slice for non-Extension elements (e.g. Parameters.parameter[questionnaire]):
-            // find-or-create by the element's "name" property when the bracket content is a
-            // non-numeric slice name.
-            if (namedIndex is not null && concreteType != typeof(Hl7.Fhir.Model.Extension))
-            {
-                var elementClassMap = inspector.FindClassMapping(concreteType);
-                var namePropMap = elementClassMap?.FindMappedElementByName("name");
-                if (namePropMap != null)
-                {
-                    // Reuse an existing element whose "name" matches.
-                    foreach (var item in list)
-                    {
-                        if (item is Base existingBase)
-                        {
-                            var existingName = namePropMap.GetValue(existingBase);
-                            var existingNameStr = existingName switch
-                            {
-                                Hl7.Fhir.Model.FhirString fs => fs.Value,
-                                string s => s,
-                                _ => null
-                            };
-                            if (existingNameStr == namedIndex)
-                                return existingBase;
-                        }
-                    }
-                    // Create a new element and set its "name" property.
-                    var newElement = Activator.CreateInstance(concreteType) as Base;
-                    if (newElement != null)
-                    {
-                        var nameValue = namePropMap.ImplementingType == typeof(string)
-                            ? (object)namedIndex
-                            : new Hl7.Fhir.Model.FhirString(namedIndex);
-                        namePropMap.SetValue(newElement, nameValue);
-                        list.Add(newElement);
-                        return newElement;
-                    }
-                }
-            }
-
             while (list.Count <= index)
                 list.Add(Activator.CreateInstance(concreteType));
 
