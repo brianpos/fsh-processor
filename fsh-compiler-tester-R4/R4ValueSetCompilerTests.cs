@@ -38,6 +38,21 @@ public class R4ValueSetCompilerTests
     }
 
     [TestMethod]
+    public void ShouldPreserveUrnCodeSystemInSingleCodeInclude()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            ValueSet: MyValueSet
+            * urn:ietf:bcp:13#application/sql ""SQL""
+        ");
+        var vs = CompilerTestHelper.GetValueSet(resources, "MyValueSet");
+        Assert.IsNotNull(vs.Compose);
+        Assert.AreEqual(1, vs.Compose.Include.Count);
+        // Per language-reference include coding syntax, explicit system identifiers are
+        // used as provided; URN systems must not be canonical-base rewritten.
+        Assert.AreEqual("urn:ietf:bcp:13", vs.Compose.Include[0].System);
+    }
+
+    [TestMethod]
     public void ShouldCompileValueSetWithExclude()
     {
         var resources = CompilerTestHelper.CompileDoc(@"

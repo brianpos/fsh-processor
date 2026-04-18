@@ -63,6 +63,9 @@ This is a .NET library for parsing, validating, and serializing [FHIR Shorthand 
 - Round-trip tests: parse → serialize → re-parse → assert structural equivalence.
 - Use `Assert.IsInstanceOfType<T>(result)` for type assertions.
 - Write `Console.WriteLine` output for diagnostic/debugging info in tests.
+- For compiler migration tests, ensure JSON comparisons remain strict text equality to enforce identical output, even if brittle. Validate compiler changes against `Docs/language-reference.md`.
+- New edge cases discovered in file-based analysis should get dedicated regression tests with spec-referenced comments (or note when spec is silent).
+- Use `.github/skills/unit-testing-skill.md` as the standard checklist when adding or updating parser/compiler tests.
 
 ### ANTLR Files
 - **Never** manually edit files under `fsh-processor/antlr/`. They are generated from the FSH grammar.

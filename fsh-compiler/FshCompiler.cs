@@ -126,117 +126,204 @@ public static class FshCompiler
         }
     }
 
+    /// <summary>
+    /// Assigns a compilation-order tier to each entity type.
+    /// Lower tiers are compiled first.  Within the same tier, entities are further
+    /// sorted by intra-tier dependencies (topological sort).
+    /// </summary>
+    private static int EntityTier(FshEntity entity) => entity switch
+    {
+        // Tier 0 — context-only entities (no FHIR resource produced, but must be first)
+        Alias                                   => 0,
+        RuleSet                                 => 0,
+        Invariant                               => 0,
+        // Tier 1 — CodeSystems (must register canonical URLs before ValueSets)
+        fsh_processor.Models.CodeSystem         => 1,
+        // Tier 2 — ValueSets (may reference CodeSystem URLs)
+        fsh_processor.Models.ValueSet           => 2,
+        // Tier 3 — StructureDefinition producers (Profile, Extension, Logical, Resource)
+        Profile                                 => 3,
+        fsh_processor.Models.Extension          => 3,
+        Logical                                 => 3,
+        fsh_processor.Models.Resource           => 3,
+        // Tier 4 — Instances (need compiled SDs for type resolution)
+        fsh_processor.Models.Instance           => 4,
+        // Tier 5 — Mappings (annotate already-compiled SDs)
+        fsh_processor.Models.Mapping            => 5,
+        _                                       => 6
+    };
+
+    /// <summary>
+    /// Returns the name of the parent entity that <paramref name="entity"/> depends on,
+    /// or <c>null</c> when it has no intra-project dependency.
+    /// </summary>
+    private static string? GetEntityDependency(FshEntity entity) => entity switch
+    {
+        Profile p                               => p.Parent?.Value,
+        fsh_processor.Models.Extension ext      => ext.Parent,
+        Logical l                               => l.Parent,
+        fsh_processor.Models.Resource r         => r.Parent,
+        fsh_processor.Models.Instance inst      => inst.InstanceOf,
+        fsh_processor.Models.Mapping m          => m.Source,
+        _                                       => null
+    };
+
+    /// <summary>
+    /// Collects all entities from every <paramref name="docs"/> into a single flat list and
+    /// sorts them by compilation tier (Alias/RuleSet/Invariant → CodeSystem → ValueSet →
+    /// Profile/Extension/Logical/Resource → Instance → Mapping).  Within each tier entities
+    /// are topologically sorted by their intra-project dependencies so that a parent is
+    /// always compiled before its children.
+    /// </summary>
+    private static List<FshEntity> SortEntities(IEnumerable<FshDoc> docs, CompilerContext context)
+    {
+        // Collect all entities from all documents into a flat list.
+        var allEntities = docs.SelectMany(d => d.Entities).ToList();
+
+        // Build a name → entity index for dependency resolution.
+        var nameToEntity = new Dictionary<string, FshEntity>(StringComparer.Ordinal);
+        foreach (var e in allEntities)
+            nameToEntity.TryAdd(e.Name, e);
+
+        // Group entities by tier, then topologically sort within each tier.
+        var sorted = new List<FshEntity>(allEntities.Count);
+
+        foreach (var tierGroup in allEntities.GroupBy(EntityTier).OrderBy(g => g.Key))
+        {
+            var tier = tierGroup.ToList();
+            if (tier.Count <= 1)
+            {
+                sorted.AddRange(tier);
+                continue;
+            }
+
+            // Build adjacency list for Kahn's algorithm within this tier.
+            var tierNames = new HashSet<string>(tier.Select(e => e.Name), StringComparer.Ordinal);
+            var inDegree = new Dictionary<string, int>(StringComparer.Ordinal);
+            var dependents = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+            foreach (var e in tier)
+            {
+                inDegree.TryAdd(e.Name, 0);
+                dependents.TryAdd(e.Name, []);
+            }
+
+            foreach (var e in tier)
+            {
+                var dep = GetEntityDependency(e);
+                if (dep != null)
+                {
+                    // Resolve aliases so that $-prefixed refs match entity names.
+                    var resolved = context.ResolveAlias(dep);
+                    // Only consider dependencies within this same tier.
+                    if (tierNames.Contains(resolved))
+                    {
+                        inDegree[e.Name] = inDegree.GetValueOrDefault(e.Name) + 1;
+                        dependents[resolved].Add(e.Name);
+                    }
+                }
+            }
+
+            // Kahn's algorithm.
+            var queue = new Queue<string>(
+                tier.Where(e => inDegree.GetValueOrDefault(e.Name) == 0).Select(e => e.Name));
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+
+            while (queue.Count > 0)
+            {
+                var name = queue.Dequeue();
+                if (!visited.Add(name)) continue;
+
+                sorted.Add(nameToEntity[name]);
+
+                foreach (var child in dependents.GetValueOrDefault(name, []))
+                {
+                    inDegree[child]--;
+                    if (inDegree[child] == 0)
+                        queue.Enqueue(child);
+                }
+            }
+
+            // Append any entities not reached (cycles or unresolved deps) in original order.
+            foreach (var e in tier)
+            {
+                if (!visited.Contains(e.Name))
+                    sorted.Add(e);
+            }
+        }
+
+        return sorted;
+    }
+
     private static CompileResult<List<FhirResource>> CompileWithContext(
         IEnumerable<FshDoc> docs, CompilerContext context, CompilerOptions opts)
     {
         var errors = new List<CompilerError>();
         var resources = new List<FhirResource>();
 
-        // Track entity-name → StructureDefinition for Mapping deferred processing.
+        // Track entity-name → StructureDefinition for Mapping processing.
         var sdByEntityName = new Dictionary<string, StructureDefinition>(StringComparer.Ordinal);
 
-        // Collect Mapping entities for a second pass (they annotate already-compiled SDs).
-        var pendingMappings = new List<(fsh_processor.Models.Mapping Mapping, string EntityName)>();
-        var pendingInstances = new List<fsh_processor.Models.Instance>();
+        // Sort all entities across all documents into a single dependency-ordered list.
+        // The sort ensures: Alias/RuleSet/Invariant first, then CodeSystems, ValueSets,
+        // SD-producing entities (dependency-ordered), Instances, and Mappings last.
+        var sortedEntities = SortEntities(docs, context);
 
-        foreach (var doc in docs)
-        {
-            foreach (var entity in doc.Entities)
-            {
-                try
-                {
-                    FhirResource? resource = entity switch
-                    {
-                        Profile profile => BuildProfile(profile, context, opts),
-                        fsh_processor.Models.Extension ext => BuildExtension(ext, context, opts),
-                        Logical logical => BuildLogical(logical, context, opts),
-                        fsh_processor.Models.Resource fshResource => BuildResource(fshResource, context, opts),
-                        fsh_processor.Models.ValueSet vs => BuildValueSet(vs, context, opts),
-                        fsh_processor.Models.CodeSystem cs => BuildCodeSystem(cs, context, opts),
-                        fsh_processor.Models.Mapping => null, // handled in second pass below
-                        // Alias, RuleSet, and Invariant produce no FHIR resource
-                        _ => null
-                    };
-                    if (entity is fsh_processor.Models.Instance instPending)
-                        pendingInstances.Add(instPending);
-
-                    if (resource != null)
-                    {
-                        resources.Add(resource);
-                        if (resource is StructureDefinition sd)
-                        {
-                            sdByEntityName.TryAdd(entity.Name, sd);
-                            context.RegisterStructureDefinition(entity.Name, sd);
-                        }
-                    }
-
-                    // Queue Mapping entities for deferred processing.
-                    if (entity is fsh_processor.Models.Mapping mapping)
-                        pendingMappings.Add((mapping, entity.Name));
-                }
-                catch (Exception ex)
-                {
-                    errors.Add(new CompilerError
-                    {
-                        EntityName = entity.Name,
-                        Message = ex.Message,
-                        Position = entity.Position
-                    });
-                }
-            }
-        }
-
-        // Now that all the canonical stuff is done, create all the instance data
-        foreach (var inst in pendingInstances)
+        foreach (var entity in sortedEntities)
         {
             try
             {
-                FhirResource? resource = BuildInstance(inst, context, opts);
+                // Mappings annotate already-compiled StructureDefinitions rather than
+                // producing a new resource.
+                if (entity is fsh_processor.Models.Mapping mapping)
+                {
+                    if (mapping.Source is null ||
+                        !sdByEntityName.TryGetValue(mapping.Source, out var targetSd))
+                    {
+                        context.Warnings.Add(new CompilerWarning
+                        {
+                            EntityName = entity.Name,
+                            Message = mapping.Source is null
+                                ? "Mapping has no Source; skipped."
+                                : $"Mapping Source '{mapping.Source}' does not match any compiled StructureDefinition; skipped."
+                        });
+                        continue;
+                    }
+
+                    ApplyMappingToSD(mapping, targetSd, context);
+                    continue;
+                }
+
+                FhirResource? resource = entity switch
+                {
+                    Profile profile => BuildProfile(profile, context, opts),
+                    fsh_processor.Models.Extension ext => BuildExtension(ext, context, opts),
+                    Logical logical => BuildLogical(logical, context, opts),
+                    fsh_processor.Models.Resource fshResource => BuildResource(fshResource, context, opts),
+                    fsh_processor.Models.ValueSet vs => BuildValueSet(vs, context, opts),
+                    fsh_processor.Models.CodeSystem cs => BuildCodeSystem(cs, context, opts),
+                    fsh_processor.Models.Instance inst => BuildInstance(inst, context, opts),
+                    // Alias, RuleSet, and Invariant produce no FHIR resource
+                    _ => null
+                };
+
                 if (resource != null)
                 {
                     resources.Add(resource);
                     if (resource is StructureDefinition sd)
-                        sdByEntityName.TryAdd(inst.Name, sd);
-                }
-            }
-            catch (Exception ex)
-            {
-                errors.Add(new CompilerError
-                {
-                    EntityName = inst.Name,
-                    Message = ex.Message,
-                    Position = inst.Position
-                });
-            }
-        }
-
-        // Second pass: apply Mapping entities to the already-compiled StructureDefinitions.
-        foreach (var (mapping, entityName) in pendingMappings)
-        {
-            try
-            {
-                if (mapping.Source is null ||
-                    !sdByEntityName.TryGetValue(mapping.Source, out var targetSd))
-                {
-                    context.Warnings.Add(new CompilerWarning
                     {
-                        EntityName = entityName,
-                        Message = mapping.Source is null
-                            ? "Mapping has no Source; skipped."
-                            : $"Mapping Source '{mapping.Source}' does not match any compiled StructureDefinition; skipped."
-                    });
-                    continue;
+                        sdByEntityName.TryAdd(entity.Name, sd);
+                        context.RegisterStructureDefinition(entity.Name, sd);
+                    }
                 }
-
-                ApplyMappingToSD(mapping, targetSd, context);
             }
             catch (Exception ex)
             {
                 errors.Add(new CompilerError
                 {
-                    EntityName = entityName,
+                    EntityName = entity.Name,
                     Message = ex.Message,
-                    Position = mapping.Position
+                    Position = entity.Position
                 });
             }
         }
@@ -274,6 +361,9 @@ public static class FshCompiler
         // For profiles of resources → "resource"; for datatypes → "complex-type".
         // Fall back to "resource" when the type can't be resolved (most common case).
         var parentTypeName = profile.Parent?.Value ?? "DomainResource";
+        if (opts.Inspector?.IsKnownResource(parentTypeName) == true || opts.Inspector?.IsDataType(parentTypeName) == true)
+            parentTypeName = opts.Inspector.CanonicalUriForFhirCoreType(parentTypeName);
+
         var resolvedParent = context.ResolveAlias(parentTypeName);
 
         // C-PR4: StructureDefinition.Type must be the bare FHIR type name.
@@ -291,7 +381,7 @@ public static class FshCompiler
             Url = ResolveUrl(profile.Id?.Value, opts, "StructureDefinition"),
             Name = profile.Name,
             Title = profile.Title?.Value,
-            Description = profile.Description?.Value,
+            Description = NormalizeLineEndings(profile.Description?.Value),
             Status = PublicationStatus.Active,
             Abstract = false,
             Kind = kind,
@@ -408,9 +498,8 @@ public static class FshCompiler
             Url = ResolveUrl(ext.Id, opts, "StructureDefinition"),
             Name = ext.Name,
             Title = ext.Title,
-            Description = ext.Description,
+            Description = NormalizeLineEndings(ext.Description),
             Status = PublicationStatus.Active,
-            Experimental = false,
             Abstract = false,
             Type = "Extension",
             BaseDefinition = ResolveBaseDefinitionCanonical(
@@ -425,6 +514,19 @@ public static class FshCompiler
         };
 
         sd.Differential.Element.Add(new ElementDefinition("Extension") { Path = "Extension", ElementId = "Extension" });
+
+        // Stamp the target FHIR version from the compiler options when supplied (sushi always
+        // emits fhirVersion on generated StructureDefinitions).
+        if (opts.FhirVersion != null && sd.FhirVersion == null)
+        {
+            sd.FhirVersion = opts.FhirVersion switch
+            {
+                "4.0.1" or "4.0" => FHIRVersion.N4_0_1,
+                "4.3.0" or "4.3" => FHIRVersion.N4_3_0,
+                "5.0.0" or "5.0" => FHIRVersion.N5_0_0,
+                _ => EnumUtility.ParseLiteral<FHIRVersion>(opts.FhirVersion, ignoreCase: true)
+            };
+        }
 
         // Context — determine type from the grammar alternative that was matched (P-EX3).
         if (ext.Contexts.Count > 0)
@@ -444,7 +546,268 @@ public static class FshCompiler
         }
 
         ApplySdRules(ext.Rules, sd, context, opts);
+
+        // C-EX1: Normalize the differential to match FHIR / sushi conventions for extensions:
+        //   • Strip a redundant min=0 on the root element (defaults inherited from Element).
+        //   • Auto-inject an Extension.extension element with max="0" for simple extensions
+        //     (no explicit Extension.extension already present → forbids nested extensions).
+        //   • Ensure Extension.url carries fixedUri = canonical URL and no redundant type
+        //     constraint (the base already pins it to uri).
+        NormalizeExtensionDifferential(sd);
+
         return sd;
+    }
+
+    /// <summary>
+    /// Applies post-rule normalization to an Extension's differential element list so that
+    /// the output matches the canonical sushi shape: the root element suppresses the
+    /// default min=0, a simple extension gets an auto-generated <c>Extension.extension</c>
+    /// marker with <c>max="0"</c>, and <c>Extension.url</c> is pinned to the extension's
+    /// canonical URL via <c>fixedUri</c> without a redundant <c>type</c> constraint.
+    /// </summary>
+    private static void NormalizeExtensionDifferential(StructureDefinition sd)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null) return;
+
+        // Root "Extension" element: drop redundant cardinality that matches the inherited
+        // defaults from the base Extension StructureDefinition (min=0, max="*"). Sushi
+        // strips these because they carry no information.
+        var root = elements.FirstOrDefault(e => e.Path == "Extension" && e.SliceName == null);
+        if (root != null && root.Min == 0)
+            root.MinElement = null;
+        if (root != null && root.Max == "*")
+            root.MaxElement = null;
+
+        // Populate root Short / Definition from the Extension's Title / Description when
+        // not explicitly set by caret rules — mirrors sushi's default behaviour of
+        // copying these values onto the root ElementDefinition.
+        if (root != null)
+        {
+            if (string.IsNullOrEmpty(root.Short) && !string.IsNullOrEmpty(sd.Title))
+                root.Short = sd.Title;
+            if (string.IsNullOrEmpty(root.Definition) && !string.IsNullOrEmpty(sd.Description))
+                root.Definition = sd.Description;
+        }
+
+        // Determine whether the extension declares any sub-extensions. A ContainsRule over
+        // "extension" creates a slice element with SliceName set, plus (optionally) a parent
+        // Extension.extension node. If any child of Extension.extension is present, treat
+        // this as a complex extension; otherwise auto-inject a zero-cardinality marker.
+        var hasExtensionChild = elements.Any(e =>
+            (e.Path == "Extension.extension" && e.SliceName == null) ||
+            (e.Path != null && e.Path.StartsWith("Extension.extension", StringComparison.Ordinal)));
+
+        if (!hasExtensionChild)
+        {
+            var marker = new ElementDefinition("Extension.extension")
+            {
+                Path = "Extension.extension",
+                ElementId = "Extension.extension",
+                Max = "0"
+            };
+            var insertIndex = root != null ? elements.IndexOf(root) + 1 : 0;
+            elements.Insert(insertIndex, marker);
+        }
+
+        // Extension.url: always pinned to the canonical URL via fixedUri; strip any type
+        // constraint the user may have set via "* url only uri" (the base already fixes the
+        // type to uri so the constraint is redundant and sushi omits it).
+        if (!string.IsNullOrEmpty(sd.Url))
+        {
+            var urlEl = elements.FirstOrDefault(e => e.Path == "Extension.url" && e.SliceName == null);
+            if (urlEl == null)
+            {
+                urlEl = new ElementDefinition("Extension.url")
+                {
+                    Path = "Extension.url",
+                    ElementId = "Extension.url"
+                };
+
+                // Insert after the Extension.extension marker (or after root) to preserve
+                // canonical element ordering: Extension, Extension.extension, Extension.url, ...
+                var anchor =
+                    elements.FirstOrDefault(e => e.Path == "Extension.extension" && e.SliceName == null)
+                    ?? root;
+                var insertIndex = anchor != null ? elements.IndexOf(anchor) + 1 : elements.Count;
+                elements.Insert(insertIndex, urlEl);
+            }
+
+            urlEl.Fixed = new FhirUri(sd.Url);
+            urlEl.Type = new List<ElementDefinition.TypeRefComponent>();
+        }
+
+        // Extension.value[x]: strip max="1" when it equals the inherited default from the
+        // base Extension.value[x] (cardinality 0..1). Sushi omits this redundant cardinality.
+        var valueEl = elements.FirstOrDefault(e => e.Path == "Extension.value[x]" && e.SliceName == null);
+        if (valueEl != null && valueEl.Max == "1")
+            valueEl.MaxElement = null;
+
+        // For each sub-extension slice (Extension.extension:X), sushi auto-generates:
+        //   • Extension.extension:X.extension  (max = "0") — forbids grand-children
+        //   • Extension.extension:X.url        (fixedUri = X, no type constraint)
+        // and adds Extension.value[x] (max = "0") at the root to forbid a direct value.
+        NormalizeSubExtensionSlices(elements, sd.Url);
+    }
+
+    /// <summary>
+    /// Sushi-compatible post-processing for complex extensions: for every sub-extension slice
+    /// (<c>Extension.extension:X</c>) ensures the standard child elements exist
+    /// (<c>:X.extension</c> with <c>max="0"</c>, <c>:X.url</c> with <c>fixedUri=X</c>) and
+    /// strips the redundant <c>type=[uri]</c> constraint from sub-extension url elements.
+    /// When any slice is present, also injects a root <c>Extension.value[x]</c> with
+    /// <c>max="0"</c> so that the complex extension cannot also carry a direct value.
+    /// </summary>
+    private static void NormalizeSubExtensionSlices(List<ElementDefinition> elements, string? sdUrl)
+    {
+        // Collect slice elements directly under Extension.extension.
+        var sliceElements = elements
+            .Where(e => e.Path == "Extension.extension" && !string.IsNullOrEmpty(e.SliceName))
+            .ToList();
+
+        if (sliceElements.Count == 0) return;
+
+        foreach (var slice in sliceElements)
+        {
+            var sliceName = slice.SliceName!;
+            var sliceIdPrefix = $"Extension.extension:{sliceName}";
+
+            // 1. Ensure :X.extension max=0 marker exists.
+            var childExt = elements.FirstOrDefault(e => e.ElementId == $"{sliceIdPrefix}.extension");
+            if (childExt == null)
+            {
+                childExt = new ElementDefinition("Extension.extension.extension")
+                {
+                    Path = "Extension.extension.extension",
+                    ElementId = $"{sliceIdPrefix}.extension",
+                    Max = "0"
+                };
+                // Insert after slice entry, before any :X.url / :X.value[x] siblings.
+                var sliceIdx = elements.IndexOf(slice);
+                elements.Insert(sliceIdx + 1, childExt);
+            }
+            else if (childExt.Max == null)
+            {
+                childExt.Max = "0";
+            }
+
+            // 2. Ensure :X.url exists with fixedUri = sliceName and no type constraint.
+            var childUrl = elements.FirstOrDefault(e => e.ElementId == $"{sliceIdPrefix}.url");
+            if (childUrl == null)
+            {
+                childUrl = new ElementDefinition("Extension.extension.url")
+                {
+                    Path = "Extension.extension.url",
+                    ElementId = $"{sliceIdPrefix}.url",
+                    Fixed = new FhirUri(sliceName)
+                };
+                var anchor = childExt;
+                var anchorIdx = elements.IndexOf(anchor);
+                elements.Insert(anchorIdx + 1, childUrl);
+            }
+            else
+            {
+                // Pin url via fixedUri (sushi convention) and drop redundant type=[uri].
+                childUrl.Fixed ??= new FhirUri(sliceName);
+                childUrl.Type = new List<ElementDefinition.TypeRefComponent>();
+            }
+
+            // 3. Strip redundant cardinality on :X.value[x] — base Extension.value[x]
+            //    already has min=0, max="1", so sushi omits those default values.
+            var childValue = elements.FirstOrDefault(e => e.ElementId == $"{sliceIdPrefix}.value[x]");
+            if (childValue != null)
+            {
+                if (childValue.Max == "1") childValue.MaxElement = null;
+                if (childValue.Min == 0) childValue.MinElement = null;
+            }
+        }
+
+        // 3. Inject root Extension.value[x] with max="0" to forbid direct value on this
+        //    complex extension (sushi emits this whenever sub-extension slices exist).
+        var rootValue = elements.FirstOrDefault(e => e.Path == "Extension.value[x]" && e.SliceName == null);
+        if (rootValue == null)
+        {
+            rootValue = new ElementDefinition("Extension.value[x]")
+            {
+                Path = "Extension.value[x]",
+                ElementId = "Extension.value[x]",
+                Max = "0"
+            };
+            elements.Add(rootValue);
+        }
+        else if (rootValue.Max == null)
+        {
+            rootValue.Max = "0";
+        }
+
+        // 4. Reorder so that each sub-extension slice's children (:X.extension, :X.url,
+        //    :X.value[x], etc.) appear immediately after the :X slice header.  Sushi
+        //    always groups a slice with its descendants contiguously.
+        GroupSliceDescendants(elements);
+
+        // 5. Aggregate required slice minimums onto the parent Extension.extension.
+        //    Sushi computes min on the parent as the sum of mandatory sub-extension
+        //    slices (those with min >= 1) and drops the default slicing block.
+        AggregateRequiredSliceMinimums(elements);
+    }
+
+    /// <summary>
+    /// Reorders <paramref name="elements"/> so that every sub-extension slice header
+    /// (<c>Extension.extension:X</c>) is immediately followed by elements whose id
+    /// starts with <c>Extension.extension:X.</c> (its descendants), preserving the
+    /// relative order of descendants.  Matches sushi's slice-grouped output order.
+    /// </summary>
+    private static void GroupSliceDescendants(List<ElementDefinition> elements)
+    {
+        // Find slice header indices (path Extension.extension with non-null SliceName).
+        var slices = elements
+            .Select((e, idx) => (e, idx))
+            .Where(p => p.e.Path == "Extension.extension" && !string.IsNullOrEmpty(p.e.SliceName))
+            .Select(p => p.e)
+            .ToList();
+
+        foreach (var slice in slices)
+        {
+            var idPrefix = $"Extension.extension:{slice.SliceName}.";
+            // Pull out descendants (in document order) and remove from the list.
+            var descendants = elements
+                .Where(e => e.ElementId != null && e.ElementId.StartsWith(idPrefix, StringComparison.Ordinal))
+                .ToList();
+            if (descendants.Count == 0) continue;
+            foreach (var d in descendants) elements.Remove(d);
+            // Re-insert immediately after the slice header (re-find index after removals).
+            var insertAt = elements.IndexOf(slice) + 1;
+            for (int i = 0; i < descendants.Count; i++)
+                elements.Insert(insertAt + i, descendants[i]);
+        }
+    }
+
+    /// <summary>
+    /// Sums the <c>min</c> values of required sub-extension slices onto the parent
+    /// <c>Extension.extension</c> element and drops the default value-on-url slicing
+    /// block when present.  Matches sushi's convention of treating the extension-by-url
+    /// slicing as implicit and surfacing the aggregate required cardinality on the
+    /// parent.
+    /// </summary>
+    private static void AggregateRequiredSliceMinimums(List<ElementDefinition> elements)
+    {
+        var parent = elements.FirstOrDefault(e => e.Path == "Extension.extension" && e.SliceName == null);
+        if (parent == null) return;
+
+        var requiredSum = elements
+            .Where(e => e.Path == "Extension.extension" && !string.IsNullOrEmpty(e.SliceName))
+            .Sum(e => e.Min ?? 0);
+
+        if (requiredSum > 0 && (parent.Min ?? 0) < requiredSum)
+            parent.Min = requiredSum;
+
+        // Drop the default extension-by-url slicing block (implicit per FHIR).
+        if (parent.Slicing?.Discriminator?.Count == 1)
+        {
+            var d = parent.Slicing.Discriminator[0];
+            if (d.Type == ElementDefinition.DiscriminatorType.Value && d.Path == "url")
+                parent.Slicing = null;
+        }
     }
 
     /// <summary>
@@ -466,7 +829,7 @@ public static class FshCompiler
             Url = logicalUrl,
             Name = logical.Name,
             Title = logical.Title,
-            Description = logical.Description,
+            Description = NormalizeLineEndings(logical.Description),
             Status = PublicationStatus.Active,
             Experimental = false,
             Abstract = false,
@@ -515,7 +878,7 @@ public static class FshCompiler
             Url = ResolveUrl(fshResource.Id, opts, "StructureDefinition"),
             Name = fshResource.Name,
             Title = fshResource.Title,
-            Description = fshResource.Description,
+            Description = NormalizeLineEndings(fshResource.Description),
             Status = PublicationStatus.Active,
             Experimental = false,
             Abstract = false,
@@ -553,7 +916,7 @@ public static class FshCompiler
             Url = ResolveUrl(vs.Id, opts, "ValueSet"),
             Name = vs.Name,
             Title = vs.Title,
-            Description = vs.Description,
+            Description = NormalizeLineEndings(vs.Description),
             Status = PublicationStatus.Active,
             Experimental = false,
             Compose = new FhirValueSet.ComposeComponent
@@ -622,7 +985,7 @@ public static class FshCompiler
             Url = ResolveUrl(cs.Id, opts, "CodeSystem"),
             Name = cs.Name,
             Title = cs.Title,
-            Description = cs.Description,
+            Description = NormalizeLineEndings(cs.Description),
             Status = PublicationStatus.Active,
             Experimental = false,
             Content = CodeSystemContentMode.Complete,
@@ -838,7 +1201,7 @@ public static class FshCompiler
                     break;
 
                 case OnlyRule onlyRule:
-                    ApplyOnlyRule(onlyRule, sd, context);
+                    ApplyOnlyRule(onlyRule, sd, context, opts);
                     break;
 
                 case ObeysRule obeysRule:
@@ -918,7 +1281,11 @@ public static class FshCompiler
         if (parts.Length == 2)
         {
             if (int.TryParse(parts[0], out var min)) ed.Min = min;
-            ed.Max = parts[1];
+            // FSH permits open-ended cardinality (e.g. "1..") which leaves the upper bound
+            // implicit.  Sushi omits the max element in that case; an empty string would
+            // otherwise serialise as ""max": """ which is invalid FHIR.
+            if (!string.IsNullOrEmpty(parts[1]))
+                ed.Max = parts[1];
         }
         ApplyFlags(ed, flags);
     }
@@ -985,13 +1352,42 @@ public static class FshCompiler
     {
         if (string.IsNullOrEmpty(containsRule.Path) || containsRule.Items.Count == 0) return;
 
-        var ed = GetOrCreateElement(containsRule.Path, sd);
-        if (ed.Slicing == null)
+        // For extension slicing (`* extension contains ...`), sushi emits only the slice
+        // rows unless the unsliced `extension` element is explicitly constrained elsewhere.
+        // Avoid creating a bare parent element just because of a contains rule.
+        var isExtensionPath = IsExtensionPath(containsRule.Path);
+        var ed = isExtensionPath
+            ? FindElement(containsRule.Path, sd)
+            : GetOrCreateElement(containsRule.Path, sd);
+
+        var requiredSliceMinSum = 0;
+        if (isExtensionPath)
+        {
+            foreach (var item in containsRule.Items)
+            {
+                var parts = item.Cardinality.Split("..");
+                if (parts.Length == 2 && int.TryParse(parts[0], out var min) && min > 0)
+                    requiredSliceMinSum += min;
+            }
+
+            // Contains rules for extensions define slice-level cardinalities on the extension
+            // array. To keep cardinalities compliant with FHIR profiling rules, the unsliced
+            // extension element minimum must be at least the sum of all required slice mins.
+            // Create the parent element before slice rows so output ordering matches sushi.
+            if (requiredSliceMinSum > 0)
+            {
+                ed ??= GetOrCreateElement(containsRule.Path, sd);
+                if (!ed.Min.HasValue || ed.Min.Value < requiredSliceMinSum)
+                    ed.Min = requiredSliceMinSum;
+            }
+        }
+
+        if (ed is not null && ed.Slicing == null)
         {
             // Per the FSH spec, the default discriminator for extension slicing is
             // {type: "value", path: "url"}.  For other elements, the discriminator is
             // typically set separately via caret rules (^slicing.discriminator.*).
-            var discriminators = IsExtensionPath(containsRule.Path)
+            var discriminators = isExtensionPath
                 ? new List<ElementDefinition.DiscriminatorComponent>
                   {
                       new()
@@ -1021,7 +1417,8 @@ public static class FshCompiler
             var parts = item.Cardinality.Split("..");
             if (parts.Length == 2)
             {
-                if (int.TryParse(parts[0], out var min)) sliceEd.Min = min;
+                if (int.TryParse(parts[0], out var min))
+                    sliceEd.Min = min;
                 sliceEd.Max = parts[1];
             }
             ApplyFlags(sliceEd, item.Flags);
@@ -1054,13 +1451,132 @@ public static class FshCompiler
         return string.Equals(lastSeg, "extension", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void ApplyOnlyRule(OnlyRule onlyRule, StructureDefinition sd, CompilerContext context)
+    /// <summary>
+    /// Detects redundant <c>only</c> rules on extension-related elements that sushi omits:
+    /// <c>only Extension</c> applied to a sub-extension slice (path Extension.extension
+    /// with a SliceName) or <c>only uri</c> applied to an Extension.url element.
+    /// </summary>
+    private static bool IsRedundantOnlyForExtension(
+        ElementDefinition ed, IReadOnlyList<string> targetTypes)
+    {
+        if (ed.Path == "Extension.extension" && !string.IsNullOrEmpty(ed.SliceName)
+            && targetTypes.Count == 1
+            && string.Equals(targetTypes[0].Trim(), "Extension", StringComparison.Ordinal))
+        {
+            return true;
+        }
+        if ((ed.Path == "Extension.url"
+             || (ed.Path != null && ed.Path.EndsWith(".url", StringComparison.Ordinal)
+                 && ed.Path.StartsWith("Extension.", StringComparison.Ordinal)))
+            && targetTypes.Count == 1
+            && string.Equals(targetTypes[0].Trim(), "uri", StringComparison.Ordinal))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private static void ApplyOnlyRule(OnlyRule onlyRule, StructureDefinition sd, CompilerContext context, CompilerOptions? opts = null)
     {
         if (string.IsNullOrEmpty(onlyRule.Path) || onlyRule.TargetTypes.Count == 0) return;
         var ed = GetOrCreateElement(onlyRule.Path, sd);
-        ed.Type = onlyRule.TargetTypes
-            .Select(tt => ParseTypeRef(tt, context))
-            .ToList();
+
+        // Redundant `only Extension` on a sub-extension slice (or `only uri` on an
+        // extension's url element) adds no information — the base already pins the type.
+        // Sushi omits these, so skip the assignment here.
+        if (IsRedundantOnlyForExtension(ed, onlyRule.TargetTypes))
+            return;
+
+        // Sushi orders the emitted `type` list according to the base element's declared
+        // FHIR type array (PropertyMapping.FhirType[]), not the FSH source order nor
+        // alphabetically.  When we can resolve the base property's choice-type ordering,
+        // use it as the primary sort key so that e.g. `only Quantity or string` on
+        // Observation.value[x] serialises in the order declared by the base element.
+        //
+        // Special case: when the base element is "any DataType" (e.g. Extension.value[x]
+        // in R4, whose FhirType resolves to the abstract DataType base class), sushi falls
+        // back to alphabetical ordering within each type group (primitives first, then
+        // complex datatypes).
+        var typeRefs = onlyRule.TargetTypes.Select(tt => ParseTypeRef(tt, context, opts)).ToList();
+        var baseOrder = GetBaseChoiceTypeOrder(onlyRule.Path, sd, opts?.Inspector);
+        if (baseOrder != null && baseOrder.Count > 1)
+        {
+            ed.Type = typeRefs
+                .Select((t, idx) => (t, idx,
+                    baseIdx: baseOrder.TryGetValue(t.Code ?? string.Empty, out var bi) ? bi : int.MaxValue))
+                .OrderBy(x => x.baseIdx)
+                .ThenBy(x => x.idx)
+                .Select(x => x.t)
+                .ToList();
+        }
+        else
+        {
+            // Fallback: primitive datatypes (lowercase initial) before complex datatypes /
+            // resources (uppercase initial), then alphabetical by type code within each group.
+            // Matches sushi's behaviour for "any DataType" elements like Extension.value[x].
+            ed.Type = typeRefs
+                .Select((t, idx) => (t, idx))
+                .OrderBy(x => !string.IsNullOrEmpty(x.t.Code) && char.IsUpper(x.t.Code[0]) ? 1 : 0)
+                .ThenBy(x => x.t.Code, StringComparer.Ordinal)
+                .ThenBy(x => x.idx)
+                .Select(x => x.t)
+                .ToList();
+        }
+    }
+
+    /// <summary>
+    /// Resolves the base element's declared choice-type ordering for <paramref name="path"/>
+    /// on <paramref name="sd"/>.  Returns a dictionary mapping FHIR type name → zero-based
+    /// index in the base property's <c>FhirType[]</c> array, or <c>null</c> when the path or
+    /// inspector cannot be resolved.
+    /// </summary>
+    private static Dictionary<string, int>? GetBaseChoiceTypeOrder(
+        string path, StructureDefinition sd, ModelInspector? inspector)
+    {
+        if (inspector is null || string.IsNullOrEmpty(sd.Type)) return null;
+        var current = inspector.FindClassMapping(sd.Type);
+        if (current is null) return null;
+
+        var segments = path.Split('.');
+        for (int i = 0; i < segments.Length; i++)
+        {
+            var seg = segments[i];
+            var colon = seg.IndexOf(':');
+            if (colon >= 0) seg = seg[..colon];
+            var bracket = seg.IndexOf('[');
+            if (bracket >= 0) seg = seg[..bracket];
+            if (string.IsNullOrEmpty(seg)) return null;
+
+            var propMap = current.FindMappedElementByName(seg);
+            if (propMap is null) return null;
+
+            if (i == segments.Length - 1)
+            {
+                var fhirTypes = propMap.FhirType;
+                if (fhirTypes is null || fhirTypes.Length == 0) return null;
+
+                // Skip the "any DataType" case (Extension.value[x] in R4 resolves its
+                // FhirType to just the abstract DataType base class). An abstract-only
+                // entry carries no ordering information, so fall through to the
+                // alphabetical-within-tier fallback.
+                if (fhirTypes.Length == 1 && fhirTypes[0].IsAbstract) return null;
+
+                var order = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (int j = 0; j < fhirTypes.Length; j++)
+                {
+                    var cm = inspector.FindClassMapping(fhirTypes[j]);
+                    if (cm != null && !order.ContainsKey(cm.Name))
+                        order[cm.Name] = j;
+                }
+                return order.Count > 0 ? order : null;
+            }
+
+            var nextType = propMap.ImplementingType;
+            if (nextType is null) return null;
+            current = inspector.FindClassMapping(nextType);
+            if (current is null) return null;
+        }
+        return null;
     }
 
     /// <summary>
@@ -1068,7 +1584,7 @@ public static class FshCompiler
     /// Handles bare type names as well as <c>Reference(...)</c>, <c>Canonical(...)</c>,
     /// and <c>CodeableReference(...)</c> expressions with optional " or "-separated targets.
     /// </summary>
-    private static ElementDefinition.TypeRefComponent ParseTypeRef(string typeExpr, CompilerContext context)
+    private static ElementDefinition.TypeRefComponent ParseTypeRef(string typeExpr, CompilerContext context, CompilerOptions? opts = null)
     {
         typeExpr = typeExpr.Trim();
 
@@ -1076,7 +1592,9 @@ public static class FshCompiler
         if (typeExpr.StartsWith("Reference(", StringComparison.Ordinal) && typeExpr.EndsWith(")"))
         {
             var inner = typeExpr[10..^1];
-            var targets = SplitOrTargets(inner).Select(t => context.ResolveAlias(t)).ToList();
+            var targets = SplitOrTargets(inner)
+                .Select(t => ResolveTargetProfile(context.ResolveAlias(t), context, opts))
+                .ToList();
             return new ElementDefinition.TypeRefComponent { Code = "Reference", TargetProfile = targets };
         }
 
@@ -1084,7 +1602,9 @@ public static class FshCompiler
         if (typeExpr.StartsWith("Canonical(", StringComparison.Ordinal) && typeExpr.EndsWith(")"))
         {
             var inner = typeExpr[10..^1];
-            var targets = SplitOrTargets(inner).Select(t => context.ResolveAlias(t)).ToList();
+            var targets = SplitOrTargets(inner)
+                .Select(t => ResolveTargetProfile(context.ResolveAlias(t), context, opts))
+                .ToList();
             return new ElementDefinition.TypeRefComponent { Code = "canonical", TargetProfile = targets };
         }
 
@@ -1092,12 +1612,56 @@ public static class FshCompiler
         if (typeExpr.StartsWith("CodeableReference(", StringComparison.Ordinal) && typeExpr.EndsWith(")"))
         {
             var inner = typeExpr[18..^1];
-            var targets = SplitOrTargets(inner).Select(t => context.ResolveAlias(t)).ToList();
+            var targets = SplitOrTargets(inner)
+                .Select(t => ResolveTargetProfile(context.ResolveAlias(t), context, opts))
+                .ToList();
             return new ElementDefinition.TypeRefComponent { Code = "CodeableReference", TargetProfile = targets };
         }
 
         // Bare type name (e.g. Quantity, string, boolean) — resolve through aliases as well
-        return new ElementDefinition.TypeRefComponent { Code = context.ResolveAlias(typeExpr) };
+        var resolved = context.ResolveAlias(typeExpr);
+
+        // If the name refers to a profile of a core FHIR type (e.g. SimpleQuantity → Quantity),
+        // emit { Code = baseType, Profile = [canonicalUrl] } to match sushi behaviour.
+        // Note: some FHIR model assemblies (e.g. R4 Firely) include POCO ClassMappings for
+        // profiled datatypes like SimpleQuantity, and CompilerContext.ResolveClassMappingForProfile
+        // is tuned for resolving to a base *resource* type (used by InstanceOf lookup), so it
+        // doesn't handle profiles of complex-type datatypes. Here we probe the resolver directly
+        // and trust the StructureDefinition's Type field to identify the underlying FHIR type.
+        if (opts?.Inspector is { } inspector && opts?.Resolver is { } resolver
+            && !inspector.IsKnownResource(resolved)
+            && !resolved.Contains("://", StringComparison.Ordinal))
+        {
+            var sd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + resolved)
+                  ?? resolver.FindStructureDefinition(resolved);
+            if (sd is not null
+                && !string.IsNullOrEmpty(sd.Type)
+                && !string.IsNullOrEmpty(sd.Url)
+                && !string.Equals(sd.Type, resolved, StringComparison.Ordinal))
+            {
+                return new ElementDefinition.TypeRefComponent
+                {
+                    Code = sd.Type,
+                    Profile = new List<string> { sd.Url }
+                };
+            }
+        }
+
+        return new ElementDefinition.TypeRefComponent { Code = resolved };
+    }
+
+    /// <summary>
+    /// Resolves a FSH target-profile name (e.g. <c>Bundle</c>, <c>Patient</c>) to its canonical
+    /// StructureDefinition URL.  Absolute URLs and URN/URI-prefixed strings pass through unchanged.
+    /// Falls back to the raw name when no resolution is possible (e.g. unknown user-defined profile).
+    /// </summary>
+    private static string ResolveTargetProfile(string target, CompilerContext context, CompilerOptions? opts)
+    {
+        if (string.IsNullOrEmpty(target)) return target;
+        if (IsAbsoluteUrl(target)) return target;
+        // URN/URI-prefixed strings (urn:oid:…, urn:uuid:…) also pass through.
+        if (target.StartsWith("urn:", StringComparison.Ordinal)) return target;
+        return ResolveBaseDefinitionCanonical(target, target, context, opts);
     }
 
     private static IEnumerable<string> SplitOrTargets(string inner) =>
@@ -1135,6 +1699,12 @@ public static class FshCompiler
             {
                 constraint.Severity = ConstraintSeverity.Error;
             }
+
+            // Sushi stamps the owning StructureDefinition's canonical URL as the
+            // constraint source so consumers can trace the invariant back to its
+            // defining profile.
+            if (!string.IsNullOrEmpty(sd.Url))
+                constraint.Source = sd.Url;
 
             targetEd.Constraint.Add(constraint);
         }
@@ -1230,7 +1800,11 @@ public static class FshCompiler
         if (parts.Length == 2)
         {
             if (int.TryParse(parts[0], out var min)) ed.Min = min;
-            ed.Max = parts[1];
+            // FSH permits open-ended cardinality (e.g. "1..") which leaves the upper bound
+            // implicit.  Sushi omits the max element in that case; an empty string would
+            // otherwise serialise as ""max": """ which is invalid FHIR.
+            if (!string.IsNullOrEmpty(parts[1]))
+                ed.Max = parts[1];
         }
         ApplyFlags(ed, addEl.Flags);
         if (!string.IsNullOrEmpty(addEl.ShortDescription)) ed.Short = addEl.ShortDescription;
@@ -1249,7 +1823,11 @@ public static class FshCompiler
         if (parts.Length == 2)
         {
             if (int.TryParse(parts[0], out var min)) ed.Min = min;
-            ed.Max = parts[1];
+            // FSH permits open-ended cardinality (e.g. "1..") which leaves the upper bound
+            // implicit.  Sushi omits the max element in that case; an empty string would
+            // otherwise serialise as ""max": """ which is invalid FHIR.
+            if (!string.IsNullOrEmpty(parts[1]))
+                ed.Max = parts[1];
         }
         ApplyFlags(ed, addCr.Flags);
         if (!string.IsNullOrEmpty(addCr.ShortDescription)) ed.Short = addCr.ShortDescription;
@@ -1386,8 +1964,16 @@ public static class FshCompiler
         if (context.CanonicalsFromSpecificationZip.ContainsKey("CodeSystem#" + name))
             return context.CanonicalsFromSpecificationZip["CodeSystem#" + name];
 
+        // Do not synthesize canonical URLs for unresolved names.
+        // Canonical replacement should only happen when an actual CodeSystem is detected
+        // via alias resolution, parsed entity map, resolver lookup, or specification index.
         return name;
     }
+
+    private static string ToLowerCamel(string value) =>
+        string.IsNullOrEmpty(value) || char.IsLower(value[0])
+            ? value
+            : char.ToLowerInvariant(value[0]) + value[1..];
 
     private static FilterOperator MapFilterOp(string op) =>
         op switch
@@ -1667,6 +2253,34 @@ public static class FshCompiler
 
     // ─── Shared helpers ───────────────────────────────────────────────────────
 
+    private static ElementDefinition? FindElement(string path, StructureDefinition sd)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        var type = sd.Type ?? string.Empty;
+
+        if (path == ".")
+            return sd.Differential.Element.FirstOrDefault(e => e.Path == type && e.SliceName == null);
+
+        path = NormalizeSliceBrackets(path);
+
+        var segments = path.Split('.');
+        var fhirPathSegments = new List<string>(segments.Length);
+
+        foreach (var seg in segments)
+        {
+            var colon = seg.IndexOf(':');
+            fhirPathSegments.Add(colon < 0 ? seg : seg[..colon]);
+        }
+
+        var fhirPath = string.IsNullOrEmpty(type)
+            ? string.Join('.', fhirPathSegments)
+            : $"{type}.{string.Join('.', fhirPathSegments)}";
+
+        return sd.Differential.Element.FirstOrDefault(e => e.Path == fhirPath && e.SliceName == null);
+    }
+
     private static ElementDefinition GetOrCreateElement(string path, StructureDefinition sd)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -1686,42 +2300,107 @@ public static class FshCompiler
             return rootEd;
         }
 
-        var fullPath = string.IsNullOrEmpty(type) ? path : $"{type}.{path}";
+        // Normalize FSH `name[sliceName]` notation to `name:sliceName` so that slice
+        // references (e.g. `extension[label].value[x]`) resolve to the slice defined
+        // by a prior `contains` rule rather than being treated as literal brackets.
+        path = NormalizeSliceBrackets(path);
 
-        // Handle slice names: path:sliceName
-        if (path.Contains(':'))
+        // Split into segments and process each segment for potential slice notation.
+        // Build:  fhirPath (no slice markers), elementId (with :slice markers), and a
+        // search key so we can find / create the element consistently.
+        var segments = path.Split('.');
+        var fhirPathSegments = new List<string>(segments.Length);
+        var elementIdSegments = new List<string>(segments.Length);
+        string? trailingSliceName = null;
+
+        foreach (var seg in segments)
         {
-            var colonIndex = path.IndexOf(':');
-            var basePath = path[..colonIndex];
-            var sliceName = path[(colonIndex + 1)..];
-            var sliceFullPath = string.IsNullOrEmpty(type) ? basePath : $"{type}.{basePath}";
-            var sliceElementId = $"{sliceFullPath}:{sliceName}";
-
-            var sliceEd = sd.Differential.Element
-                .FirstOrDefault(e => e.Path == sliceFullPath && e.SliceName == sliceName);
-
-            if (sliceEd == null)
+            var colon = seg.IndexOf(':');
+            if (colon < 0)
             {
-                sliceEd = new ElementDefinition(sliceFullPath)
-                {
-                    Path = sliceFullPath,
-                    SliceName = sliceName,
-                    // C-EI1: Generate ElementDefinition.Id (path:sliceName)
-                    ElementId = sliceElementId
-                };
-                sd.Differential.Element.Add(sliceEd);
+                fhirPathSegments.Add(seg);
+                elementIdSegments.Add(seg);
+                trailingSliceName = null;
             }
-            return sliceEd;
+            else
+            {
+                var baseName = seg[..colon];
+                var sliceName = seg[(colon + 1)..];
+                fhirPathSegments.Add(baseName);
+                elementIdSegments.Add($"{baseName}:{sliceName}");
+                trailingSliceName = sliceName;
+            }
         }
 
-        var ed = sd.Differential.Element.FirstOrDefault(e => e.Path == fullPath && e.SliceName == null);
+        var fhirPath = string.IsNullOrEmpty(type)
+            ? string.Join('.', fhirPathSegments)
+            : $"{type}.{string.Join('.', fhirPathSegments)}";
+        var elementId = string.IsNullOrEmpty(type)
+            ? string.Join('.', elementIdSegments)
+            : $"{type}.{string.Join('.', elementIdSegments)}";
+
+        var hasSliceInPath = segments.Any(s => s.Contains(':'));
+
+        if (hasSliceInPath)
+        {
+            // Find existing element by ElementId (unique per slice branch).
+            var existing = sd.Differential.Element.FirstOrDefault(e => e.ElementId == elementId);
+            if (existing != null) return existing;
+
+            var newEd = new ElementDefinition(fhirPath)
+            {
+                Path = fhirPath,
+                ElementId = elementId
+            };
+            // When the slice marker is on the *last* segment, this element IS the slice
+            // itself and must carry SliceName (per FHIR); sub-elements below a slice
+            // retain the slice marker only in their id, never in SliceName.
+            if (elementIdSegments[^1].Contains(':'))
+                newEd.SliceName = trailingSliceName;
+
+            sd.Differential.Element.Add(newEd);
+            return newEd;
+        }
+
+        var ed = sd.Differential.Element.FirstOrDefault(e => e.Path == fhirPath && e.SliceName == null);
         if (ed == null)
         {
             // C-EI1: Generate ElementDefinition.Id equal to the full path for non-slice elements.
-            ed = new ElementDefinition(fullPath) { Path = fullPath, ElementId = fullPath };
+            ed = new ElementDefinition(fhirPath) { Path = fhirPath, ElementId = fhirPath };
             sd.Differential.Element.Add(ed);
         }
         return ed;
+    }
+
+    /// <summary>
+    /// Converts FSH slice-bracket notation (<c>name[sliceName]</c>) to colon notation
+    /// (<c>name:sliceName</c>) in each path segment.  Bracket contents that are numeric,
+    /// the literal <c>x</c> (FHIR choice-type marker like <c>value[x]</c>), or the
+    /// soft-index tokens <c>+</c> / <c>=</c> are preserved as-is.
+    /// </summary>
+    private static string NormalizeSliceBrackets(string path)
+    {
+        if (!path.Contains('[')) return path;
+
+        var segments = path.Split('.');
+        for (int i = 0; i < segments.Length; i++)
+        {
+            var seg = segments[i];
+            var open = seg.IndexOf('[');
+            if (open < 0) continue;
+            var close = seg.IndexOf(']', open);
+            if (close < 0) continue;
+
+            var content = seg[(open + 1)..close];
+            // Skip FHIR choice-type markers (value[x]), numeric indices, and soft-index tokens.
+            if (content == "x" || content == "+" || content == "=") continue;
+            if (int.TryParse(content, out _)) continue;
+
+            var baseName = seg[..open];
+            var after = seg[(close + 1)..]; // typically empty, but be safe
+            segments[i] = $"{baseName}:{content}{after}";
+        }
+        return string.Join('.', segments);
     }
 
     private static void ApplyFlags(ElementDefinition ed, IEnumerable<string> flags)
@@ -1968,11 +2647,15 @@ public static class FshCompiler
     }
 
     /// <summary>
-    /// Returns <c>true</c> when <paramref name="url"/> is an absolute HTTP/HTTPS URL.
+    /// Returns <c>true</c> when <paramref name="url"/> is an absolute URI.
+    /// Supports non-HTTP schemes such as <c>urn:</c> used by code-system identifiers.
     /// </summary>
     private static bool IsAbsoluteUrl(string url) =>
-        url.StartsWith("http://", StringComparison.Ordinal) ||
-        url.StartsWith("https://", StringComparison.Ordinal);
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && !string.IsNullOrEmpty(uri.Scheme);
+
+    private static string? NormalizeLineEndings(string? value) =>
+        value?.Replace("\r\n", "\n").Replace("\r", "\n");
 
     /// <summary>
     /// Resolves a base-definition value to a canonical URL.

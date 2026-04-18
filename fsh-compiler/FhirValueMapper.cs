@@ -19,6 +19,14 @@ namespace fsh_compiler;
 public static class FhirValueMapper
 {
     /// <summary>
+    /// Normalizes Windows-style <c>\r\n</c> line endings to <c>\n</c> in string content
+    /// so that multi-line FSH string literals serialize consistently regardless of the
+    /// line endings used in the source file.  Sushi normalizes all string values this way.
+    /// </summary>
+    private static string NormalizeLineEndings(string value) =>
+        string.IsNullOrEmpty(value) ? value : value.Replace("\r\n", "\n").Replace("\r", "\n");
+
+    /// <summary>
     /// Converts a <see cref="FshValue"/> to a Firely <see cref="DataType"/>.
     /// Returns <c>null</c> when no mapping is defined for the value type.
     /// </summary>
@@ -34,7 +42,7 @@ public static class FhirValueMapper
     public static DataType? ToDataType(FshValue? value, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null) =>
         value switch
         {
-            StringValue sv => new FhirString(sv.Value),
+            StringValue sv => new FhirString(NormalizeLineEndings(sv.Value)),
             NumberValue nv => new FhirDecimal(nv.Value),
             BooleanValue bv => new FhirBoolean(bv.Value),
             DateTimeValue dtv => new FhirDateTime(dtv.Value),

@@ -299,6 +299,8 @@ public class R4ProfileCompilerTests
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
         var ed = CompilerTestHelper.GetElement(sd, "value[x]");
         Assert.AreEqual(3, ed.Type.Count);
+        // Primitive datatypes (lowercase-initial) sort before complex/resource types
+        // to match FHIR canonical ordering and sushi output.
         CollectionAssert.AreEqual(
             new[] { "Quantity", "string", "boolean" },
             ed.Type.Select(t => t.Code).ToArray());
@@ -498,6 +500,28 @@ public class R4ProfileCompilerTests
     }
 
     [TestMethod]
+    public void ShouldNormalizeLineEndingsInMultilineCaretComment()
+    {
+        var resources = CompilerTestHelper.CompileDoc(""""
+            Profile: MyObservation
+            Parent: Observation
+            * status ^comment = """
+                line one
+
+                line two
+              """
+            """");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "status");
+
+        // Spec is silent on newline normalization details; pin LF-only output for
+        // deterministic sushi parity in strict JSON text comparison tests.
+        Assert.IsNotNull(ed.Comment);
+        Assert.IsFalse(ed.Comment.Contains("\r"));
+        Assert.IsTrue(ed.Comment.Contains("\n"));
+    }
+
+    [TestMethod]
     public void ShouldApplyCaretValueRequirementsOnElement()
     {
         var resources = CompilerTestHelper.CompileDoc(@"
@@ -659,7 +683,8 @@ public class R4ProfileCompilerTests
         Assert.IsNotNull(ed.Type);
         Assert.AreEqual(1, ed.Type.Count);
         Assert.AreEqual("Reference", ed.Type[0].Code);
-        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "Patient");
+        // Bare resource type names are resolved to their core FHIR canonical URL (matches sushi output).
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/Patient");
     }
 
     [TestMethod]
@@ -676,8 +701,8 @@ public class R4ProfileCompilerTests
         Assert.AreEqual(1, ed.Type.Count);
         Assert.AreEqual("Reference", ed.Type[0].Code);
         Assert.AreEqual(2, ed.Type[0].TargetProfile.Count());
-        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "Patient");
-        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "Practitioner");
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/Patient");
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/Practitioner");
     }
 
     [TestMethod]
@@ -693,7 +718,7 @@ public class R4ProfileCompilerTests
         Assert.IsNotNull(ed.Type);
         Assert.AreEqual(1, ed.Type.Count);
         Assert.AreEqual("canonical", ed.Type[0].Code);
-        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "ValueSet");
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/ValueSet");
     }
 
     [TestMethod]
@@ -821,6 +846,43 @@ public class R4ProfileCompilerTests
         Assert.IsNotNull(sliceEd.Type, "Slice element should have Type set");
         Assert.AreEqual(1, sliceEd.Type.Count);
         Assert.AreEqual("http://example.org/StructureDefinition/myExt", sliceEd.Type[0].Code);
+    }
+
+    [TestMethod]
+    public void ShouldSetExtensionRootMinToSumOfRequiredSliceMins()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyPatient
+            Parent: Patient
+            * extension contains
+                http://example.org/StructureDefinition/ext-a named extA 1..1 and
+                http://example.org/StructureDefinition/ext-b named extB 1..1
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyPatient");
+        var extensionEd = CompilerTestHelper.GetElement(sd, "extension");
+
+        // Per language-reference.md contains rules for extensions + cardinality compliance,
+        // the parent extension array minimum must support the sum of required slice mins.
+        Assert.AreEqual(2, extensionEd.Min);
+    }
+
+    [TestMethod]
+    public void ShouldSetExtensionRootMinFromOnlyRequiredSlices()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyPatient
+            Parent: Patient
+            * extension contains
+                http://example.org/StructureDefinition/ext-a named extA 1..1 and
+                http://example.org/StructureDefinition/ext-b named extB 0..1 and
+                http://example.org/StructureDefinition/ext-c named extC 0..*
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyPatient");
+        var extensionEd = CompilerTestHelper.GetElement(sd, "extension");
+
+        // Per language-reference.md cardinality rules, optional slices do not increase
+        // the minimum parent cardinality; only required slices contribute.
+        Assert.AreEqual(1, extensionEd.Min);
     }
 
     // ─── Compiler warnings (Gap 15) ──────────────────────────────────────────

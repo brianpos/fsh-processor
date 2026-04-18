@@ -2,6 +2,7 @@ using fsh_processor.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Utility;
+using System.Text.RegularExpressions;
 using FshCode = fsh_processor.Models.Code;
 
 namespace fsh_compiler;
@@ -409,8 +410,12 @@ public static class FhirCaretValueWriter
             var propMap = classMap.FindMappedElementByName(baseName);
             if (propMap is null) continue;
 
-            // Produce a concrete DataType from the FSH value.
-            var dataType = AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector, aliasResolver), suffixType.NativeType);
+            // Produce a concrete DataType from the FSH value.  Route through ConvertValue so
+            // that numeric targets (Integer, PositiveInt, UnsignedInt, Integer64) get the
+            // proper primitive constructor via CreateNumericPrimitive, rather than producing
+            // a generic FhirDecimal from ToDataType that AdaptToTargetType cannot narrow.
+            var dataType = ConvertValue(fshValue, suffixType.NativeType, inspector, aliasResolver)
+                           ?? AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector, aliasResolver), suffixType.NativeType);
             if (dataType is null) return false;
 
             // Verify the concrete type is assignment-compatible with the property's implementing type.
@@ -477,7 +482,7 @@ public static class FhirCaretValueWriter
 
         return fshValue switch
         {
-            StringValue sv   => CreatePrimitive(targetType, sv.Value),
+            StringValue sv   => CreatePrimitive(targetType, NormalizeLineEndings(sv.Value)),
             // For FshCode: extract the code-only part (strip system and leading #) for
             // primitive targets (FhirCode, FhirString, …).  When that fails (e.g. target is
             // CodeableConcept), fall through to ToDataType which produces a Coding that
@@ -551,11 +556,19 @@ public static class FhirCaretValueWriter
     private static string? GetStringFromFshValue(FshValue fshValue) =>
         fshValue switch
         {
-            StringValue sv => sv.Value,
+            StringValue sv => NormalizeLineEndings(sv.Value),
             // Extract code-only part (strip system prefix and leading #).
             FshCode c      => FhirValueMapper.SplitCodeValue(c.Value).Code,
             _              => null
         };
+
+    private static string NormalizeLineEndings(string value) =>
+        string.IsNullOrEmpty(value)
+            ? value
+            : Regex.Replace(
+                value.Replace("\r\n", "\n").Replace("\r", "\n"),
+                "(?<=\\n)[ \\t]+(?=\\n)",
+                string.Empty);
 
     /// <summary>
     /// Returns <paramref name="converted"/> when it is already assignment-compatible with
