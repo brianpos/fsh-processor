@@ -8,6 +8,7 @@ using Hl7.Fhir.Specification.Snapshot;
 using Hl7.Fhir.Specification.Source;
 using Hl7.Fhir.Utility;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
@@ -1749,9 +1750,8 @@ public class SdcIgCompilerTests
                     // can be resolved to a concrete entity name when the ruleset is inserted.
                     var paramNames = e.Parameters.Select(p => p.Value).ToList();
                     var refParamIdxs = new List<int>();
-                    foreach (System.Text.RegularExpressions.Match m in
-                        System.Text.RegularExpressions.Regex.Matches(
-                            e.UnparsedContent, @"Reference\(\{([^}]+)\}\)"))
+                    foreach (Match m in
+                        Regex.Matches(e.UnparsedContent, @"Reference\(\{([^}]+)\}\)"))
                     {
                         var paramName = m.Groups[1].Value;
                         var idx = paramNames.IndexOf(paramName);
