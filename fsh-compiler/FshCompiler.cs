@@ -3601,6 +3601,8 @@ public static class FshCompiler
         //   Reference(myInstance) → Reference(ResourceType/instanceId)
         // This matches sushi's behaviour of qualifying local-instance references with
         // the FHIR base resource type prefix (e.g. QuestionnaireResponse/id).
+        // The !Contains('/') guard skips references that are already qualified (ResourceType/id)
+        // or relative URL paths; IsAbsoluteUrl skips fully-qualified http(s) references.
         if (value is Reference refVal &&
             !IsAbsoluteUrl(refVal.Type) &&
             !refVal.Type.Contains('/'))
@@ -3611,11 +3613,7 @@ public static class FshCompiler
                 if (fhirType != null)
                 {
                     // Use the explicit * id = "..." rule when present, otherwise the instance name.
-                    var idRule = referencedInst.Rules
-                        .OfType<InstanceFixedValueRule>()
-                        .FirstOrDefault(r => string.Equals(r.Path, "id", StringComparison.Ordinal)
-                                             && r.Value is StringValue);
-                    var id = idRule?.Value is StringValue sv ? sv.Value : referencedInst.Name;
+                    var id = GetFixedStringValue(referencedInst.Rules, "id") ?? referencedInst.Name;
                     return new Reference { Type = $"{fhirType}/{id}", Display = refVal.Display };
                 }
             }
@@ -3628,12 +3626,9 @@ public static class FshCompiler
         if (context.Instances.TryGetValue(can.Url, out var canonicalRefInst))
         {
             // Use the explicit `* url = "..."` rule from the referenced instance.
-            var urlRule = canonicalRefInst.Rules
-                .OfType<InstanceFixedValueRule>()
-                .FirstOrDefault(r => string.Equals(r.Path, "url", StringComparison.Ordinal)
-                                     && r.Value is StringValue);
-            if (urlRule?.Value is StringValue sv && !string.IsNullOrEmpty(sv.Value))
-                return new fsh_processor.Models.Canonical { Url = sv.Value, Version = can.Version };
+            var urlValue = GetFixedStringValue(canonicalRefInst.Rules, "url");
+            if (!string.IsNullOrEmpty(urlValue))
+                return new fsh_processor.Models.Canonical { Url = urlValue, Version = can.Version };
         }
 
         // Resolve Canonical references to compiled StructureDefinitions (Profiles, Extensions, etc.)
@@ -3693,6 +3688,18 @@ public static class FshCompiler
 
         return null;
     }
+
+    /// <summary>
+    /// Returns the value of the first <see cref="InstanceFixedValueRule"/> in
+    /// <paramref name="rules"/> whose <see cref="FshRule.Path"/> equals
+    /// <paramref name="path"/> and whose value is a <see cref="StringValue"/>.
+    /// Returns <c>null</c> when no matching rule is found.
+    /// </summary>
+    private static string? GetFixedStringValue(IEnumerable<InstanceRule> rules, string path) =>
+        rules.OfType<InstanceFixedValueRule>()
+             .FirstOrDefault(r => string.Equals(r.Path, path, StringComparison.Ordinal)
+                                  && r.Value is StringValue)
+             ?.Value is StringValue sv ? sv.Value : null;
 
     /// <summary>
     /// Returns a shallow copy of <paramref name="rule"/> with <see cref="FshRule.Path"/>
