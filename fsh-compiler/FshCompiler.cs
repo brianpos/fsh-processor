@@ -3067,6 +3067,12 @@ public static class FshCompiler
 
                 case InstanceFixedValueRule fixedRule when
                     !string.IsNullOrEmpty(fixedRule.Path) && fixedRule.Value != null:
+                    // Skip empty-string values produced by empty parameter substitutions in
+                    // rulesets (e.g. `* definition = ""` when definition param is omitted).
+                    // This matches sushi behavior: empty parameter values do not set FHIR
+                    // properties, which avoids spurious `"definition": ""` fields in the output.
+                    if (fixedRule.Value is StringValue emptyCheck && string.IsNullOrEmpty(emptyCheck.Value))
+                        break;
                     var resolvedPath = ResolveSoftIndices(fixedRule.Path, softIndexState);
                     // When the value is a NameValue (cross-instance reference) and the leaf
                     // property accepts a Resource, build the referenced instance and embed it

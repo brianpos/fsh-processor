@@ -433,6 +433,22 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                     ruleSet.Rules.Add(fshRule);
             }
             PostProcessRules(ruleSet.Rules);
+
+            // Also capture the raw text of the rules so the ruleset can be re-parsed as
+            // Instance rules when inserted into an Instance entity (see
+            // RuleSetResolver.ReparseAsWrapper which handles both parameterized and
+            // non-parameterized rulesets in Instance context).
+            var ruleSetRules = context.ruleSetRule();
+            if (ruleSetRules.Length > 0)
+            {
+                var startToken = ruleSetRules[0].Start;
+                var stopToken  = ruleSetRules[ruleSetRules.Length - 1].Stop;
+                if (startToken != null && stopToken != null)
+                {
+                    ruleSet.UnparsedContent = _tokenStream.GetText(
+                        new Antlr4.Runtime.Misc.Interval(startToken.TokenIndex, stopToken.TokenIndex));
+                }
+            }
         }
 
         // Capture the unparsed content
@@ -562,45 +578,25 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     }
 
     /// <summary>
-    /// Processes ruleSetParamText by concatenating tokens and handling escape sequences.
-    /// Escape sequences: \) and \, where the backslash indicates the following character
-    /// should be treated as literal content rather than a delimiter.
+    /// Processes ruleSetParamText by reading the full raw text from the token stream
+    /// (including hidden-channel whitespace) and unescaping FSH parameter escape sequences.
+    /// Escape sequences: <c>\)</c> → <c>)</c> and <c>\,</c> → <c>,</c>.
     /// </summary>
+    /// <remarks>
+    /// Using <see cref="CommonTokenStream.GetText(Antlr4.Runtime.Misc.Interval)"/> (via the
+    /// interval overload) preserves whitespace between tokens (e.g. spaces inside
+    /// <c>(internal use\)</c>) that would otherwise be silently dropped by <c>GetText()</c>
+    /// on individual parser-rule contexts.
+    /// </remarks>
     private string ProcessRuleSetParamText(FSHParser.RuleSetParamTextContext context)
     {
-        var result = new System.Text.StringBuilder();
-        var parts = context.ruleSetParamPart();
-        
-        for (int i = 0; i < parts.Length; i++)
-        {
-            var part = parts[i];
-            var text = part.GetText();
-            
-            // Check if this is an escape sequence pattern: SEQUENCE RPAREN or SEQUENCE COMMA
-            // These appear as two children in the parse tree
-            if (part.ChildCount == 2)
-            {
-                var firstChild = part.GetChild(0);
-                var secondChild = part.GetChild(1);
-                
-                // If first child is \ and second is ) or ,
-                if (firstChild?.GetText() == "\\")
-                {
-                    var secondText = secondChild?.GetText();
-                    if (secondText == ")" || secondText == ",")
-                    {
-                        // This is an escape sequence - include the escaped character without the backslash
-                        result.Append(secondText);
-                        continue;
-                    }
-                }
-            }
-            
-            // Normal token - just append its text
-            result.Append(text);
-        }
-        
-        return result.ToString();
+        // Get the full raw text — including hidden-channel whitespace — between the first and
+        // last tokens of the ruleSetParamText node.
+        var raw = _tokenStream.GetText(
+            new Antlr4.Runtime.Misc.Interval(context.Start.TokenIndex, context.Stop.TokenIndex));
+
+        // Unescape \) → ) and \, → , (FSH escape sequences inside parameter values).
+        return raw.Replace("\\)", ")").Replace("\\,", ",");
     }
 
     public override object? VisitMapping([NotNull] FSHParser.MappingContext context)
