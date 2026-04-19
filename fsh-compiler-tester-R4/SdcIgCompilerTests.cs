@@ -802,6 +802,7 @@ public class SdcIgCompilerTests
         if (resources.Count == 0 && parsedFsh.Entities.All(e => e is Invariant))
         {
             // this is an invariant only, so nothing to actually test in the compiled output
+            Console.WriteLine("Invariant definition only, nothing to compile. Will be verified in other tests that use these invariants.");
             return;
         }
 
