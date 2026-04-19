@@ -96,19 +96,40 @@ public static class RuleSetResolver
         IReadOnlyList<string> paramNames,
         IReadOnlyList<string> paramValues)
     {
-        // TODO: Implement parameter substitution for parameterized rule sets.
-        // The RuleSet.UnparsedContent field holds the raw text with {paramName} placeholders.
-        // Substitute each placeholder with the corresponding value from paramValues,
-        // then re-parse via a synthetic Profile wrapper to produce concrete FshRule instances.
-        //
-        // For the initial implementation this returns an empty string, causing parameterized
-        // InsertRule references to fall back to the unsubstituted rules in ruleSet.Rules.
         if (ruleSet.UnparsedContent is null) return string.Empty;
 
         var content = ruleSet.UnparsedContent;
         for (int i = 0; i < paramNames.Count && i < paramValues.Count; i++)
         {
-            content = content.Replace($"{{{paramNames[i]}}}", paramValues[i]);
+            var placeholder = $"{{{paramNames[i]}}}";
+            var value = paramValues[i];
+
+            // When a parameter value contains whitespace and is NOT already a quoted string
+            // (i.e. it was originally a [[...]] double-bracket string whose brackets were
+            // stripped when the outer insert rule was parsed), substituting it as plain text
+            // into a position that will be re-parsed as a raw ruleset parameter causes the
+            // FSH lexer to tokenise each word separately, silently dropping the spaces.
+            //
+            // To preserve whitespace across nested insert expansions:
+            //   1. Replace occurrences of "{param}" (inside double-quotes in the template)
+            //      with the plain value "value" — the surrounding quotes from the template
+            //      make it a valid FSH string.
+            //   2. Replace any remaining bare {param} occurrences with [[value]] so that the
+            //      re-parse treats it as a DOUBLE_BRACKET_STRING and keeps the whitespace.
+            //
+            // The quoted replacement (step 1) must run before the bare replacement (step 2)
+            // so that already-quoted occurrences are handled correctly and do not receive
+            // the extra [[ ]] wrapping.
+            if (!value.StartsWith('"') && !value.StartsWith("[[") &&
+                value.Any(char.IsWhiteSpace))
+            {
+                content = content.Replace($"\"{placeholder}\"", $"\"{value}\"");
+                content = content.Replace(placeholder, $"[[{value}]]");
+            }
+            else
+            {
+                content = content.Replace(placeholder, value);
+            }
         }
         return content;
     }

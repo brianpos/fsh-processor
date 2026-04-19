@@ -491,6 +491,10 @@ public static class FhirCaretValueWriter
                                 ?? AdaptToTargetType(FhirValueMapper.ToDataType(c, inspector, aliasResolver), targetType),
             BooleanValue bv  => targetType == typeof(FhirBoolean) ? new FhirBoolean(bv.Value) : null,
             NumberValue nv   => CreateNumericPrimitive(targetType, nv.Value),
+            // NameValue: `$alias` parsed as a name for non-string FHIR primitive targets
+            // (e.g. Canonical URL fields such as `definition`, `profile`, `import`).
+            // Resolve the alias and create the target primitive from the resulting URL.
+            NameValue nv2    => CreatePrimitive(targetType, aliasResolver?.Invoke(nv2.Value) ?? nv2.Value),
             _                => AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector), targetType)
         };
     }

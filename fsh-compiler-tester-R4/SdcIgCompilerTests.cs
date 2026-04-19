@@ -607,7 +607,7 @@ public class SdcIgCompilerTests
             ["questionnaire-sdc-profile-example-cap.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
             ["questionnaire-sdc-profile-example-context-expression.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
             ["questionnaire-sdc-profile-example-cqf-PHQ9.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "ObservationExtractCategory.fsh", "ObservationExtractEntry.fsh", "ObservationExtractExtension.fsh", "ObservationExtractRelationship.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractObservation.fsh"],
-            ["questionnaire-sdc-profile-example-form-behavior.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
+            ["questionnaire-sdc-profile-example-form-behavior.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireFormBehaviorConditions.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
             ["questionnaire-sdc-profile-example-framingham-hchd-lhc.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
             ["questionnaire-sdc-profile-example-hunger-vital-signs.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
             ["questionnaire-sdc-profile-example-image-options.fsh"] = ["AssembleExpectation.fsh", "ChoiceColumnExtension.fsh", "CollapsibleExtension.fsh", "ColumnCountExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "Keyboard.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireItemCollapsible.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCOpenLabel.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireRender.fsh", "ShortTextExtension.fsh", "WidthExtension.fsh"],
@@ -633,8 +633,13 @@ public class SdcIgCompilerTests
             ["questionnaireresponse-sdc-profile-example-PHQ9.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
             ["questionnaireresponse-sdc-profile-example.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
             ["request-task-example.fsh"] = ["SDCTaskQuestionnaire.fsh", "TaskCode.fsh"],
+            ["Questionnaire-assemble.fsh"] = ["SDCParametersQuestionnaireAssembleIn.fsh"],
+            ["Questionnaire-populate.fsh"] = ["SDCParametersQuestionnairePopulateIn.fsh", "SDCParametersQuestionnairePopulateOut.fsh"],
+            ["Questionnaire-populatehtml.fsh"] = ["SDCParametersQuestionnairePopulateHtmlOut.fsh", "SDCParametersQuestionnairePopulateIn.fsh"],
+            ["Questionnaire-populatelink.fsh"] = ["SDCParametersQuestionnairePopulateIn.fsh", "SDCParametersQuestionnairePopulateLinkOut.fsh"],
             ["sdc-assemble-request.fsh"] = ["SDCParametersQuestionnaireAssembleIn.fsh"],
             ["sdc-CHF.fsh"] = ["SDCLibrary.fsh"],
+            ["sdc-form-manager.fsh"] = ["sdc-form-fill-manager.fsh"],
             ["sdc-modular-contact.fsh"] = ["AssembleContextExtension.fsh", "AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCModularQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SubQuestionnaireExtension.fsh"],
             ["sdc-modular-name.fsh"] = ["AssembleContextExtension.fsh", "AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCModularQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SubQuestionnaireExtension.fsh"],
             ["sdc-modular-root-assembled.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCParametersQuestionnaireAssembleOut.fsh", "SDCQuestionnaireCommon.fsh"],
@@ -1604,6 +1609,24 @@ public class SdcIgCompilerTests
                     {
                         entityDeps.Add((i.Name, i.InstanceOf));
                         entitySource.TryAdd(i.Name, fa.Name);
+                    }
+                    // Scan Instance rules for Canonical(name) cross-references.
+                    // These require the referenced entity to be present in the compilation
+                    // context so that its canonical URL can be resolved.
+                    if (e is Instance instEntity)
+                    {
+                        foreach (var rule in instEntity.Rules.OfType<InstanceFixedValueRule>())
+                        {
+                            if (rule.Value is fsh_processor.Models.Canonical can &&
+                                !string.IsNullOrEmpty(can.Url) &&
+                                !can.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
+                                !can.Url.StartsWith("urn:", StringComparison.OrdinalIgnoreCase) &&
+                                !can.Url.StartsWith('$'))
+                            {
+                                entityDeps.Add((instEntity.Name, can.Url));
+                                entitySource.TryAdd(instEntity.Name, fa.Name);
+                            }
+                        }
                     }
                     if (e is fsh_processor.Models.Extension ext)
                     {

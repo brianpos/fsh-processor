@@ -3100,15 +3100,27 @@ public static class FshCompiler
                         }
                     }
 
-                    SetInstancePath(resource, resolvedPath, fixedRule.Value, inspector, context.ResolveAlias);
+                    SetInstancePath(resource, resolvedPath, ResolveInstanceCanonical(fixedRule.Value, context, opts, inspector), inspector, context.ResolveAlias);
                     break;
 
                 case InstanceInsertRule insertRule:
                     var resolved = RuleSetResolver.Resolve(
                         insertRule.RuleSetReference, insertRule.IsParameterized,
                         insertRule.Parameters, context, useInstanceWrapper: true);
-                    ApplyInstanceRules(
-                        resolved.OfType<InstanceRule>(), resource, context, opts, inspector, softIndexState);
+                    var instanceRules = resolved.OfType<InstanceRule>().ToList();
+                    // C-RL1 (Instance): when the insert rule has a path context (e.g. it is
+                    // indented under `* rest`), prepend that path to every resolved rule so
+                    // that the ruleset expansion is applied at the correct location.
+                    if (!string.IsNullOrEmpty(insertRule.Path) && instanceRules.Count > 0)
+                    {
+                        instanceRules = instanceRules
+                            .Select(r => CloneInstanceRuleWithPath(r,
+                                string.IsNullOrEmpty(r.Path)
+                                    ? insertRule.Path
+                                    : CombineFshPaths(insertRule.Path, r.Path)))
+                            .ToList();
+                    }
+                    ApplyInstanceRules(instanceRules, resource, context, opts, inspector, softIndexState);
                     break;
             }
         }
@@ -3511,6 +3523,37 @@ public static class FshCompiler
     // ─── Rule path-prefix helper (C-RL1) ────────────────────────────────────
 
     /// <summary>
+    /// Resolves a <see cref="fsh_processor.Models.Canonical"/> value whose URL is not yet absolute by
+    /// looking up the referenced entity name in the compilation context and reading the
+    /// explicit <c>* url = "..."</c> rule from the loaded instance.
+    /// Returns the value unchanged when the URL is already absolute, when the entity is
+    /// not in context, or when the entity has no explicit <c>url</c> rule.
+    /// All other <see cref="FshValue"/> types are returned unchanged.
+    /// </summary>
+    private static FshValue ResolveInstanceCanonical(
+        FshValue value,
+        CompilerContext context,
+        CompilerOptions opts,
+        ModelInspector inspector)
+    {
+        if (value is not fsh_processor.Models.Canonical can) return value;
+        if (IsAbsoluteUrl(can.Url)) return value;
+
+        if (context.Instances.TryGetValue(can.Url, out var refInst))
+        {
+            // Use the explicit `* url = "..."` rule from the referenced instance.
+            var urlRule = refInst.Rules
+                .OfType<InstanceFixedValueRule>()
+                .FirstOrDefault(r => string.Equals(r.Path, "url", StringComparison.Ordinal)
+                                     && r.Value is StringValue);
+            if (urlRule?.Value is StringValue sv && !string.IsNullOrEmpty(sv.Value))
+                return new fsh_processor.Models.Canonical { Url = sv.Value, Version = can.Version };
+        }
+
+        return value;
+    }
+
+    /// <summary>
     /// Returns a shallow copy of <paramref name="rule"/> with <see cref="FshRule.Path"/>
     /// replaced by <paramref name="newPath"/>. Returns <c>null</c> for rule types that
     /// do not support a simple path replacement.
@@ -3545,4 +3588,38 @@ public static class FshCompiler
                 return null;
         }
     }
+
+    /// <summary>
+    /// Returns a shallow copy of <paramref name="rule"/> with <see cref="FshRule.Path"/>
+    /// replaced by <paramref name="newPath"/>. Handles all concrete <see cref="InstanceRule"/>
+    /// subtypes; returns the original rule unchanged for any unrecognised subtype.
+    /// </summary>
+    private static InstanceRule CloneInstanceRuleWithPath(InstanceRule rule, string newPath) =>
+        rule switch
+        {
+            InstanceFixedValueRule r => new InstanceFixedValueRule
+            {
+                Position = r.Position,
+                Indent = r.Indent,
+                Path = newPath,
+                Value = r.Value,
+                Exactly = r.Exactly
+            },
+            InstancePathRule r => new InstancePathRule
+            {
+                Position = r.Position,
+                Indent = r.Indent,
+                Path = newPath
+            },
+            InstanceInsertRule r => new InstanceInsertRule
+            {
+                Position = r.Position,
+                Indent = r.Indent,
+                Path = newPath,
+                RuleSetReference = r.RuleSetReference,
+                Parameters = r.Parameters,
+                IsParameterized = r.IsParameterized
+            },
+            _ => rule
+        };
 }
