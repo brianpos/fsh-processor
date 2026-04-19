@@ -191,6 +191,11 @@ public class CompilerContext
     }
 
 
+    /// <summary>
+    /// When <paramref name="typeName"/> is a profile identifier rather than a bare FHIR resource
+    /// type name, walks the <see cref="CompiledStructureDefinitions"/> chain to find the underlying
+    /// FHIR base resource type, then returns the corresponding <see cref="ClassMapping"/> from
+    /// <paramref name="inspector"/>.
     /// </summary>
     /// <param name="typeName">The type/profile name to resolve.</param>
     /// <param name="inspector">Version-specific model inspector.</param>

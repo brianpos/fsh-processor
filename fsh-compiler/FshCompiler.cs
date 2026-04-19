@@ -363,10 +363,7 @@ public static class FshCompiler
         var parentTypeName = profile.Parent?.Value ?? "DomainResource";
 
         // Build a merged resolver that includes both compiled SDs and the external resolver.
-        var compiledSdResolver = new AliasResolver(context.CompiledStructureDefinitions);
-        IResourceResolver mergedResolver = opts.Resolver == null
-            ? compiledSdResolver
-            : new MultiResolver(compiledSdResolver, opts.Resolver);
+        var mergedResolver = BuildMergedResolver(context, opts.Resolver);
 
         // Resolve the parent type name to a canonical URL when it is a bare core FHIR type.
         // Prefer using the resolver to find the SD; fall back to the inspector for backward
@@ -1713,20 +1710,17 @@ public static class FshCompiler
 
         var cleanPath = StripSlicesAndIndices(path);
 
-        // Iteratively look for the element by navigating through the path.
-        // Each segment may belong to a different StructureDefinition (e.g. when the path
-        // goes through an 'extension' segment, we need to follow into Extension SD).
+        // Walk the path segment by segment. Each segment may belong to a different
+        // StructureDefinition (e.g. when the path goes through an 'extension' segment,
+        // we follow into the Extension SD).
         var segments = cleanPath.Split('.');
         var currentType = sdType;
+        var segIndex = 0;
 
-        for (int i = 0; i < segments.Length; i++)
+        while (segIndex < segments.Length)
         {
-            var seg = segments[i];
+            var seg = segments[segIndex];
             if (string.IsNullOrEmpty(seg)) return null;
-
-            // Build the path of the element we're looking for in the current type's SD.
-            var remainingPath = string.Join('.', segments[i..]);
-            var fullElementPath = currentType + "." + remainingPath;
 
             var typeSd = FindStructureDefinitionForType(currentType, resolver);
             if (typeSd == null) return null;
@@ -1735,7 +1729,9 @@ public static class FshCompiler
             var elements = (IList<ElementDefinition>?)typeSd.Snapshot?.Element ?? typeSd.Differential?.Element;
             if (elements == null) return null;
 
-            // Try exact match for the full remaining path.
+            // Build the full path using the remaining segments and try an exact match.
+            var remainingPath = string.Join('.', segments[segIndex..]);
+            var fullElementPath = currentType + "." + remainingPath;
             var el = elements.FirstOrDefault(e => e.Path == fullElementPath);
             if (el != null)
             {
@@ -1751,20 +1747,17 @@ public static class FshCompiler
                 return order.Count > 0 ? order : null;
             }
 
-            // Not found at this level — navigate one step: find the current segment's element
-            // and follow its type to a nested SD.
+            // Exact match not found at this level — navigate one step by following the
+            // current segment's element type into a nested SD.
             var parentPath = currentType + "." + seg;
             var parentEl = elements.FirstOrDefault(e => e.Path == parentPath);
             if (parentEl == null || parentEl.Type == null || parentEl.Type.Count == 0) return null;
 
-            // Use the first type code to navigate into the nested SD.
             var nextTypeCode = parentEl.Type[0].Code;
             if (string.IsNullOrEmpty(nextTypeCode)) return null;
 
             currentType = nextTypeCode;
-            // Remove the processed segment and continue the loop from the remaining path.
-            segments = segments[(i + 1)..];
-            i = -1; // will be incremented to 0 at top of loop
+            segIndex++;
         }
 
         return null;
@@ -2945,8 +2938,7 @@ public static class FshCompiler
             // Fallback: inspector-based walk when inspector is also available.
             if (opts.Inspector != null)
             {
-                var ar = new AliasResolver(context.CompiledStructureDefinitions);
-                IResourceResolver imr = new MultiResolver(ar, opts.Resolver);
+                var imr = BuildMergedResolver(context, opts.Resolver);
                 var classMap = context.ResolveClassMappingForProfile(lookupName, opts.Inspector, imr, out _);
                 if (classMap != null) return classMap.Name;
             }
@@ -2983,9 +2975,18 @@ public static class FshCompiler
     }
 
     /// <summary>
+    /// Builds a merged <see cref="IResourceResolver"/> that consults compiled StructureDefinitions
+    /// first (via <see cref="AliasResolver"/>) and then the external resolver when provided.
+    /// </summary>
+    private static IResourceResolver BuildMergedResolver(
+        CompilerContext context, IResourceResolver? externalResolver)
+    {
+        var compiled = new AliasResolver(context.CompiledStructureDefinitions);
+        return externalResolver == null ? compiled : new MultiResolver(compiled, externalResolver);
+    }
+
+    /// <summary>
     /// Rewrites <see cref="ElementDefinition.Path"/> and <see cref="ElementDefinition.ElementId"/>
-    /// for all elements whose path starts with <paramref name="oldPrefix"/> followed by <c>'.'</c>
-    /// or exactly equals <paramref name="oldPrefix"/> (root element).
     /// </summary>
     private static void RewriteElementPathPrefixes(
         StructureDefinition sd, string oldPrefix, string newPrefix)
