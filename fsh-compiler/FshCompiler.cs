@@ -3211,6 +3211,26 @@ public static class FshCompiler
         // [=] reuses the stored index (defaults to 0 if no prior [+] has been seen for this prefix).
         softIndexState ??= new Dictionary<string, int>(StringComparer.Ordinal);
 
+        // C-IN5: Extension-aware alias resolver.  When a named-index segment like
+        // extension[InitialExpressionExtension] is encountered, the name is first checked
+        // against the alias table; if no alias is found, it falls back to looking up the
+        // entity name in CompiledStructureDefinitions so that the canonical URL (Url) is
+        // returned.  This turns the local FSH entity name into the correct extension URL.
+        string ResolveExtensionAwareAlias(string name)
+        {
+            var resolved = context.ResolveAlias(name);
+            // If the alias resolver returned the name unchanged (i.e. no alias was found)
+            // and it looks like a plain identifier (not an absolute URL or alias), try to
+            // find a compiled StructureDefinition for it and use its Url.
+            if (resolved == name && !IsAbsoluteUrl(name) && !name.StartsWith('$') &&
+                context.CompiledStructureDefinitions.TryGetValue(name, out var sd) &&
+                !string.IsNullOrEmpty(sd.Url))
+            {
+                return sd.Url;
+            }
+            return resolved;
+        }
+
         foreach (var rule in rules)
         {
             switch (rule)
@@ -3241,7 +3261,7 @@ public static class FshCompiler
                             for (int si = 0; si < segments.Length - 1 && parent != null; si++)
                             {
                                 var (sn, sIdx, sni) = ParseInstanceSegment(segments[si]);
-                                parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, context.ResolveAlias);
+                                parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, ResolveExtensionAwareAlias);
                             }
                             if (parent != null)
                             {
@@ -3278,15 +3298,27 @@ public static class FshCompiler
                         }
                     }
 
-                    SetInstancePath(resource, resolvedPath, fixedRule.Value, inspector, context.ResolveAlias);
+                    SetInstancePath(resource, resolvedPath, ResolveInstanceCanonical(fixedRule.Value, context, opts, inspector), inspector, ResolveExtensionAwareAlias);
                     break;
 
                 case InstanceInsertRule insertRule:
                     var resolved = RuleSetResolver.Resolve(
                         insertRule.RuleSetReference, insertRule.IsParameterized,
                         insertRule.Parameters, context, useInstanceWrapper: true);
-                    ApplyInstanceRules(
-                        resolved.OfType<InstanceRule>(), resource, context, opts, inspector, softIndexState);
+                    var instanceRules = resolved.OfType<InstanceRule>().ToList();
+                    // C-RL1 (Instance): when the insert rule has a path context (e.g. it is
+                    // indented under `* rest`), prepend that path to every resolved rule so
+                    // that the ruleset expansion is applied at the correct location.
+                    if (!string.IsNullOrEmpty(insertRule.Path) && instanceRules.Count > 0)
+                    {
+                        instanceRules = instanceRules
+                            .Select(r => CloneInstanceRuleWithPath(r,
+                                string.IsNullOrEmpty(r.Path)
+                                    ? insertRule.Path
+                                    : CombineFshPaths(insertRule.Path, r.Path)))
+                            .ToList();
+                    }
+                    ApplyInstanceRules(instanceRules, resource, context, opts, inspector, softIndexState);
                     break;
             }
         }
@@ -3500,6 +3532,47 @@ public static class FshCompiler
                 return newExt;
             }
 
+            // Named-slice on a non-Extension collection (e.g. Parameters.parameter[response]):
+            // find-or-create the item whose `name` property matches the namedIndex value.
+            // This handles FHIR elements like Parameters.ParameterComponent where slices
+            // are identified by the `name` property rather than a URL.
+            if (namedIndex is not null)
+            {
+                var concreteClassMap = inspector.FindClassMapping(concreteType);
+                var namePropMap = concreteClassMap?.FindMappedElementByName("name");
+                if (namePropMap != null)
+                {
+                    // Search for an existing item with the matching name.
+                    foreach (var item in list)
+                    {
+                        if (item is Base existing)
+                        {
+                            var nameVal = namePropMap.GetValue(existing);
+                            var nameStr = nameVal switch
+                            {
+                                FhirString fs => fs.Value,
+                                string s => s,
+                                _ => null
+                            };
+                            if (string.Equals(nameStr, namedIndex, StringComparison.Ordinal))
+                                return existing;
+                        }
+                    }
+
+                    // Create a new item and set its name property to the namedIndex value.
+                    var newItem = Activator.CreateInstance(concreteType) as Base;
+                    if (newItem != null)
+                    {
+                        if (namePropMap.ImplementingType == typeof(FhirString))
+                            namePropMap.SetValue(newItem, new FhirString(namedIndex));
+                        else if (namePropMap.ImplementingType == typeof(string))
+                            namePropMap.SetValue(newItem, namedIndex);
+                        list.Add(newItem);
+                        return newItem;
+                    }
+                }
+            }
+
             while (list.Count <= index)
                 list.Add(Activator.CreateInstance(concreteType));
 
@@ -3689,6 +3762,51 @@ public static class FshCompiler
     // ─── Rule path-prefix helper (C-RL1) ────────────────────────────────────
 
     /// <summary>
+    /// Resolves a <see cref="fsh_processor.Models.Canonical"/> value whose URL is not yet absolute by
+    /// looking up the referenced entity name in the compilation context and reading the
+    /// explicit <c>* url = "..."</c> rule from the loaded instance.
+    /// Returns the value unchanged when the URL is already absolute, when the entity is
+    /// not in context, or when the entity has no explicit <c>url</c> rule.
+    /// All other <see cref="FshValue"/> types are returned unchanged.
+    /// </summary>
+    private static FshValue ResolveInstanceCanonical(
+        FshValue value,
+        CompilerContext context,
+        CompilerOptions opts,
+        ModelInspector inspector)
+    {
+        if (value is not fsh_processor.Models.Canonical can) return value;
+        if (IsAbsoluteUrl(can.Url)) return value;
+
+        if (context.Instances.TryGetValue(can.Url, out var refInst))
+        {
+            // Use the explicit `* url = "..."` rule from the referenced instance.
+            var urlRule = refInst.Rules
+                .OfType<InstanceFixedValueRule>()
+                .FirstOrDefault(r => string.Equals(r.Path, "url", StringComparison.Ordinal)
+                                     && r.Value is StringValue);
+            if (urlRule?.Value is StringValue sv && !string.IsNullOrEmpty(sv.Value))
+                return new fsh_processor.Models.Canonical { Url = sv.Value, Version = can.Version };
+        }
+
+        // Resolve Canonical references to compiled StructureDefinitions (Profiles, Extensions, etc.)
+        // by entity name or id.  This handles `Canonical(SDCParametersQuestionnairePopulateIn)`
+        // which references a Profile defined in another FSH file.
+        if (context.CompiledStructureDefinitions.TryGetValue(can.Url, out var refSd)
+            && !string.IsNullOrEmpty(refSd.Url))
+        {
+            return new fsh_processor.Models.Canonical { Url = refSd.Url, Version = can.Version };
+        }
+
+        // Fall back to constructing a canonical URL from the CanonicalBase when available.
+        var resolved = ResolveBaseDefinitionCanonical(can.Url, can.Url, context, opts);
+        if (!string.IsNullOrEmpty(resolved) && resolved != can.Url)
+            return new fsh_processor.Models.Canonical { Url = resolved, Version = can.Version };
+
+        return value;
+    }
+
+    /// <summary>
     /// Returns a shallow copy of <paramref name="rule"/> with <see cref="FshRule.Path"/>
     /// replaced by <paramref name="newPath"/>. Returns <c>null</c> for rule types that
     /// do not support a simple path replacement.
@@ -3723,4 +3841,38 @@ public static class FshCompiler
                 return null;
         }
     }
+
+    /// <summary>
+    /// Returns a shallow copy of <paramref name="rule"/> with <see cref="FshRule.Path"/>
+    /// replaced by <paramref name="newPath"/>. Handles all concrete <see cref="InstanceRule"/>
+    /// subtypes; returns the original rule unchanged for any unrecognised subtype.
+    /// </summary>
+    private static InstanceRule CloneInstanceRuleWithPath(InstanceRule rule, string newPath) =>
+        rule switch
+        {
+            InstanceFixedValueRule r => new InstanceFixedValueRule
+            {
+                Position = r.Position,
+                Indent = r.Indent,
+                Path = newPath,
+                Value = r.Value,
+                Exactly = r.Exactly
+            },
+            InstancePathRule r => new InstancePathRule
+            {
+                Position = r.Position,
+                Indent = r.Indent,
+                Path = newPath
+            },
+            InstanceInsertRule r => new InstanceInsertRule
+            {
+                Position = r.Position,
+                Indent = r.Indent,
+                Path = newPath,
+                RuleSetReference = r.RuleSetReference,
+                Parameters = r.Parameters,
+                IsParameterized = r.IsParameterized
+            },
+            _ => rule
+        };
 }
