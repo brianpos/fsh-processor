@@ -578,7 +578,7 @@ public class SdcIgCompilerTests
             ["demographics.fsh"] = ["AssembleExpectation.fsh", "DefinitionExtractExtension.fsh", "DefinitionExtractValueExtension.fsh", "ExtractAllocateIdExtension.fsh", "InitialExpressionExtension.fsh", "ItemPopulationContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractDefinition.fsh"],
             ["EntryMode.fsh"] = ["QuestionnaireEntryMode.fsh"],
             ["example-of-ServiceRequest.fsh"] = ["SDCQuestionnaireServiceRequest.fsh", "SDCServiceRequestQuestionnaire.fsh"],
-            ["example-of-Task.fsh"] = ["SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCTaskQuestionnaire.fsh", "TaskCode.fsh", "questionnaireresponse-sdc-example-ussg-fht-answers.fsh"],
+            ["example-of-Task.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "questionnaireresponse-sdc-example-ussg-fht-answers.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCTaskQuestionnaire.fsh", "TaskCode.fsh"],
             ["ihe-sdc-for-SDCQuestionnaireAdapt.fsh"] = ["QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireAdapt.fsh", "SDCQuestionnaireCommon.fsh"],
             ["ihe-sdc-for-SDCQuestionnaireAdaptSearch.fsh"] = ["AssembledFromExtension.fsh", "EndpointExtension.fsh", "QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireAdaptSearch.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireSearch.fsh"],
             ["ihe-sdc-for-SDCQuestionnaireBehave.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
@@ -1637,6 +1637,19 @@ public class SdcIgCompilerTests
                                 entityDeps.Add((instEntity.Name, nameVal.Value));
                                 entitySource.TryAdd(instEntity.Name, fa.Name);
                             }
+                            // Reference(localInstanceName): cross-instance reference that needs the
+                            // referenced instance compiled so its FHIR resource type can be resolved
+                            // for the ResourceType/id prefix (e.g. QuestionnaireResponse/id).
+                            if (rule.Value is Reference refVal &&
+                                !string.IsNullOrEmpty(refVal.Type) &&
+                                !refVal.Type.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
+                                !refVal.Type.StartsWith("urn:", StringComparison.OrdinalIgnoreCase) &&
+                                !refVal.Type.StartsWith('$') &&
+                                !refVal.Type.Contains('/'))
+                            {
+                                entityDeps.Add((instEntity.Name, refVal.Type));
+                                entitySource.TryAdd(instEntity.Name, fa.Name);
+                            }
                         }
                     }
                     if (e is fsh_processor.Models.Extension ext)
@@ -1701,6 +1714,12 @@ public class SdcIgCompilerTests
         // Instances that insert those rulesets indirectly depend on the extension's source file.
         // Build: ruleSetName → set of extension entity names referenced in paths.
         var ruleSetExtensionDeps = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+
+        // Scan parameterized RuleSet bodies for Reference({param}) patterns so that when an
+        // Instance inserts such a ruleset, the referenced local instance becomes a dependency.
+        // Build: ruleSetName → list of parameter indices whose argument values are Reference targets.
+        var ruleSetReferenceParamIdxs = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+
         foreach (var doc in fshDocs)
         {
             foreach (var e in doc.Entities.OfType<RuleSet>())
@@ -1724,6 +1743,23 @@ public class SdcIgCompilerTests
                     {
                         extRefs.Add(m.Groups[1].Value);
                     }
+
+                    // Match Reference({paramName}) patterns.  For each match, find the index of
+                    // paramName in the ruleset's declared parameters so the call-site argument
+                    // can be resolved to a concrete entity name when the ruleset is inserted.
+                    var paramNames = e.Parameters.Select(p => p.Value).ToList();
+                    var refParamIdxs = new List<int>();
+                    foreach (System.Text.RegularExpressions.Match m in
+                        System.Text.RegularExpressions.Regex.Matches(
+                            e.UnparsedContent, @"Reference\(\{([^}]+)\}\)"))
+                    {
+                        var paramName = m.Groups[1].Value;
+                        var idx = paramNames.IndexOf(paramName);
+                        if (idx >= 0 && !refParamIdxs.Contains(idx))
+                            refParamIdxs.Add(idx);
+                    }
+                    if (refParamIdxs.Count > 0)
+                        ruleSetReferenceParamIdxs[e.Name] = refParamIdxs;
                 }
 
                 if (extRefs.Count > 0)
@@ -1733,6 +1769,9 @@ public class SdcIgCompilerTests
 
         // For every Instance that uses an InstanceInsertRule referencing a ruleset with extension deps,
         // add those extension entities as direct dependencies of the instance entity.
+        // Also resolve Reference({param}) arguments: when a parameterized ruleset body contains
+        // Reference({paramName}), the corresponding call-site argument is a local instance name
+        // that must be compiled together so its FHIR resource type prefix can be resolved.
         foreach (var doc in fshDocs)
         {
             foreach (var e in doc.Entities.OfType<Instance>())
@@ -1740,10 +1779,28 @@ public class SdcIgCompilerTests
                 if (!entitySource.TryGetValue(e.Name, out var instanceFile)) continue;
                 foreach (var insertRule in e.Rules.OfType<InstanceInsertRule>())
                 {
-                    if (!ruleSetExtensionDeps.TryGetValue(insertRule.RuleSetReference, out var extRefs)) continue;
-                    foreach (var extName in extRefs)
+                    // Extension path dependencies.
+                    if (ruleSetExtensionDeps.TryGetValue(insertRule.RuleSetReference, out var extRefs))
                     {
-                        entityDeps.Add((e.Name, extName));
+                        foreach (var extName in extRefs)
+                            entityDeps.Add((e.Name, extName));
+                    }
+
+                    // Reference(localInstance) parameter dependencies.
+                    if (ruleSetReferenceParamIdxs.TryGetValue(insertRule.RuleSetReference, out var paramIdxs))
+                    {
+                        foreach (var idx in paramIdxs)
+                        {
+                            if (idx >= insertRule.Parameters.Count) continue;
+                            var argValue = insertRule.Parameters[idx].Trim();
+                            if (string.IsNullOrEmpty(argValue) ||
+                                argValue.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
+                                argValue.StartsWith("urn:", StringComparison.OrdinalIgnoreCase) ||
+                                argValue.StartsWith('$') ||
+                                argValue.Contains('/'))
+                                continue;
+                            entityDeps.Add((e.Name, argValue));
+                        }
                     }
                 }
             }
