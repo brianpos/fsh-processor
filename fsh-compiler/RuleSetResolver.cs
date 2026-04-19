@@ -116,8 +116,12 @@ public static class RuleSetResolver
             //      make it a valid FSH string.
             //   2. Replace any remaining bare {param} occurrences with [[value]] so that the
             //      re-parse treats it as a DOUBLE_BRACKET_STRING and keeps the whitespace.
+            //
+            // The quoted replacement (step 1) must run before the bare replacement (step 2)
+            // so that already-quoted occurrences are handled correctly and do not receive
+            // the extra [[ ]] wrapping.
             if (!value.StartsWith('"') && !value.StartsWith("[[") &&
-                (value.Contains(' ') || value.Contains('\t') || value.Contains('\n')))
+                value.Any(char.IsWhiteSpace))
             {
                 content = content.Replace($"\"{placeholder}\"", $"\"{value}\"");
                 content = content.Replace(placeholder, $"[[{value}]]");

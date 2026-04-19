@@ -3544,7 +3544,7 @@ public static class FshCompiler
             // Use the explicit `* url = "..."` rule from the referenced instance.
             var urlRule = refInst.Rules
                 .OfType<InstanceFixedValueRule>()
-                .FirstOrDefault(r => string.Equals(r.Path, "url", StringComparison.OrdinalIgnoreCase)
+                .FirstOrDefault(r => string.Equals(r.Path, "url", StringComparison.Ordinal)
                                      && r.Value is StringValue);
             if (urlRule?.Value is StringValue sv && !string.IsNullOrEmpty(sv.Value))
                 return new fsh_processor.Models.Canonical { Url = sv.Value, Version = can.Version };
