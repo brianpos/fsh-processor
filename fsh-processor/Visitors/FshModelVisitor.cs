@@ -984,7 +984,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             {
                 composedPath = string.IsNullOrEmpty(rule.Path)
                     ? parentPath                             // caret / obeys rule inherits parent element path
-                    : $"{parentPath}.{rule.Path}";
+                    : CombineFshPaths(parentPath, rule.Path);
             }
             else
             {
@@ -1058,6 +1058,23 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         }
 
         return string.Join('.', resolved);
+    }
+
+    private static string CombineFshPaths(string parentPath, string childPath)
+    {
+        if (string.IsNullOrEmpty(parentPath)) return childPath;
+        if (string.IsNullOrEmpty(childPath)) return NormalizeComposedPath(parentPath);
+
+        var parent = parentPath.TrimEnd('.');
+        var child = childPath.TrimStart('.');
+        return $"{parent}.{child}";
+    }
+
+    private static string NormalizeComposedPath(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return path ?? string.Empty;
+        if (path == ".") return path;
+        return path.TrimEnd('.');
     }
 
     #endregion

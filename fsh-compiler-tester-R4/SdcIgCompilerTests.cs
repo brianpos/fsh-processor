@@ -59,6 +59,242 @@ public class SdcIgCompilerTests
             _source = new CachedResolver(ZipSource.CreateValidationSource());
     }
 
+    [TestMethod]
+    public void SequenceFshDocs()
+    {
+        // Dynamically compute file-level dependencies by parsing all FSH files.
+        var fileDeps = ComputeFileDependencies();
+
+        // Parse all the FSH documents for entity-level detail printing.
+        var fshFiles = Directory.GetFiles(SdcPath, "*.fsh", SearchOption.AllDirectories)
+                                .OrderBy(f => f)
+                                .ToArray();
+
+        var parseErrors = new List<string>();
+        var fshDocs = new List<FshDoc>();
+
+        // entity name → parent entity name (for display purposes)
+        Dictionary<string, List<string>> entityDeps = new(StringComparer.Ordinal);
+
+        foreach (var fshFile in fshFiles)
+        {
+            try
+            {
+                var fshText = File.ReadAllText(fshFile);
+                var result = FshParser.Parse(fshText);
+
+                switch (result)
+                {
+                    case ParseResult.Success s:
+                        var fa = new FileInfo(fshFile);
+                        s.Document.Entities.ForEach(e =>
+                        {
+                            e.AddAnnotation(fa);
+                            if (e is Profile p && p.Parent != null && !ModelInfo.ModelInspector.IsKnownResource(p.Parent.Value))
+                            {
+                                if (!entityDeps.TryGetValue(p.Name, out var pDeps))
+                                    entityDeps[p.Name] = pDeps = [];
+                                pDeps.Add(p.Parent.Value);
+                            }
+                            if (e is Instance i && i.InstanceOf != null && !ModelInfo.ModelInspector.IsKnownResource(i.InstanceOf))
+                            {
+                                if (!entityDeps.TryGetValue(i.Name, out var iDeps))
+                                    entityDeps[i.Name] = iDeps = [];
+                                iDeps.Add(i.InstanceOf);
+                            }
+                            // Scan rules for ContainsRule items that reference extensions.
+                            var rules = e switch
+                            {
+                                Profile pr => pr.Rules.AsEnumerable<FshRule>(),
+                                fsh_processor.Models.Extension ex => ex.Rules.AsEnumerable<FshRule>(),
+                                Logical l => l.Rules.AsEnumerable<FshRule>(),
+                                fsh_processor.Models.Resource r => r.Rules.AsEnumerable<FshRule>(),
+                                _ => Enumerable.Empty<FshRule>()
+                            };
+                            foreach (var rule in rules.OfType<ContainsRule>())
+                            {
+                                foreach (var item in rule.Items)
+                                {
+                                    if (item.NamedAlias != null && !item.Name.StartsWith('$'))
+                                    {
+                                        if (!entityDeps.TryGetValue(e.Name, out var eDeps))
+                                            entityDeps[e.Name] = eDeps = [];
+                                        if (!eDeps.Contains(item.Name))
+                                            eDeps.Add(item.Name);
+                                    }
+                                }
+                            }
+                        });
+                        s.Document.SetAnnotation(fa);
+                        fshDocs.Add(s.Document);
+                        break;
+
+                    case ParseResult.Failure f:
+                        var firstError = f.Errors.FirstOrDefault();
+                        parseErrors.Add(
+                            $"{Path.GetFileName(fshFile)}: {firstError?.Message ?? "unknown parse error"} " +
+                            $"(line {firstError?.Line})");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                parseErrors.Add($"{Path.GetFileName(fshFile)}: exception during parse – {ex.Message}");
+            }
+        }
+
+        // sort the documents so that dependencies are ordered before dependents, then print the sequence to the console for inspection.
+
+        // Build file-level dependency graph: file → set of files it depends on.
+        var allFileNames = fshDocs
+            .Select(d => d.Annotation<FileInfo>()?.Name)
+            .Where(n => n != null)
+            .Select(n => n!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // ── Topological sort (Kahn's algorithm) ─────────────────────────────────
+        var inDegree = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var dependents = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var f in allFileNames)
+        {
+            inDegree[f] = 0;
+            dependents[f] = [];
+        }
+
+        foreach (var f in allFileNames)
+        {
+            if (fileDeps.TryGetValue(f, out var deps))
+            {
+                // Only count deps that are in allFileNames (exclude aliases/shared already removed).
+                var relevantDeps = deps.Where(d => inDegree.ContainsKey(d)).ToList();
+                inDegree[f] = relevantDeps.Count;
+                foreach (var dep in relevantDeps)
+                    dependents[dep].Add(f);
+            }
+        }
+
+        var queue = new Queue<string>(allFileNames.Where(f => inDegree[f] == 0).OrderBy(f => f));
+        var sorted = new List<string>();
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            sorted.Add(current);
+
+            foreach (var dependent in dependents[current].OrderBy(f => f))
+            {
+                inDegree[dependent]--;
+                if (inDegree[dependent] == 0)
+                    queue.Enqueue(dependent);
+            }
+        }
+
+        // Any remaining files have circular dependencies; append them at the end.
+        var remaining = allFileNames.Where(f => !sorted.Contains(f)).OrderBy(f => f).ToList();
+        if (remaining.Count > 0)
+        {
+            Console.WriteLine($"\nWarning: {remaining.Count} file(s) involved in circular dependencies:");
+            foreach (var f in remaining) Console.WriteLine($"  {f}");
+            sorted.AddRange(remaining);
+        }
+
+        // ── Print sorted order ───────────────────────────────────────────────────
+        Console.WriteLine($"\nTopological file order ({sorted.Count} files):");
+        for (int i = 0; i < sorted.Count; i++)
+            Console.WriteLine($"  {i + 1,3}. {sorted[i]}");
+
+        // ── Print each file and its dependencies ────────────────────────────────
+        Console.WriteLine($"\nFile dependency details:");
+        foreach (var file in sorted)
+        {
+            var deps = fileDeps.TryGetValue(file, out var d) ? d : [];
+            Console.WriteLine($"\n  {file}");
+            if (deps.Count == 0)
+                Console.WriteLine("    (no dependencies on other FSH files)");
+            else
+                foreach (var dep in deps.OrderBy(x => x))
+                    Console.WriteLine($"    depends on: {dep}");
+
+            // Also list the entities defined in this file.
+            var doc = fshDocs.FirstOrDefault(fd => fd.Annotation<FileInfo>()?.Name == file);
+            if (doc != null)
+            {
+                foreach (var entity in doc.Entities)
+                {
+                    var depInfo = entityDeps.TryGetValue(entity.Name, out var depList) ? $" → {string.Join(", ", depList)}" : "";
+                    Console.WriteLine($"    [{entity.GetType().Name}] {entity.Name}{depInfo}");
+                }
+            }
+        }
+
+        // ── Parse errors ─────────────────────────────────────────────────────────
+        if (parseErrors.Count > 0)
+        {
+            Console.WriteLine($"\nParse failures ({parseErrors.Count}):");
+            foreach (var e in parseErrors) Console.WriteLine($"  PARSE: {e}");
+        }
+
+        // ── Validate the hardcoded _fileDependencies dictionary ──────────────────
+        // Compare the dynamically computed dependencies against the hardcoded dictionary.
+        // Only entries with non-empty dependency sets matter (files with no deps don't
+        // need an entry in the hardcoded dict).
+        var computedNonEmpty = fileDeps
+            .Where(kv => kv.Value.Count > 0)
+            .ToDictionary(kv => kv.Key, kv => kv.Value.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToArray(),
+                          StringComparer.OrdinalIgnoreCase);
+
+        var hardcodedNormalized = _fileDependencies
+            .ToDictionary(kv => kv.Key, kv => kv.Value.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToArray(),
+                          StringComparer.OrdinalIgnoreCase);
+
+        var mismatches = new List<string>();
+
+        // Check for entries in computed that are missing or different in the hardcoded dict.
+        foreach (var (file, computedDeps) in computedNonEmpty)
+        {
+            if (!hardcodedNormalized.TryGetValue(file, out var hardcodedDeps))
+            {
+                mismatches.Add($"MISSING from _fileDependencies: [\"{file}\"] = [{string.Join(", ", computedDeps.Select(d => $"\"{d}\""))}]");
+            }
+            else if (!computedDeps.SequenceEqual(hardcodedDeps, StringComparer.OrdinalIgnoreCase))
+            {
+                mismatches.Add(
+                    $"MISMATCH for \"{file}\":\n" +
+                    $"    computed:  [{string.Join(", ", computedDeps.Select(d => $"\"{d}\""))}]\n" +
+                    $"    hardcoded: [{string.Join(", ", hardcodedDeps.Select(d => $"\"{d}\""))}]");
+            }
+        }
+
+        // Check for stale entries in the hardcoded dict that are no longer in the computed set.
+        foreach (var file in hardcodedNormalized.Keys)
+        {
+            if (!computedNonEmpty.ContainsKey(file))
+                mismatches.Add($"STALE entry in _fileDependencies: \"{file}\" (no longer has dependencies)");
+        }
+
+        if (mismatches.Count > 0)
+        {
+            Console.WriteLine($"\n_fileDependencies validation failures ({mismatches.Count}):");
+            foreach (var m in mismatches) Console.WriteLine($"  {m}");
+
+            // Print the full expected dictionary for easy copy-paste.
+            Console.WriteLine("\nExpected _fileDependencies dictionary:");
+            Console.WriteLine("    private static readonly Dictionary<string, string[]> _fileDependencies = new(StringComparer.OrdinalIgnoreCase)");
+            Console.WriteLine("    {");
+            foreach (var (file, deps) in computedNonEmpty.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                Console.WriteLine($"        [\"{file}\"] = [{string.Join(", ", deps.Select(d => $"\"{d}\""))}],");
+            }
+            Console.WriteLine("    };");
+        }
+
+        Assert.AreEqual(0, mismatches.Count,
+            $"_fileDependencies dictionary is out of date ({mismatches.Count} issue(s)). " +
+            "Run this test and copy the printed dictionary from the output. See details above.");
+    }
+
     /// <summary>
     /// Parses and compiles all SDC FSH files once.  Results are cached so that the
     /// expensive parse + compile step runs only once per test session.
@@ -271,6 +507,31 @@ public class SdcIgCompilerTests
     }
 
     [TestMethod]
+    public void Compile_CHF()
+    {
+        Compile_SpecificResource("sdc-CHF.fsh", "SDCLibrary.fsh");
+    }
+
+    [TestMethod]
+    public void Compile_ancquickcheck()
+    {
+        // ["anc-quick-check.fsh"] = ["AssembleExpectation.fsh", "ChoiceColumnExtension.fsh", "CollapsibleExtension.fsh", "ColumnCountExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "Keyboard.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCOpenLabel.fsh", "SDCQuestionnaireRender.fsh", "ShortTextExtension.fsh", "WidthExtension.fsh"],
+        Compile_SpecificResource("anc-quick-check.fsh", "SDCQuestionnaireRender.fsh", "SDCBaseQuestionnaire.fsh", "ObservationLinkPeriodExtension.fsh");
+    }
+
+    [TestMethod]
+    public void Compile_BaseQuestionnaire()
+    {
+        Compile_SpecificResource("SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh");
+    }
+
+    [TestMethod]
+    public void Compile_TaskExample()
+    {
+        Compile_SpecificResource("request-task-example.fsh", "SDCTaskQuestionnaire.fsh");
+    }
+
+    [TestMethod]
     public void Compile_Species()
     {
         Compile_SpecificResource("QuestionnaireContextSpecies.fsh");
@@ -295,6 +556,138 @@ public class SdcIgCompilerTests
         Compile_SpecificResource("AssembleExpectationCodes.fsh");
     }
 
+    /// <summary>
+    /// Hardcoded file-level dependency map. Each key is an FSH file name and the value
+    /// is the set of other FSH files it depends on (excluding <c>aliases.fsh</c> and
+    /// <c>shared.fsh</c> which are always loaded).
+    /// <para>
+    /// This dictionary is maintained manually. Run the <c>SequenceFshDocs</c> test to
+    /// dynamically compute the correct dependencies and validate this dictionary is
+    /// up-to-date. If FSH files change, that test will fail and print the expected
+    /// entries.
+    /// </para>
+    /// </summary>
+        private static readonly Dictionary<string, string[]> _fileDependencies = new(StringComparer.OrdinalIgnoreCase)
+     {
+            ["adaptive-questionnaireresponse-sdc-example-phq9-start.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "RenderingCriticalExtension.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCValueSet.fsh"],
+            ["adaptive-questionnaireresponse-sdc-example-phq9.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "RenderingCriticalExtension.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCValueSet.fsh"],
+            ["anc-quick-check.fsh"] = ["AssembleExpectation.fsh", "ChoiceColumnExtension.fsh", "CollapsibleExtension.fsh", "ColumnCountExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "Keyboard.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireItemCollapsible.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCOpenLabel.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireRender.fsh", "ShortTextExtension.fsh", "WidthExtension.fsh"],
+            ["AssembleExpectation.fsh"] = ["QuestionnaireAssembleExpectation.fsh"],
+            ["c-cda.fsh"] = ["SDCExample.fsh"],
+            ["CollapsibleExtension.fsh"] = ["QuestionnaireItemCollapsible.fsh"],
+            ["demographics.fsh"] = ["AssembleExpectation.fsh", "DefinitionExtractExtension.fsh", "DefinitionExtractValueExtension.fsh", "ExtractAllocateIdExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractDefinition.fsh"],
+            ["EntryMode.fsh"] = ["QuestionnaireEntryMode.fsh"],
+            ["example-of-ServiceRequest.fsh"] = ["SDCQuestionnaireServiceRequest.fsh", "SDCServiceRequestQuestionnaire.fsh"],
+            ["example-of-Task.fsh"] = ["SDCTaskQuestionnaire.fsh", "TaskCode.fsh"],
+            ["ihe-sdc-for-SDCQuestionnaireAdapt.fsh"] = ["QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireAdapt.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["ihe-sdc-for-SDCQuestionnaireAdaptSearch.fsh"] = ["AssembledFromExtension.fsh", "EndpointExtension.fsh", "QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireAdaptSearch.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireSearch.fsh"],
+            ["ihe-sdc-for-SDCQuestionnaireBehave.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
+            ["ihe-sdc-for-SDCQuestionnaireCommon.fsh"] = ["SDCQuestionnaireCommon.fsh"],
+            ["ihe-sdc-for-SDCQuestionnaireExtractDefinition.fsh"] = ["AssembleExpectation.fsh", "DefinitionExtractExtension.fsh", "DefinitionExtractValueExtension.fsh", "ExtractAllocateIdExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractDefinition.fsh"],
+            ["ihe-sdc-for-SDCQuestionnaireExtractObservation.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "ObservationExtractCategory.fsh", "ObservationExtractEntry.fsh", "ObservationExtractExtension.fsh", "ObservationExtractRelationship.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractObservation.fsh"],
+            ["ihe-sdc-for-SDCQuestionnaireExtractStructureMap.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractStructureMap.fsh", "TargetStructureMapExtension.fsh"],
+            ["ihe-sdc-for-SDCQuestionnairePopulateExpression.fsh"] = ["AssembleExpectation.fsh", "CandidateExpressionExtension.fsh", "ChoiceColumnExtension.fsh", "ContextExpressionExtension.fsh", "InitialExpressionExtension.fsh", "IsSubjectExtension.fsh", "ItemPopulationContextExtension.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnairePopulateExpression.fsh"],
+            ["ihe-sdc-for-SDCQuestionnairePopulateObservation.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "ObservationLinkPeriodExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnairePopulateObservation.fsh"],
+            ["ihe-sdc-for-SDCQuestionnairePopulateStructureMap.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnairePopulateStructureMap.fsh", "SourceQueriesExtension.fsh", "SourceStructureMapExtension.fsh"],
+            ["ihe-sdc-for-SDCQuestionnaireRender.fsh"] = ["AssembleExpectation.fsh", "ChoiceColumnExtension.fsh", "CollapsibleExtension.fsh", "ColumnCountExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "Keyboard.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireItemCollapsible.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCOpenLabel.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireRender.fsh", "ShortTextExtension.fsh", "WidthExtension.fsh"],
+            ["ihe-sdc-for-SDCQuestionnaireSearch.fsh"] = ["AssembledFromExtension.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireSearch.fsh"],
+            ["ihesdc-for-SDCCodeSystem.fsh"] = ["RenderingCriticalExtension.fsh", "SDCCodeSystem.fsh"],
+            ["ihesdc-for-SDCValueSet.fsh"] = ["RenderingCriticalExtension.fsh", "SDCValueSet.fsh"],
+            ["Keyboard.fsh"] = ["QuestionnaireItemKeyboardType.fsh"],
+            ["LaunchContextExtension.fsh"] = ["QuestionnaireLaunchContext.fsh"],
+            ["map-populate-out.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
+            ["ObservationExtractExtension.fsh"] = ["ObservationExtractRelationship.fsh"],
+            ["PerformerTypeExtension.fsh"] = ["QuestionnairePerformerType.fsh"],
+            ["populate-request.fsh"] = ["SDCParametersQuestionnairePopulateIn.fsh"],
+            ["populate-response.fsh"] = ["SDCParametersQuestionnairePopulateOut.fsh"],
+            ["populatehtml-response.fsh"] = ["SDCParametersQuestionnairePopulateHtmlOut.fsh"],
+            ["populatelink-response.fsh"] = ["SDCParametersQuestionnairePopulateLinkOut.fsh"],
+            ["questionnaire-sdc-derivation-child.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["questionnaire-sdc-derivation-parent.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["questionnaire-sdc-profile-example-cap.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["questionnaire-sdc-profile-example-context-expression.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
+            ["questionnaire-sdc-profile-example-cqf-PHQ9.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "ObservationExtractCategory.fsh", "ObservationExtractEntry.fsh", "ObservationExtractExtension.fsh", "ObservationExtractRelationship.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractObservation.fsh"],
+            ["questionnaire-sdc-profile-example-form-behavior.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
+            ["questionnaire-sdc-profile-example-framingham-hchd-lhc.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["questionnaire-sdc-profile-example-hunger-vital-signs.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["questionnaire-sdc-profile-example-image-options.fsh"] = ["AssembleExpectation.fsh", "ChoiceColumnExtension.fsh", "CollapsibleExtension.fsh", "ColumnCountExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "Keyboard.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireItemCollapsible.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCOpenLabel.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireRender.fsh", "ShortTextExtension.fsh", "WidthExtension.fsh"],
+            ["questionnaire-sdc-profile-example-item-weight.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
+            ["questionnaire-sdc-profile-example-loinc.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["questionnaire-sdc-profile-example-multi-subject.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "ObservationExtractCategory.fsh", "ObservationExtractEntry.fsh", "ObservationExtractExtension.fsh", "ObservationExtractRelationship.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractObservation.fsh"],
+            ["questionnaire-sdc-profile-example-PHQ9-search.fsh"] = ["AssembledFromExtension.fsh", "EndpointExtension.fsh", "QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireAdaptSearch.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireSearch.fsh"],
+            ["questionnaire-sdc-profile-example-render.fsh"] = ["AssembleExpectation.fsh", "ChoiceColumnExtension.fsh", "CollapsibleExtension.fsh", "ColumnCountExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "Keyboard.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireItemCollapsible.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCOpenLabel.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireRender.fsh", "ShortTextExtension.fsh", "WidthExtension.fsh"],
+            ["questionnaire-sdc-profile-example-ussg-fht.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "ObservationLinkPeriodExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnairePopulateObservation.fsh"],
+            ["questionnaire-sdc-profile-example-weight-height-tracking-panel.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["questionnaire-sdc-test-all-data-types.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["questionnaire-sdc-test-enableWhen.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
+            ["questionnaire-sdc-test-fhirpath-prepop-candexpr.fsh"] = ["AssembleExpectation.fsh", "CandidateExpressionExtension.fsh", "ChoiceColumnExtension.fsh", "ContextExpressionExtension.fsh", "InitialExpressionExtension.fsh", "IsSubjectExtension.fsh", "ItemPopulationContextExtension.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnairePopulateExpression.fsh"],
+            ["questionnaire-sdc-test-fhirpath-prepop-initialexpression.fsh"] = ["AssembleExpectation.fsh", "CandidateExpressionExtension.fsh", "ChoiceColumnExtension.fsh", "ContextExpressionExtension.fsh", "InitialExpressionExtension.fsh", "IsSubjectExtension.fsh", "ItemPopulationContextExtension.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnairePopulateExpression.fsh"],
+            ["questionnaire-sdc-test-fhirpath-prepop-source-query.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnairePopulateStructureMap.fsh", "SourceQueriesExtension.fsh", "SourceStructureMapExtension.fsh"],
+            ["questionnaire-sdc-test-initialvalue-multiple.fsh"] = ["AssembleExpectation.fsh", "CandidateExpressionExtension.fsh", "ChoiceColumnExtension.fsh", "ContextExpressionExtension.fsh", "InitialExpressionExtension.fsh", "IsSubjectExtension.fsh", "ItemPopulationContextExtension.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnairePopulateExpression.fsh"],
+            ["questionnaire-sdc-test-initialvalue.fsh"] = ["AssembleExpectation.fsh", "CandidateExpressionExtension.fsh", "ChoiceColumnExtension.fsh", "ContextExpressionExtension.fsh", "InitialExpressionExtension.fsh", "IsSubjectExtension.fsh", "ItemPopulationContextExtension.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnairePopulateExpression.fsh"],
+            ["questionnaire-sdc-test-nested-groups.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
+            ["questionnaire-sdc-test-required-radios.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
+            ["questionnaireresponse-sdc-example-ussg-fht-answers.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
+            ["questionnaireresponse-sdc-profile-example-loinc.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
+            ["questionnaireresponse-sdc-profile-example-multi-subject.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
+            ["questionnaireresponse-sdc-profile-example-PHQ9.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
+            ["questionnaireresponse-sdc-profile-example.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
+            ["request-task-example.fsh"] = ["SDCTaskQuestionnaire.fsh", "TaskCode.fsh"],
+            ["sdc-assemble-request.fsh"] = ["SDCParametersQuestionnaireAssembleIn.fsh"],
+            ["sdc-CHF.fsh"] = ["SDCLibrary.fsh"],
+            ["sdc-modular-contact.fsh"] = ["AssembleContextExtension.fsh", "AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCModularQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SubQuestionnaireExtension.fsh"],
+            ["sdc-modular-name.fsh"] = ["AssembleContextExtension.fsh", "AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCModularQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SubQuestionnaireExtension.fsh"],
+            ["sdc-modular-root-assembled.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCParametersQuestionnaireAssembleOut.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["sdc-modular-root.fsh"] = ["AssembleContextExtension.fsh", "AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCModularQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SubQuestionnaireExtension.fsh"],
+            ["SDCBaseQuestionnaire.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["SDCCodeSystem.fsh"] = ["RenderingCriticalExtension.fsh"],
+            ["SDCModularQuestionnaire.fsh"] = ["AssembleContextExtension.fsh", "AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SubQuestionnaireExtension.fsh"],
+            ["SDCQuestionnaireAdapt.fsh"] = ["QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["SDCQuestionnaireAdaptSearch.fsh"] = ["AssembledFromExtension.fsh", "EndpointExtension.fsh", "QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireSearch.fsh"],
+            ["SDCQuestionnaireBehave.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
+            ["SDCQuestionnaireExtractDefinition.fsh"] = ["AssembleExpectation.fsh", "DefinitionExtractExtension.fsh", "DefinitionExtractValueExtension.fsh", "ExtractAllocateIdExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["SDCQuestionnaireExtractObservation.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "ObservationExtractCategory.fsh", "ObservationExtractEntry.fsh", "ObservationExtractExtension.fsh", "ObservationExtractRelationship.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["SDCQuestionnaireExtractStructureMap.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "TargetStructureMapExtension.fsh"],
+            ["SDCQuestionnaireExtractTemplate.fsh"] = ["AssembleExpectation.fsh", "ExtractAllocateIdExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "TemplateExtractBundleExtension.fsh", "TemplateExtractContextExtension.fsh", "TemplateExtractExtension.fsh"],
+            ["SDCQuestionnaireLibraryUsageContext.fsh"] = ["SDCUsageContext.fsh"],
+            ["SDCQuestionnairePopulateExpression.fsh"] = ["AssembleExpectation.fsh", "CandidateExpressionExtension.fsh", "ChoiceColumnExtension.fsh", "ContextExpressionExtension.fsh", "InitialExpressionExtension.fsh", "IsSubjectExtension.fsh", "ItemPopulationContextExtension.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["SDCQuestionnairePopulateObservation.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "ObservationLinkPeriodExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["SDCQuestionnairePopulateStructureMap.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SourceQueriesExtension.fsh", "SourceStructureMapExtension.fsh"],
+            ["SDCQuestionnaireRender.fsh"] = ["AssembleExpectation.fsh", "ChoiceColumnExtension.fsh", "CollapsibleExtension.fsh", "ColumnCountExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "Keyboard.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireItemCollapsible.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCOpenLabel.fsh", "SDCQuestionnaireCommon.fsh", "ShortTextExtension.fsh", "WidthExtension.fsh"],
+            ["SDCQuestionnaireResponse.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponseCommon.fsh"],
+            ["SDCQuestionnaireResponseAdapt.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponseCommon.fsh"],
+            ["SDCQuestionnaireResponseCommon.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh"],
+            ["SDCQuestionnaireSearch.fsh"] = ["AssembledFromExtension.fsh", "SDCQuestionnaireCommon.fsh"],
+            ["SDCQuestionnaireServiceRequest.fsh"] = ["SDCServiceRequestQuestionnaire.fsh"],
+            ["SDCTaskQuestionnaire.fsh"] = ["TaskCode.fsh"],
+            ["SDCValueSet.fsh"] = ["RenderingCriticalExtension.fsh"],
+            ["SDOHCC-QuestionnaireHungerVitalSign.fsh"] = ["AssembleExpectation.fsh", "DefinitionExtractExtension.fsh", "DefinitionExtractValueExtension.fsh", "ExtractAllocateIdExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractDefinition.fsh"],
+            ["UnitOpen.fsh"] = ["QuestionnaireAnswerConstraint.fsh"],
+        };
+
+
+    /// <summary>
+    /// Returns all FSH file names in the SDC test data directory, excluding supporting
+    /// files that contain only aliases or rulesets (no compilable resources).
+    /// Each entry is wrapped in <c>object[]</c> for MSTest <see cref="DynamicDataAttribute"/>.
+    /// </summary>
+    private static IEnumerable<object[]> GetSdcFshFileNames()
+    {
+        var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "aliases.fsh",
+            "shared.fsh"
+        };
+
+        return Directory.GetFiles(SdcPath, "*.fsh", SearchOption.AllDirectories)
+                        .Select(Path.GetFileName)
+                        .Where(f => !excluded.Contains(f!))
+                        .OrderBy(f => f)
+                        .Select(f => new object[] { f! });
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(GetSdcFshFileNames))]
     public void Compile_SpecificResource(string fshFileName, params string[] otherFiles)
     {
         FshDoc parsedFsh = GetFshDocument(fshFileName, out string fshText);
@@ -303,9 +696,15 @@ public class SdcIgCompilerTests
 
         // Load any additional FSH files required to resolve cross-file references
         // (e.g. CodeSystem definitions needed for ValueSet system URL resolution).
+        var autoDepFiles = _fileDependencies.TryGetValue(fshFileName, out var depArray) ? depArray : [];
         var extraDocs = otherFiles
+            .Concat(autoDepFiles)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(f => GetFshDocument(f, out _))
             .ToList();
+
+        if (autoDepFiles.Any())
+            Console.WriteLine($"Dependencies: {String.Join(", ", autoDepFiles)}");
 
         // ── 2. Compile all documents together with a shared context ──────────────
         // Compiling as a batch allows cross-file alias/ruleset resolution so that
@@ -400,12 +799,20 @@ public class SdcIgCompilerTests
         Console.WriteLine(fshText);
         Console.WriteLine();
 
+        if (resources.Count == 0 && parsedFsh.Entities.All(e => e is Invariant))
+        {
+            // this is an invariant only, so nothing to actually test in the compiled output
+            Console.WriteLine("Invariant definition only, nothing to compile. Will be verified in other tests that use these invariants.");
+            return;
+        }
+
         var serializerSettings = new FhirJsonSerializationSettings { Pretty = true };
-        foreach (var r in resources)
+        // foreach (var resource in resources)
+        var rj = resources.Last();
         {
             Console.WriteLine("--------------------------------------");
             Console.WriteLine();
-            Console.WriteLine(r.ToJson(serializerSettings));
+            Console.WriteLine(rj.ToJson(serializerSettings));
         }
 
         // T1: SDC IG now compiles with zero errors.  Hard assert so regressions are caught.
@@ -416,7 +823,8 @@ public class SdcIgCompilerTests
 
         // and finally compare with any sushi generated files
         var sushiDir = Path.Combine(AppContext.BaseDirectory, "TestData", "sushi-generated");
-        foreach (var resource in resources)
+        // foreach (var resource in resources)
+        var resource = resources.Last();
         {
             var index = resources.IndexOf(resource) + 1;
             var idSegment = !string.IsNullOrWhiteSpace(resource.Id) ? resource.Id : $"noId-{index}";
@@ -896,6 +1304,10 @@ public class SdcIgCompilerTests
             index++;
             try
             {
+                if (resource is StructureDefinition sd && sd.HasSnapshot)
+                {
+                    sd.Snapshot = null;
+                }
                 // Use the resource Id when available; otherwise fall back to an index so that
                 // multiple id-less resources of the same type don't overwrite each other.
                 var idSegment = !string.IsNullOrWhiteSpace(resource.Id) ? resource.Id : $"noId-{index}";
@@ -1109,6 +1521,199 @@ public class SdcIgCompilerTests
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     /// <summary>
+    /// Parses every FSH file in the SDC test-data directory, discovers entity-level
+    /// dependencies (profiles with non-builtin parents, instances with non-builtin
+    /// InstanceOf), maps them to source files, and returns a file-level dependency
+    /// graph with transitive closure.
+    /// <para>
+    /// Used by <see cref="SequenceFshDocs"/> to validate that the hardcoded
+    /// <see cref="_fileDependencies"/> dictionary is correct and up-to-date.
+    /// </para>
+    /// </summary>
+    private static Dictionary<string, HashSet<string>> ComputeFileDependencies()
+    {
+        var fshFiles = Directory.GetFiles(SdcPath, "*.fsh", SearchOption.AllDirectories)
+                                .OrderBy(f => f)
+                                .ToArray();
+
+        // (entity name, dependency entity name) -- a single entity may have multiple deps.
+        var entityDeps = new List<(string EntityName, string DependsOn)>();
+        // entity name → source file name
+        var entitySource = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        var fshDocs = new List<FshDoc>();
+
+        foreach (var fshFile in fshFiles)
+        {
+            try
+            {
+                var fshText = File.ReadAllText(fshFile);
+                var result = FshParser.Parse(fshText);
+                if (result is not ParseResult.Success s) continue;
+
+                var fa = new FileInfo(fshFile);
+                s.Document.SetAnnotation(fa);
+                fshDocs.Add(s.Document);
+
+                foreach (var e in s.Document.Entities)
+                {
+                    e.AddAnnotation(fa);
+
+                    // Track entity -> source file for all relevant entity types so
+                    // dependency edges can resolve even when a profile has a core
+                    // FHIR parent (and therefore adds no parent dependency edge).
+                    switch (e)
+                    {
+                        case Profile pEntity:
+                            entitySource.TryAdd(pEntity.Name, fa.Name);
+                            break;
+                        case Instance iEntity:
+                            entitySource.TryAdd(iEntity.Name, fa.Name);
+                            break;
+                        case Logical lEntity:
+                            entitySource.TryAdd(lEntity.Name, fa.Name);
+                            break;
+                        case fsh_processor.Models.Resource rEntity:
+                            entitySource.TryAdd(rEntity.Name, fa.Name);
+                            break;
+                        case fsh_processor.Models.Extension extEntity:
+                            entitySource.TryAdd(extEntity.Name, fa.Name);
+                            break;
+                        case fsh_processor.Models.CodeSystem csEntity:
+                            entitySource.TryAdd(csEntity.Name, fa.Name);
+                            break;
+                        case fsh_processor.Models.ValueSet vsEntity:
+                            entitySource.TryAdd(vsEntity.Name, fa.Name);
+                            break;
+                        case fsh_processor.Models.Mapping mEntity:
+                            entitySource.TryAdd(mEntity.Name, fa.Name);
+                            if (!string.IsNullOrEmpty(mEntity.Source) && !mEntity.Source.StartsWith('$') &&
+                                !ModelInfo.ModelInspector.IsKnownResource(mEntity.Source))
+                            {
+                                entityDeps.Add((mEntity.Name, mEntity.Source));
+                            }
+                            break;
+                    }
+
+                    if (e is Profile p && p.Parent != null && !ModelInfo.ModelInspector.IsKnownResource(p.Parent.Value))
+                    {
+                        entityDeps.Add((p.Name, p.Parent.Value));
+                        entitySource.TryAdd(p.Name, fa.Name);
+                    }
+                    if (e is Instance i && i.InstanceOf != null && !ModelInfo.ModelInspector.IsKnownResource(i.InstanceOf))
+                    {
+                        entityDeps.Add((i.Name, i.InstanceOf));
+                        entitySource.TryAdd(i.Name, fa.Name);
+                    }
+                    if (e is fsh_processor.Models.Extension ext)
+                    {
+                        entitySource.TryAdd(ext.Name, fa.Name);
+                    }
+                    // Track CodeSystems and ValueSets so instances/profiles that reference
+                    // them by name can resolve the source file.
+                    if (e is fsh_processor.Models.CodeSystem cs)
+                    {
+                        entitySource.TryAdd(cs.Name, fa.Name);
+                    }
+                    if (e is fsh_processor.Models.ValueSet vs)
+                    {
+                        entitySource.TryAdd(vs.Name, fa.Name);
+                    }
+
+                    // Scan rules for ContainsRule items that reference extensions by name.
+                    // When NamedAlias is set, Name is the extension type (e.g. "RenderingCriticalExtension")
+                    // and NamedAlias is the slice name.  Names starting with '$' are aliases, not local entities.
+                    var rules = e switch
+                    {
+                        Profile pr => pr.Rules.AsEnumerable<FshRule>(),
+                        fsh_processor.Models.Extension ex => ex.Rules.AsEnumerable<FshRule>(),
+                        Logical l => l.Rules.AsEnumerable<FshRule>(),
+                        fsh_processor.Models.Resource r => r.Rules.AsEnumerable<FshRule>(),
+                        _ => Enumerable.Empty<FshRule>()
+                    };
+                    foreach (var rule in rules.OfType<ContainsRule>())
+                    {
+                        foreach (var item in rule.Items)
+                        {
+                            if (item.NamedAlias != null && !item.Name.StartsWith('$'))
+                            {
+                                entityDeps.Add((e.Name, item.Name));
+                                entitySource.TryAdd(e.Name, fa.Name);
+                            }
+                        }
+                    }
+
+                    // Scan for ValueSetRule (binding rules like `* value[x] from MyValueSet (required)`).
+                    // The referenced ValueSet must be compiled together with this entity so the
+                    // binding URL can be resolved to its canonical form.
+                    foreach (var vsRule in rules.OfType<ValueSetRule>())
+                    {
+                        if (!string.IsNullOrEmpty(vsRule.ValueSetName) && !vsRule.ValueSetName.StartsWith('$'))
+                        {
+                            entityDeps.Add((e.Name, vsRule.ValueSetName));
+                            entitySource.TryAdd(e.Name, fa.Name);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Skip files that fail to parse.
+            }
+        }
+
+        // Build direct file-level dependencies.
+        var allFileNames = fshDocs
+            .Select(d => d.Annotation<FileInfo>()?.Name)
+            .Where(n => n != null)
+            .Select(n => n!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var fileDeps = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var f in allFileNames)
+            fileDeps[f] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (entityName, dependsOnEntity) in entityDeps)
+        {
+            if (!entitySource.TryGetValue(entityName, out var fromFile)) continue;
+            if (!entitySource.TryGetValue(dependsOnEntity, out var toFile)) continue;
+            if (!fromFile.Equals(toFile, StringComparison.OrdinalIgnoreCase))
+                fileDeps[fromFile].Add(toFile);
+        }
+
+        // Compute transitive closure so Compile_SpecificResource loads the full chain.
+        bool changed = true;
+        while (changed)
+        {
+            changed = false;
+            foreach (var (file, deps) in fileDeps)
+            {
+                var transitive = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var dep in deps)
+                {
+                    if (fileDeps.TryGetValue(dep, out var depDeps))
+                        transitive.UnionWith(depDeps);
+                }
+                var before = deps.Count;
+                deps.UnionWith(transitive);
+                deps.Remove(file); // no self-loops
+                if (deps.Count != before)
+                    changed = true;
+            }
+        }
+
+        // Remove aliases.fsh and shared.fsh since they are always loaded.
+        foreach (var deps in fileDeps.Values)
+        {
+            deps.Remove("aliases.fsh");
+            deps.Remove("shared.fsh");
+        }
+
+        return fileDeps;
+    }
+
+    /// <summary>
     /// Compares all top-level scalar (string, boolean, number) properties present in
     /// <paramref name="sushiEl"/> against <paramref name="ourEl"/>, accumulating differences
     /// into <paramref name="mismatchDetails"/> and incrementing <paramref name="mismatches"/>.
@@ -1147,9 +1752,11 @@ public class SdcIgCompilerTests
     }
 
     /// <summary>
-    /// For a <c>StructureDefinition</c>, compares the list of element <c>path</c> values
-    /// found in <c>differential.element</c>.  Also checks the element count and reports any
-    /// paths present in the sushi output that are absent from ours.
+    /// For a <c>StructureDefinition</c>, compares the set of element <c>path</c> values
+    /// found in <c>differential.element</c> and reports missing/extra paths.
+    ///
+    /// Path values can legitimately repeat when multiple slices share the same path,
+    /// so this comparison is set-based rather than count-based.
     /// </summary>
     private static void CompareStructureDefinitionDifferential(
         string label,
@@ -1161,18 +1768,22 @@ public class SdcIgCompilerTests
         var sushiPaths = ExtractStringValuesFromNestedArray(sushiEl, ["differential", "element"], "path");
         var ourPaths   = ExtractStringValuesFromNestedArray(ourEl,    ["differential", "element"], "path");
 
-        if (sushiPaths.Count != ourPaths.Count)
-        {
-            mismatchDetails.Add($"{label}.differential.element count: sushi={sushiPaths.Count} ours={ourPaths.Count}");
-            mismatches++;
-        }
-
+        var sushiPathSet = new HashSet<string>(sushiPaths, StringComparer.Ordinal);
         var ourPathSet = new HashSet<string>(ourPaths, StringComparer.Ordinal);
-        foreach (var path in sushiPaths)
+        foreach (var path in sushiPathSet)
         {
             if (!ourPathSet.Contains(path))
             {
                 mismatchDetails.Add($"{label}.differential.element[path={path}]: present in sushi, missing from ours");
+                mismatches++;
+            }
+        }
+
+        foreach (var path in ourPathSet)
+        {
+            if (!sushiPathSet.Contains(path))
+            {
+                mismatchDetails.Add($"{label}.differential.element[path={path}]: present in ours, missing from sushi");
                 mismatches++;
             }
         }

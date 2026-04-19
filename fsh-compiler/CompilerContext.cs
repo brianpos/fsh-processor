@@ -134,6 +134,7 @@ public class CompilerContext
         CompiledStructureDefinitions.TryAdd(entityName, sd);
         if (!string.IsNullOrEmpty(sd.Url))
         {
+            CompiledStructureDefinitions.TryAdd(sd.Url, sd);
             var lastSlash = sd.Url.LastIndexOf('/');
             var urlSegment = lastSlash >= 0 ? sd.Url[(lastSlash + 1)..] : sd.Url;
             CompiledStructureDefinitions.TryAdd(urlSegment, sd);
@@ -168,7 +169,13 @@ public class CompilerContext
             return cmCanonical;
         }
 
+        // Try the supplied name directly; if it's a bare type name (e.g. "SimpleQuantity"),
+        // also fall back to the FHIR core canonical URL form.
         var sd = resolver.FindStructureDefinition(typeName);
+        if (sd is null && !typeName.Contains("://", StringComparison.Ordinal))
+        {
+            sd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + typeName);
+        }
         var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
         resolvedCanonicalUrl = sd?.Url;
 

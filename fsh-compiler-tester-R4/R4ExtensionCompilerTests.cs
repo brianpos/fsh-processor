@@ -31,7 +31,7 @@ public class R4ExtensionCompilerTests
             Parent: Extension
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyExtension");
-        Assert.AreEqual("Extension", sd.BaseDefinition);
+        Assert.AreEqual("http://hl7.org/fhir/StructureDefinition/Extension", sd.BaseDefinition);
     }
 
     [TestMethod]
@@ -57,8 +57,11 @@ public class R4ExtensionCompilerTests
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyExtension");
         var ed = CompilerTestHelper.GetElement(sd, "value[x]");
+        // Both 0 (min) and "1" (max) match the inherited defaults for Extension.value[x]
+        // (base cardinality 0..1) and are suppressed to match sushi output.
         Assert.AreEqual(0, ed.Min);
-        Assert.AreEqual("1", ed.Max);
+        Assert.IsNull(ed.MaxElement,
+            $"max=\"1\" should be stripped (inherited default); got max=\"{ed.Max}\".");
     }
 
     // ─── Collection caret-value properties ───────────────────────────────────
