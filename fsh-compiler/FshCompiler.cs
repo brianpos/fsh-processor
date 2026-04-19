@@ -3033,6 +3033,26 @@ public static class FshCompiler
         // [=] reuses the stored index (defaults to 0 if no prior [+] has been seen for this prefix).
         softIndexState ??= new Dictionary<string, int>(StringComparer.Ordinal);
 
+        // C-IN5: Extension-aware alias resolver.  When a named-index segment like
+        // extension[InitialExpressionExtension] is encountered, the name is first checked
+        // against the alias table; if no alias is found, it falls back to looking up the
+        // entity name in CompiledStructureDefinitions so that the canonical URL (Url) is
+        // returned.  This turns the local FSH entity name into the correct extension URL.
+        string ResolveExtensionAwareAlias(string name)
+        {
+            var resolved = context.ResolveAlias(name);
+            // If the alias resolver returned the name unchanged (i.e. no alias was found)
+            // and it looks like a plain identifier (not an absolute URL or alias), try to
+            // find a compiled StructureDefinition for it and use its Url.
+            if (resolved == name && !IsAbsoluteUrl(name) && !name.StartsWith('$') &&
+                context.CompiledStructureDefinitions.TryGetValue(name, out var sd) &&
+                !string.IsNullOrEmpty(sd.Url))
+            {
+                return sd.Url;
+            }
+            return resolved;
+        }
+
         foreach (var rule in rules)
         {
             switch (rule)
@@ -3063,7 +3083,7 @@ public static class FshCompiler
                             for (int si = 0; si < segments.Length - 1 && parent != null; si++)
                             {
                                 var (sn, sIdx, sni) = ParseInstanceSegment(segments[si]);
-                                parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, context.ResolveAlias);
+                                parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, ResolveExtensionAwareAlias);
                             }
                             if (parent != null)
                             {
@@ -3100,7 +3120,7 @@ public static class FshCompiler
                         }
                     }
 
-                    SetInstancePath(resource, resolvedPath, ResolveInstanceCanonical(fixedRule.Value, context, opts, inspector), inspector, context.ResolveAlias);
+                    SetInstancePath(resource, resolvedPath, ResolveInstanceCanonical(fixedRule.Value, context, opts, inspector), inspector, ResolveExtensionAwareAlias);
                     break;
 
                 case InstanceInsertRule insertRule:
@@ -3334,6 +3354,47 @@ public static class FshCompiler
                 return newExt;
             }
 
+            // Named-slice on a non-Extension collection (e.g. Parameters.parameter[response]):
+            // find-or-create the item whose `name` property matches the namedIndex value.
+            // This handles FHIR elements like Parameters.ParameterComponent where slices
+            // are identified by the `name` property rather than a URL.
+            if (namedIndex is not null)
+            {
+                var concreteClassMap = inspector.FindClassMapping(concreteType);
+                var namePropMap = concreteClassMap?.FindMappedElementByName("name");
+                if (namePropMap != null)
+                {
+                    // Search for an existing item with the matching name.
+                    foreach (var item in list)
+                    {
+                        if (item is Base existing)
+                        {
+                            var nameVal = namePropMap.GetValue(existing);
+                            var nameStr = nameVal switch
+                            {
+                                FhirString fs => fs.Value,
+                                string s => s,
+                                _ => null
+                            };
+                            if (string.Equals(nameStr, namedIndex, StringComparison.Ordinal))
+                                return existing;
+                        }
+                    }
+
+                    // Create a new item and set its name property to the namedIndex value.
+                    var newItem = Activator.CreateInstance(concreteType) as Base;
+                    if (newItem != null)
+                    {
+                        if (namePropMap.ImplementingType == typeof(FhirString))
+                            namePropMap.SetValue(newItem, new FhirString(namedIndex));
+                        else if (namePropMap.ImplementingType == typeof(string))
+                            namePropMap.SetValue(newItem, namedIndex);
+                        list.Add(newItem);
+                        return newItem;
+                    }
+                }
+            }
+
             while (list.Count <= index)
                 list.Add(Activator.CreateInstance(concreteType));
 
@@ -3549,6 +3610,20 @@ public static class FshCompiler
             if (urlRule?.Value is StringValue sv && !string.IsNullOrEmpty(sv.Value))
                 return new fsh_processor.Models.Canonical { Url = sv.Value, Version = can.Version };
         }
+
+        // Resolve Canonical references to compiled StructureDefinitions (Profiles, Extensions, etc.)
+        // by entity name or id.  This handles `Canonical(SDCParametersQuestionnairePopulateIn)`
+        // which references a Profile defined in another FSH file.
+        if (context.CompiledStructureDefinitions.TryGetValue(can.Url, out var refSd)
+            && !string.IsNullOrEmpty(refSd.Url))
+        {
+            return new fsh_processor.Models.Canonical { Url = refSd.Url, Version = can.Version };
+        }
+
+        // Fall back to constructing a canonical URL from the CanonicalBase when available.
+        var resolved = ResolveBaseDefinitionCanonical(can.Url, can.Url, context, opts);
+        if (!string.IsNullOrEmpty(resolved) && resolved != can.Url)
+            return new fsh_processor.Models.Canonical { Url = resolved, Version = can.Version };
 
         return value;
     }
