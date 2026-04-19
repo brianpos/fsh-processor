@@ -194,6 +194,7 @@ public static class FhirValueMapper
             return new Hl7.Fhir.Model.Quantity
             {
                 Value = q.Value,
+                Unit = q.Display,
                 Code = code,
                 System = "http://unitsofmeasure.org"
             };
