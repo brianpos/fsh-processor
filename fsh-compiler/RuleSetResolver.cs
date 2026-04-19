@@ -40,7 +40,18 @@ public static class RuleSetResolver
             return Array.Empty<FshRule>();
 
         if (!isParameterized || parameters.Count == 0)
+        {
+            // When expanding into an Instance context, re-parse the ruleset body using an
+            // Instance wrapper so that rules become InstanceRule types (e.g.
+            // InstanceFixedValueRule) instead of SdRule types (e.g. FixedValueRule).
+            // Without this, non-parameterized rulesets like `hidden` would produce
+            // FixedValueRule objects that are filtered out by OfType<InstanceRule>() in
+            // ApplyInstanceRules, resulting in the expansion silently doing nothing.
+            if (useInstanceWrapper && !string.IsNullOrWhiteSpace(ruleSet.UnparsedContent))
+                return ResolveParameterized(ruleSet, [], context, useInstanceWrapper: true);
+
             return ruleSet.Rules;
+        }
 
         return ResolveParameterized(ruleSet, parameters, context, useInstanceWrapper);
     }
@@ -55,7 +66,18 @@ public static class RuleSetResolver
         // FSH parameterized rule sets use {%param%} syntax in their unparsed content.
         // We re-parse via a synthetic entity wrapper after substitution.
         var paramNames = ruleSet.Parameters.Select(p => p.Value).ToList();
-        if (paramNames.Count == 0 || parameters.Count == 0)
+
+        // Non-parameterized rulesets called with useInstanceWrapper: re-parse as Instance
+        // without any substitution so that the rules become InstanceRule types.
+        if (paramNames.Count == 0)
+        {
+            if (string.IsNullOrWhiteSpace(ruleSet.UnparsedContent))
+                return ruleSet.Rules;
+
+            return ReparseAsWrapper(ruleSet.UnparsedContent, useInstanceWrapper, ruleSet.Rules);
+        }
+
+        if (parameters.Count == 0)
             return ruleSet.Rules;
 
         // Collect the raw text of each rule from hidden tokens (preserve source)
@@ -63,6 +85,18 @@ public static class RuleSetResolver
         if (string.IsNullOrWhiteSpace(rawText))
             return ruleSet.Rules;
 
+        return ReparseAsWrapper(rawText, useInstanceWrapper, ruleSet.Rules);
+    }
+
+    /// <summary>
+    /// Wraps <paramref name="rawText"/> in a synthetic entity, re-parses it, and returns the
+    /// resulting rules.  Falls back to <paramref name="fallback"/> on parse failure.
+    /// </summary>
+    private static IReadOnlyList<FshRule> ReparseAsWrapper(
+        string rawText,
+        bool useInstanceWrapper,
+        IReadOnlyList<FshRule> fallback)
+    {
         // Wrap in a synthetic entity and re-parse to get the substituted rules.
         // Use an Instance wrapper when expanding for an Instance so that paths like
         // `input[+]` are parsed as InstanceRule/InstanceFixedValueRule rather than SdRule.
@@ -88,7 +122,7 @@ public static class RuleSetResolver
         }
 
         // Fall back to unsubstituted rules on parse error
-        return ruleSet.Rules;
+        return fallback;
     }
 
     private static string BuildRuleSetText(
