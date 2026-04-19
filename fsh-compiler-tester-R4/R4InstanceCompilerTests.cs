@@ -354,4 +354,129 @@ public class R4InstanceCompilerTests
         Assert.IsTrue(questionnaire.Contained.Any(c => c.Id == "VS1"), "VS1 should be contained");
         Assert.IsTrue(questionnaire.Contained.Any(c => c.Id == "VS2"), "VS2 should be contained");
     }
+
+    // ─── RuleSet whitespace and Instance-context expansion regressions ────────
+
+    /// <summary>
+    /// Regression test: parameter values with internal whitespace (e.g. "Date of birth") must
+    /// not have spaces stripped during substitution.
+    /// Bug: ProcessRuleSetParamText used GetText() which dropped hidden-channel whitespace.
+    /// Fix: use _tokenStream.GetText(Interval) to preserve whitespace between tokens.
+    /// </summary>
+    [TestMethod]
+    public void ShouldPreserveSpacesInParameterizedRuleSetValues()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            RuleSet: item(linkId, text, type)
+            * linkId = ""{linkId}""
+            * text = ""{text}""
+            * type = {type}
+
+            Instance: MyQuestionnaire
+            InstanceOf: Questionnaire
+            Usage: #example
+            * status = #active
+            * item[+]
+              * insert item(q1, Date of birth, #date)
+        ");
+
+        var q = resources.OfType<Questionnaire>().FirstOrDefault();
+        Assert.IsNotNull(q, "Questionnaire not found");
+        Assert.AreEqual(1, q.Item.Count, "Should have one item");
+        Assert.AreEqual("Date of birth", q.Item[0].Text, "Spaces inside parameter value must be preserved");
+    }
+
+    /// <summary>
+    /// Regression test: parameter values with escaped close-paren (\)) must be unescaped
+    /// correctly after whitespace-preserving extraction from the token stream.
+    /// </summary>
+    [TestMethod]
+    public void ShouldUnescapeParenInParameterizedRuleSetValues()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            RuleSet: item(linkId, text, type)
+            * linkId = ""{linkId}""
+            * text = ""{text}""
+            * type = {type}
+
+            Instance: MyQuestionnaire
+            InstanceOf: Questionnaire
+            Usage: #example
+            * status = #active
+            * item[+]
+              * insert item(q1, (internal use\), #string)
+        ");
+
+        var q = resources.OfType<Questionnaire>().FirstOrDefault();
+        Assert.IsNotNull(q, "Questionnaire not found");
+        Assert.AreEqual(1, q.Item.Count, "Should have one item");
+        Assert.AreEqual("(internal use)", q.Item[0].Text, "Escaped paren must be unescaped");
+    }
+
+    /// <summary>
+    /// Regression test: non-parameterized rulesets inserted into an Instance must be
+    /// applied correctly.  Previously they returned SdRule objects which were silently
+    /// filtered out by OfType&lt;InstanceRule&gt;(), so extensions like `insert hidden`
+    /// were never set on the compiled FHIR resource.
+    /// </summary>
+    [TestMethod]
+    public void ShouldApplyNonParameterizedRuleSetInInstanceContext()
+    {
+        // Use an alias for the extension URL so the path is a plain identifier (avoids
+        // the lexer complexity of embedding an absolute URL directly in a bracket path).
+        var resources = CompilerTestHelper.CompileDocs(
+            CompilerTestHelper.ParseDoc(@"Alias: $hidden = http://hl7.org/fhir/StructureDefinition/questionnaire-hidden"),
+            CompilerTestHelper.ParseDoc(@"
+                RuleSet: hidden
+                * extension[$hidden].valueBoolean = true
+
+                Instance: MyQuestionnaire
+                InstanceOf: Questionnaire
+                Usage: #example
+                * status = #active
+                * item[+]
+                  * linkId = ""q1""
+                  * text = ""Hidden item""
+                  * type = #string
+                  * insert hidden
+            "));
+
+        var q = resources.OfType<Questionnaire>().FirstOrDefault();
+        Assert.IsNotNull(q, "Questionnaire not found");
+        Assert.AreEqual(1, q.Item.Count, "Should have one item");
+        var hiddenExt = q.Item[0].Extension.FirstOrDefault(
+            e => e.Url == "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden");
+        Assert.IsNotNull(hiddenExt, "Hidden extension must be set by non-parameterized ruleset");
+        Assert.AreEqual(true, ((FhirBoolean)hiddenExt.Value).Value, "Hidden extension value must be true");
+    }
+
+    /// <summary>
+    /// Regression test: empty parameter values in a parameterized ruleset (e.g. a missing
+    /// definition in <c>insert item(id,,Text,#group)</c>) must not produce empty-string
+    /// properties in the compiled output (e.g. <c>"definition": ""</c>).
+    /// This matches sushi behaviour where empty parameter values are simply skipped.
+    /// </summary>
+    [TestMethod]
+    public void ShouldSkipEmptyStringFromEmptyParameterSubstitution()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            RuleSet: item(linkId, definition, text, type)
+            * linkId = ""{linkId}""
+            * definition = ""{definition}""
+            * text = ""{text}""
+            * type = {type}
+
+            Instance: MyQuestionnaire
+            InstanceOf: Questionnaire
+            Usage: #example
+            * status = #active
+            * item[+]
+              * insert item(relative,,Relative group,#group)
+        ");
+
+        var q = resources.OfType<Questionnaire>().FirstOrDefault();
+        Assert.IsNotNull(q, "Questionnaire not found");
+        Assert.AreEqual(1, q.Item.Count, "Should have one item");
+        Assert.IsNull(q.Item[0].Definition, "Empty definition parameter must not produce an empty string on the item");
+    }
 }

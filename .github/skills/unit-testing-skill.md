@@ -40,6 +40,35 @@ Use this checklist when adding or updating tests in `fsh-tester` and `fsh-compil
 - If the spec does not explicitly cover the edge case, add a test comment stating that the behavior is intentionally pinned for regression safety.
 - If the spec does cover it, add a test comment referencing the spec.
 
+## Dependency detection in `SequenceFshDocs`
+
+The `SequenceFshDocs` test in `fsh-compiler-tester-R4` dynamically auto-detects file-level
+dependencies via `ComputeFileDependencies()` and validates them against the hardcoded
+`_fileDependencies` dictionary.  Whenever `_fileDependencies` is updated for a new dependency
+type, `ComputeFileDependencies()` must also be updated to detect that type automatically.
+
+Currently detected dependency types:
+
+| Dependency type | Where detected |
+|---|---|
+| Profile/Instance `Parent`/`InstanceOf` pointing to a non-core type | Entity-level scan |
+| `Canonical(localName)` in `InstanceFixedValueRule` | Instance rule scan |
+| `NameValue` (cross-instance embed) in `InstanceFixedValueRule` | Instance rule scan |
+| `Reference(localName)` (bare local instance) in `InstanceFixedValueRule` | Instance rule scan |
+| `extension[Name]` in RuleSet path (non-param) | RuleSet path scan |
+| `extension[Name]` in parameterized RuleSet `UnparsedContent` | RuleSet raw-text regex |
+| `Reference({param})` in parameterized RuleSet `UnparsedContent` | `ruleSetReferenceParamIdxs` regex + call-site param resolution |
+| ValueSet binding (`from Name`) | `ValueSetRule` scan |
+| Mapping `Source` | Mapping entity scan |
+
+If a new dependency type is added to the compiler (e.g. a new value class that requires a local
+entity to be in scope), both `_fileDependencies` **and** `ComputeFileDependencies()` must be
+updated.  Run `SequenceFshDocs` after updating `_fileDependencies`; if it fails with a MISMATCH,
+add the corresponding detection logic to `ComputeFileDependencies()`.
+
+> **Note:** `SequenceFshDocs` may be updated even when general instruction says "do not update
+> tests", unless `SequenceFshDocs` itself is explicitly called out as off-limits.
+
 ## Test authoring notes
 - Keep tests deterministic and small.
 - Use `Console.WriteLine` only for useful diagnostics.

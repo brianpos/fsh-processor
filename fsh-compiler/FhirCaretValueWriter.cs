@@ -3,6 +3,7 @@ using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Utility;
 using System.Text.RegularExpressions;
+using FshCanonical = fsh_processor.Models.Canonical;
 using FshCode = fsh_processor.Models.Code;
 
 namespace fsh_compiler;
@@ -560,10 +561,12 @@ public static class FhirCaretValueWriter
     private static string? GetStringFromFshValue(FshValue fshValue) =>
         fshValue switch
         {
-            StringValue sv => NormalizeLineEndings(sv.Value),
+            StringValue sv    => NormalizeLineEndings(sv.Value),
             // Extract code-only part (strip system prefix and leading #).
-            FshCode c      => FhirValueMapper.SplitCodeValue(c.Value).Code,
-            _              => null
+            FshCode c         => FhirValueMapper.SplitCodeValue(c.Value).Code,
+            // Canonical references used as string targets (e.g. Extension.Url) — return the URL directly.
+            FshCanonical can  => can.Url,
+            _                 => null
         };
 
     private static string NormalizeLineEndings(string value) =>
