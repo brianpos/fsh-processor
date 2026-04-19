@@ -3216,17 +3216,24 @@ public static class FshCompiler
         // against the alias table; if no alias is found, it falls back to looking up the
         // entity name in CompiledStructureDefinitions so that the canonical URL (Url) is
         // returned.  This turns the local FSH entity name into the correct extension URL.
+        // As a further fallback, search compiled StructureDefinitions for an extension slice
+        // with the given name (e.g. `expansionProperty` → the extension profile URL declared
+        // in a `contains` rule) so that extension slice names from profiles are resolved.
         string ResolveExtensionAwareAlias(string name)
         {
             var resolved = context.ResolveAlias(name);
-            // If the alias resolver returned the name unchanged (i.e. no alias was found)
-            // and it looks like a plain identifier (not an absolute URL or alias), try to
-            // find a compiled StructureDefinition for it and use its Url.
-            if (resolved == name && !IsAbsoluteUrl(name) && !name.StartsWith('$') &&
-                context.CompiledStructureDefinitions.TryGetValue(name, out var sd) &&
-                !string.IsNullOrEmpty(sd.Url))
+            if (resolved == name && !IsAbsoluteUrl(name) && !name.StartsWith('$'))
             {
-                return sd.Url;
+                // Try direct SD lookup by FSH entity name / id.
+                if (context.CompiledStructureDefinitions.TryGetValue(name, out var sd) &&
+                    !string.IsNullOrEmpty(sd.Url))
+                {
+                    return sd.Url;
+                }
+                // Try extension slice name lookup across all compiled profiles.
+                var sliceUrl = context.FindExtensionUrlBySliceName(name);
+                if (sliceUrl != null)
+                    return sliceUrl;
             }
             return resolved;
         }
@@ -3305,6 +3312,11 @@ public static class FshCompiler
                     }
 
                     SetInstancePath(resource, resolvedPath, ResolveInstanceCanonical(fixedRule.Value, context, opts, inspector), inspector, ResolveExtensionAwareAlias);
+                    // C-EXT1: After setting a value that navigates through a named Extension
+                    // (e.g. extension[code]), sync the soft-index state for that extension list
+                    // so that a subsequent extension[+] correctly appends AFTER the named
+                    // extension rather than overwriting it at index 0.
+                    SyncSoftIndexForNamedExtensions(resolvedPath, resource, softIndexState, inspector, ResolveExtensionAwareAlias);
                     break;
 
                 case InstanceInsertRule insertRule:
@@ -3404,7 +3416,83 @@ public static class FshCompiler
     }
 
     /// <summary>
-    /// Sets a value on <paramref name="obj"/> by following the dot-separated
+    /// After setting a value at a path that contains named Extension accesses (e.g.
+    /// <c>extension[code]</c>), syncs the soft-index state so that a subsequent
+    /// <c>extension[+]</c> at the same level starts AFTER the named extension rather than
+    /// colliding with it at index 0.
+    /// </summary>
+    /// <remarks>
+    /// FSH soft indices (<c>[+]</c>) are tracked independently from named indices
+    /// (<c>extension[name]</c>).  When a named Extension is added to a list (e.g. at
+    /// position 0), the soft-index counter for that list has no knowledge of the newly
+    /// added element and defaults to starting at 0 on the first <c>[+]</c>, which
+    /// overwrites the named extension.  Syncing the state to <c>listCount - 1</c> after
+    /// any named access ensures the next <c>[+]</c> resolves to <c>listCount</c>
+    /// (appended after all existing elements).
+    /// </remarks>
+    private static void SyncSoftIndexForNamedExtensions(
+        string resolvedPath,
+        Base resource,
+        Dictionary<string, int> state,
+        ModelInspector inspector,
+        Func<string, string>? aliasResolver)
+    {
+        var segments = SplitInstancePath(resolvedPath);
+        // Skip the last segment (the leaf value being set — not an intermediate node).
+        var parentSegmentCount = segments.Length - 1;
+        if (parentSegmentCount <= 0) return;
+
+        Base? current = resource;
+        var resolvedSegmentParts = new List<string>(parentSegmentCount);
+
+        for (int i = 0; i < parentSegmentCount; i++)
+        {
+            if (current is null) break;
+            var seg = segments[i];
+            var (name, idx, namedIdx) = ParseInstanceSegment(seg);
+
+            if (namedIdx != null && name == "extension")
+            {
+                // Build the soft-index key matching ResolveSoftIndices' prefixKey calculation.
+                var parentPrefix = string.Join('.', resolvedSegmentParts);
+                var key = string.IsNullOrEmpty(parentPrefix) ? name : $"{parentPrefix}.{name}";
+
+                // Determine the actual position of this named extension in the list.
+                // Using the named extension's list position (rather than listCount - 1) prevents
+                // auto-added sibling extensions (e.g. "value%5Bx%5D") from inflating the counter
+                // and corrupting subsequent [=] index resolution.
+                var classMap = inspector.FindClassMapping(current.GetType());
+                var propMap = classMap?.FindMappedElementByName(name);
+                if (propMap?.IsCollection == true)
+                {
+                    var list = propMap.GetValue(current) as System.Collections.IList;
+                    if (list != null && list.Count > 0)
+                    {
+                        var resolvedUrl = aliasResolver != null ? aliasResolver(namedIdx) : namedIdx;
+                        int namedExtPos = -1;
+                        for (int li = 0; li < list.Count; li++)
+                        {
+                            if (list[li] is Hl7.Fhir.Model.Extension ext && ext.Url == resolvedUrl)
+                            {
+                                namedExtPos = li;
+                                break;
+                            }
+                        }
+                        // If not yet in the list, it will be appended at list.Count.
+                        if (namedExtPos < 0) namedExtPos = list.Count;
+                        if (!state.TryGetValue(key, out var currentState) || currentState < namedExtPos)
+                            state[key] = namedExtPos;
+                    }
+                }
+            }
+
+            // Navigate to next segment. Stop if navigation returns null (non-navigable type).
+            current = GetOrCreateInstanceChild(current, name, idx, inspector, namedIdx, aliasResolver);
+            resolvedSegmentParts.Add(seg);
+        }
+    }
+
+
     /// <paramref name="path"/>, creating intermediate objects and list elements as needed.
     /// Returns <c>true</c> when the leaf value was set successfully.
     /// </summary>
@@ -3414,23 +3502,50 @@ public static class FshCompiler
         if (segments.Length == 0) return false;
 
         var current = obj;
+        Base? parentOfLeaf = null;
+        string? parentPropName = null;
 
         // Navigate to the parent of the leaf element.
         for (int i = 0; i < segments.Length - 1; i++)
         {
             var (segName, segIdx, segNamedIdx) = ParseInstanceSegment(segments[i]);
+            parentOfLeaf = current;
+            parentPropName = segName;
             current = GetOrCreateInstanceChild(current, segName, segIdx, inspector, segNamedIdx, aliasResolver);
             if (current is null) return false;
         }
 
         // Set the leaf.
         var (leafName, leafIdx, _) = ParseInstanceSegment(segments[segments.Length - 1]);
+        bool success;
         if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver))
-            return true;
+            success = true;
+        else
+            success = FhirCaretValueWriter.TrySetChoiceTypeLeaf(current, leafName, value, inspector, aliasResolver);
 
-        // Choice-type fallback: e.g. "valueDecimal", "admitReasonCoding" — scan right-to-left
-        // for a suffix that is a recognised FHIR DataType name.
-        return FhirCaretValueWriter.TrySetChoiceTypeLeaf(current, leafName, value, inspector, aliasResolver);
+        // C-EXT2 (Sushi compat): when setting the `url` of an Extension to a value that
+        // contains FHIR choice-type brackets (e.g. "value[x]"), also append a sibling empty
+        // Extension with the percent-encoded URL (e.g. "value%5Bx%5D").  Sushi emits this
+        // pair to signal the choice-type nature of the property to downstream tooling.
+        if (success && leafName == "url" &&
+            current is Hl7.Fhir.Model.Extension &&
+            value is StringValue sv && sv.Value.Contains('[') &&
+            parentOfLeaf != null && parentPropName != null)
+        {
+            var encodedUrl = sv.Value.Replace("[", "%5B").Replace("]", "%5D");
+            var gClassMap = inspector.FindClassMapping(parentOfLeaf.GetType());
+            var gPropMap = gClassMap?.FindMappedElementByName(parentPropName);
+            if (gPropMap?.IsCollection == true &&
+                gPropMap.GetValue(parentOfLeaf) is System.Collections.IList extList)
+            {
+                bool siblingExists = extList.Cast<object>()
+                    .Any(e => e is Hl7.Fhir.Model.Extension sib && sib.Url == encodedUrl);
+                if (!siblingExists)
+                    extList.Add(new Hl7.Fhir.Model.Extension { Url = encodedUrl });
+            }
+        }
+
+        return success;
     }
 
     /// <summary>

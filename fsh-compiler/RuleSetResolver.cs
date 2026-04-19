@@ -154,7 +154,13 @@ public static class RuleSetResolver
             // The quoted replacement (step 1) must run before the bare replacement (step 2)
             // so that already-quoted occurrences are handled correctly and do not receive
             // the extra [[ ]] wrapping.
+            //
+            // Exception: FSH quoted codes (#"code with spaces") already carry their own
+            // quoting via the # prefix followed by a double-quoted string — they are valid
+            // FSH tokens and must NOT be wrapped in [[...]] because DOUBLE_BRACKET_STRING is
+            // not accepted in code-value positions by the FSH parser.
             if (!value.StartsWith('"') && !value.StartsWith("[[") &&
+                !value.StartsWith("#\"") &&
                 value.Any(char.IsWhiteSpace))
             {
                 content = content.Replace($"\"{placeholder}\"", $"\"{value}\"");

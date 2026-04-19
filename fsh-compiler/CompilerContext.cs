@@ -125,6 +125,50 @@ public class CompilerContext
         Aliases.TryGetValue(nameOrUrl, out var resolved) ? resolved : nameOrUrl;
 
     /// <summary>
+    /// Looks up the canonical extension URL for an extension slice name by searching all
+    /// compiled <see cref="StructureDefinition"/>s for a differential element whose
+    /// <see cref="ElementDefinition.SliceName"/> matches <paramref name="sliceName"/> and
+    /// whose path ends with <c>.extension</c>.  Returns the first matching
+    /// <c>Type[0].Profile[0]</c> URL, or <c>null</c> when not found.
+    /// </summary>
+    /// <remarks>
+    /// This enables resolving extension slice names (e.g. <c>expansionProperty</c>) to their
+    /// canonical extension URLs (e.g.
+    /// <c>http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property</c>)
+    /// when compiling instances whose <c>InstanceOf</c> type is a profile that declares those
+    /// extension slices via <c>contains</c> rules.
+    /// </remarks>
+    public string? FindExtensionUrlBySliceName(string sliceName)
+    {
+        if (string.IsNullOrEmpty(sliceName)) return null;
+
+        // Deduplicate search across SDs (multiple keys can point to the same SD object).
+        var visited = new HashSet<StructureDefinition>(ReferenceEqualityComparer.Instance);
+        foreach (var sd in CompiledStructureDefinitions.Values)
+        {
+            if (!visited.Add(sd)) continue;
+            var elements = sd.Differential?.Element;
+            if (elements is null) continue;
+            foreach (var elem in elements)
+            {
+                if (!string.Equals(elem.SliceName, sliceName, StringComparison.Ordinal))
+                    continue;
+                // Must be an extension slice (path ends with .extension or equals extension).
+                if (elem.Path == null) continue;
+                var lastDot = elem.Path.LastIndexOf('.');
+                var lastSeg = lastDot >= 0 ? elem.Path[(lastDot + 1)..] : elem.Path;
+                if (!string.Equals(lastSeg, "extension", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                // Return the first type profile URL.
+                var profile = elem.Type?.FirstOrDefault()?.Profile?.FirstOrDefault();
+                if (!string.IsNullOrEmpty(profile))
+                    return profile;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Registers a compiled <see cref="StructureDefinition"/> in <see cref="CompiledStructureDefinitions"/>
     /// under multiple keys: the FSH entity name, the last path-segment of <c>sd.Url</c>, and
     /// <c>sd.Id</c>. This enables profile-based <c>InstanceOf</c> lookup by any of these names.
