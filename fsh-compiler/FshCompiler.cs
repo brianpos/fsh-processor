@@ -3597,13 +3597,38 @@ public static class FshCompiler
         CompilerOptions opts,
         ModelInspector inspector)
     {
+        // Resolve Reference to a local FSH instance name:
+        //   Reference(myInstance) → Reference(ResourceType/instanceId)
+        // This matches sushi's behaviour of qualifying local-instance references with
+        // the FHIR base resource type prefix (e.g. QuestionnaireResponse/id).
+        if (value is Reference refVal &&
+            !IsAbsoluteUrl(refVal.Type) &&
+            !refVal.Type.Contains('/'))
+        {
+            if (context.Instances.TryGetValue(refVal.Type, out var refInst))
+            {
+                var fhirType = ResolveInstanceFhirType(refInst.InstanceOf, context, inspector);
+                if (fhirType != null)
+                {
+                    // Use the explicit * id = "..." rule when present, otherwise the instance name.
+                    var idRule = refInst.Rules
+                        .OfType<InstanceFixedValueRule>()
+                        .FirstOrDefault(r => string.Equals(r.Path, "id", StringComparison.Ordinal)
+                                             && r.Value is StringValue);
+                    var id = idRule?.Value is StringValue sv ? sv.Value : refInst.Name;
+                    return new Reference { Type = $"{fhirType}/{id}", Display = refVal.Display };
+                }
+            }
+            return value;
+        }
+
         if (value is not fsh_processor.Models.Canonical can) return value;
         if (IsAbsoluteUrl(can.Url)) return value;
 
-        if (context.Instances.TryGetValue(can.Url, out var refInst))
+        if (context.Instances.TryGetValue(can.Url, out var canonicalRefInst))
         {
             // Use the explicit `* url = "..."` rule from the referenced instance.
-            var urlRule = refInst.Rules
+            var urlRule = canonicalRefInst.Rules
                 .OfType<InstanceFixedValueRule>()
                 .FirstOrDefault(r => string.Equals(r.Path, "url", StringComparison.Ordinal)
                                      && r.Value is StringValue);
@@ -3626,6 +3651,50 @@ public static class FshCompiler
             return new fsh_processor.Models.Canonical { Url = resolved, Version = can.Version };
 
         return value;
+    }
+
+    /// <summary>
+    /// Resolves an FSH <c>InstanceOf</c> type name to the underlying FHIR base resource type
+    /// (e.g. <c>SDCQuestionnaireResponse</c> → <c>QuestionnaireResponse</c>).
+    /// Checks the ModelInspector for directly-known FHIR types first, then walks the compiled
+    /// StructureDefinition chain in <paramref name="context"/> to handle profiled types.
+    /// Returns <c>null</c> when the type cannot be resolved.
+    /// </summary>
+    private static string? ResolveInstanceFhirType(
+        string? instanceOf, CompilerContext context, ModelInspector inspector)
+    {
+        if (string.IsNullOrEmpty(instanceOf)) return null;
+
+        var typeName = context.ResolveAlias(instanceOf);
+
+        // Direct FHIR resource type (e.g. "Task", "QuestionnaireResponse").
+        if (inspector.IsKnownResource(typeName))
+            return typeName;
+
+        // Walk the compiled StructureDefinition chain to find the underlying FHIR type.
+        // context.CompiledStructureDefinitions is indexed by entity name, URL, last URL segment,
+        // and id, so a bare profile name like "SDCQuestionnaireResponse" will match.
+        var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
+        var current = typeName;
+        while (context.CompiledStructureDefinitions.TryGetValue(current, out var sd))
+        {
+            if (!string.IsNullOrEmpty(sd.Type) && inspector.IsKnownResource(sd.Type))
+                return sd.Type;
+
+            if (string.IsNullOrEmpty(sd.BaseDefinition))
+                break;
+
+            // Use the last URL segment as the next lookup key (matches how
+            // RegisterStructureDefinition indexes compiled SDs).
+            var lastSlash = sd.BaseDefinition.LastIndexOf('/');
+            var nextKey = lastSlash >= 0 ? sd.BaseDefinition[(lastSlash + 1)..] : sd.BaseDefinition;
+            if (!visited.Add(nextKey))
+                break;
+
+            current = nextKey;
+        }
+
+        return null;
     }
 
     /// <summary>
