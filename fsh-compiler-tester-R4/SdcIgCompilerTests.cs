@@ -74,7 +74,7 @@ public class SdcIgCompilerTests
         var parseErrors = new List<string>();
         var fshDocs = new List<FshDoc>();
 
-        // entity name → parent entity name (for display purposes)
+        // entity name → dependency entity names (for display purposes)
         Dictionary<string, List<string>> entityDeps = new(StringComparer.Ordinal);
 
         foreach (var fshFile in fshFiles)
@@ -571,6 +571,7 @@ public class SdcIgCompilerTests
         private static readonly Dictionary<string, string[]> _fileDependencies = new(StringComparer.OrdinalIgnoreCase)
      {
             ["adaptive-questionnaireresponse-sdc-example-phq9-start.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "RenderingCriticalExtension.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCValueSet.fsh"],
+            ["AustralianStates.fsh"] = ["AustralianStateCodes.fsh"],
             ["adaptive-questionnaireresponse-sdc-example-phq9.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "RenderingCriticalExtension.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCValueSet.fsh"],
             ["anc-quick-check.fsh"] = ["AssembleExpectation.fsh", "ChoiceColumnExtension.fsh", "CollapsibleExtension.fsh", "ColumnCountExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "Keyboard.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireItemCollapsible.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCOpenLabel.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireRender.fsh", "ShortTextExtension.fsh", "WidthExtension.fsh"],
             ["AssembleExpectation.fsh"] = ["QuestionnaireAssembleExpectation.fsh"],
@@ -579,7 +580,7 @@ public class SdcIgCompilerTests
             ["demographics.fsh"] = ["AssembleExpectation.fsh", "DefinitionExtractExtension.fsh", "DefinitionExtractValueExtension.fsh", "ExtractAllocateIdExtension.fsh", "InitialExpressionExtension.fsh", "ItemPopulationContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractDefinition.fsh"],
             ["EntryMode.fsh"] = ["QuestionnaireEntryMode.fsh"],
             ["example-of-ServiceRequest.fsh"] = ["SDCQuestionnaireServiceRequest.fsh", "SDCServiceRequestQuestionnaire.fsh"],
-            ["example-of-Task.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "questionnaireresponse-sdc-example-ussg-fht-answers.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCTaskQuestionnaire.fsh", "TaskCode.fsh"],
+            ["example-of-Task.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "questionnaireresponse-sdc-example-ussg-fht-answers.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCTaskQuestionnaire.fsh", "TaskCode.fsh", "TemporaryCodes.fsh"],
             ["ihe-sdc-for-SDCQuestionnaireAdapt.fsh"] = ["QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireAdapt.fsh", "SDCQuestionnaireCommon.fsh"],
             ["ihe-sdc-for-SDCQuestionnaireAdaptSearch.fsh"] = ["AssembledFromExtension.fsh", "EndpointExtension.fsh", "QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireAdaptSearch.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireSearch.fsh"],
             ["ihe-sdc-for-SDCQuestionnaireBehave.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
@@ -634,7 +635,7 @@ public class SdcIgCompilerTests
             ["questionnaireresponse-sdc-profile-example-multi-subject.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
             ["questionnaireresponse-sdc-profile-example-PHQ9.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
             ["questionnaireresponse-sdc-profile-example.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
-            ["request-task-example.fsh"] = ["SDCTaskQuestionnaire.fsh", "TaskCode.fsh"],
+            ["request-task-example.fsh"] = ["SDCTaskQuestionnaire.fsh", "TaskCode.fsh", "TemporaryCodes.fsh"],
             ["Questionnaire-assemble.fsh"] = ["SDCParametersQuestionnaireAssembleIn.fsh"],
             ["Questionnaire-populate.fsh"] = ["SDCParametersQuestionnairePopulateIn.fsh", "SDCParametersQuestionnairePopulateOut.fsh"],
             ["Questionnaire-populatehtml.fsh"] = ["SDCParametersQuestionnairePopulateHtmlOut.fsh", "SDCParametersQuestionnairePopulateIn.fsh"],
@@ -666,7 +667,8 @@ public class SdcIgCompilerTests
             ["SDCQuestionnaireResponseCommon.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh"],
             ["SDCQuestionnaireSearch.fsh"] = ["AssembledFromExtension.fsh", "SDCQuestionnaireCommon.fsh"],
             ["SDCQuestionnaireServiceRequest.fsh"] = ["SDCServiceRequestQuestionnaire.fsh"],
-            ["SDCTaskQuestionnaire.fsh"] = ["TaskCode.fsh"],
+            ["SDCTaskQuestionnaire.fsh"] = ["TaskCode.fsh", "TemporaryCodes.fsh"],
+            ["TaskCode.fsh"] = ["TemporaryCodes.fsh"],
             ["SDCValueSet.fsh"] = ["RenderingCriticalExtension.fsh"],
             ["SDOHCC-QuestionnaireHungerVitalSign.fsh"] = ["AssembleExpectation.fsh", "DefinitionExtractExtension.fsh", "DefinitionExtractValueExtension.fsh", "ExtractAllocateIdExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractDefinition.fsh"],
             ["UnitOpen.fsh"] = ["QuestionnaireAnswerConstraint.fsh"],
@@ -700,6 +702,7 @@ public class SdcIgCompilerTests
         FshDoc parsedFsh = GetFshDocument(fshFileName, out string fshText);
         FshDoc parsedFshAliases = GetFshDocument("aliases.fsh", out string _);
         FshDoc parsedFshShared = GetFshDocument("shared.fsh", out _);
+        var outputDir = Path.Combine(AppContext.BaseDirectory, "TestOutput", "sdc-fhir-output");
 
         // Load any additional FSH files required to resolve cross-file references
         // (e.g. CodeSystem definitions needed for ValueSet system URL resolution).
@@ -815,18 +818,19 @@ public class SdcIgCompilerTests
 
         var serializerSettings = new FhirJsonSerializationSettings { Pretty = true };
         // foreach (var resource in resources)
-        var rj = resources.Last();
-        {
-            Console.WriteLine("--------------------------------------");
-            Console.WriteLine();
-            Console.WriteLine(rj.ToJson(serializerSettings));
-        }
+        //var rj = resources.Last();
+        //{
+        //    Console.WriteLine("--------------------------------------");
+        //    Console.WriteLine();
+        //    Console.WriteLine(rj.ToJson(serializerSettings));
+        //}
 
         // T1: SDC IG now compiles with zero errors.  Hard assert so regressions are caught.
         Assert.AreEqual(0, compileErrors.Count,
             $"{compileErrors.Count} compile error(s) found. See output for details.");
 
         Assert.IsTrue(resources.Count > 0, "No FHIR resources were produced from the SDC IG FSH.");
+
 
         // and finally compare with any sushi generated files
         var sushiDir = Path.Combine(AppContext.BaseDirectory, "TestData", "sushi-generated");
@@ -846,7 +850,39 @@ public class SdcIgCompilerTests
             {
                 var jsonSushiGenerated = File.ReadAllText(filePath);
                 if (jsonSushiGenerated != json)
+                {
+                    // Log the name of the source/target files
+                    Console.WriteLine($"Expected JSON file: {filePath}");
+                    Console.WriteLine($"Actual JSON file:   {filePath.Replace("sushi-generated", "actual")}");
+
+                    try
+                    {
+                        if (resource is StructureDefinition sd && sd.HasSnapshot)
+                        {
+                            sd.Snapshot = null;
+                        }
+                        // Use the resource Id when available; otherwise fall back to an index so that
+                        // multiple id-less resources of the same type don't overwrite each other.
+                        //var idSegment = !string.IsNullOrWhiteSpace(resource.Id) ? resource.Id : $"noId-{index}";
+                        //var fileName = $"{resource.TypeName}-{idSegment}.json";
+                        // Sanitize to remove characters that are illegal in file names.
+                        fileName = string.Concat(fileName.Split(Path.GetInvalidFileNameChars()));
+                        var filePathGenerated = Path.Combine(outputDir, fileName);
+                        File.WriteAllText(filePathGenerated, json);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"  Warning: could not write {resource.TypeName}/{resource.Id}: {ex.Message}");
+                    }
+
+
+                    // report the JSON difference to the console (using a jsondiff lib)
+                    var diff = new JsonDiffPatchDotNet.JsonDiffPatch().Diff(jsonSushiGenerated, json);
+                    Console.WriteLine($"JSON difference for file {fileName}:\n{diff}");
+
+                    // and fail the test
                     Assert.Fail("JSON Content not the same as the sushi-generated file: " + fileName);
+                }
             }
         }
     }
@@ -1700,6 +1736,32 @@ public class SdcIgCompilerTests
                         {
                             entityDeps.Add((e.Name, vsRule.ValueSetName));
                             entitySource.TryAdd(e.Name, fa.Name);
+                        }
+                    }
+
+                    // Scan ValueSet entities for inline concept codes that reference a local
+                    // CodeSystem by name using the `System#Code` syntax
+                    // (e.g. `* AustralianStateCodes#ACT "Australian Capital Territory"`).
+                    // These produce a VsComponentRule with IsConceptComponent=true and no
+                    // FromSystem, so we extract the system name from ConceptCode.Value.
+                    if (e is fsh_processor.Models.ValueSet vsDefEntity)
+                    {
+                        foreach (var vsCompRule in vsDefEntity.Rules.OfType<VsComponentRule>())
+                        {
+                            if (vsCompRule.IsConceptComponent &&
+                                vsCompRule.ConceptCode?.Value is string codeVal &&
+                                codeVal.Contains('#'))
+                            {
+                                var systemName = codeVal[..codeVal.IndexOf('#')];
+                                if (!string.IsNullOrEmpty(systemName) &&
+                                    !systemName.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
+                                    !systemName.StartsWith("urn:", StringComparison.OrdinalIgnoreCase) &&
+                                    !systemName.StartsWith('$'))
+                                {
+                                    entityDeps.Add((vsDefEntity.Name, systemName));
+                                    entitySource.TryAdd(vsDefEntity.Name, fa.Name);
+                                }
+                            }
                         }
                     }
                 }
