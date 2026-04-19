@@ -3605,17 +3605,17 @@ public static class FshCompiler
             !IsAbsoluteUrl(refVal.Type) &&
             !refVal.Type.Contains('/'))
         {
-            if (context.Instances.TryGetValue(refVal.Type, out var refInst))
+            if (context.Instances.TryGetValue(refVal.Type, out var referencedInst))
             {
-                var fhirType = ResolveInstanceFhirType(refInst.InstanceOf, context, inspector);
+                var fhirType = ResolveInstanceFhirType(referencedInst.InstanceOf, context, inspector);
                 if (fhirType != null)
                 {
                     // Use the explicit * id = "..." rule when present, otherwise the instance name.
-                    var idRule = refInst.Rules
+                    var idRule = referencedInst.Rules
                         .OfType<InstanceFixedValueRule>()
                         .FirstOrDefault(r => string.Equals(r.Path, "id", StringComparison.Ordinal)
                                              && r.Value is StringValue);
-                    var id = idRule?.Value is StringValue sv ? sv.Value : refInst.Name;
+                    var id = idRule?.Value is StringValue sv ? sv.Value : referencedInst.Name;
                     return new Reference { Type = $"{fhirType}/{id}", Display = refVal.Display };
                 }
             }
@@ -3674,9 +3674,10 @@ public static class FshCompiler
         // Walk the compiled StructureDefinition chain to find the underlying FHIR type.
         // context.CompiledStructureDefinitions is indexed by entity name, URL, last URL segment,
         // and id, so a bare profile name like "SDCQuestionnaireResponse" will match.
-        var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
+        var visited = new HashSet<string>(StringComparer.Ordinal);
         var current = typeName;
-        while (context.CompiledStructureDefinitions.TryGetValue(current, out var sd))
+        while (visited.Add(current) &&
+               context.CompiledStructureDefinitions.TryGetValue(current, out var sd))
         {
             if (!string.IsNullOrEmpty(sd.Type) && inspector.IsKnownResource(sd.Type))
                 return sd.Type;
@@ -3687,11 +3688,7 @@ public static class FshCompiler
             // Use the last URL segment as the next lookup key (matches how
             // RegisterStructureDefinition indexes compiled SDs).
             var lastSlash = sd.BaseDefinition.LastIndexOf('/');
-            var nextKey = lastSlash >= 0 ? sd.BaseDefinition[(lastSlash + 1)..] : sd.BaseDefinition;
-            if (!visited.Add(nextKey))
-                break;
-
-            current = nextKey;
+            current = lastSlash >= 0 ? sd.BaseDefinition[(lastSlash + 1)..] : sd.BaseDefinition;
         }
 
         return null;
