@@ -144,10 +144,53 @@ public class CompilerContext
     }
 
     /// <summary>
-    /// When <paramref name="typeName"/> is a profile identifier rather than a bare FHIR resource
-    /// type name, walks the <see cref="CompiledStructureDefinitions"/> chain to find the underlying
-    /// FHIR base resource type, then returns the corresponding <see cref="ClassMapping"/> from
-    /// <paramref name="inspector"/>.
+    /// Walks the StructureDefinition chain via the resolver to find the underlying FHIR
+    /// base type name (e.g. <c>"Patient"</c>, <c>"Extension"</c>) without requiring a
+    /// version-specific <see cref="ModelInspector"/>.
+    /// Returns <c>null</c> when the type cannot be resolved or is not a recognized base type.
+    /// </summary>
+    /// <remarks>
+    /// A type is considered a "base" FHIR type when its StructureDefinition's
+    /// <c>Derivation</c> is <c>Specialization</c> (not <c>Constraint</c>), meaning
+    /// it defines a new type rather than profiling an existing one.
+    /// </remarks>
+    public string? ResolveBaseTypeFromResolver(string typeName, IResourceResolver resolver)
+    {
+        if (string.IsNullOrEmpty(typeName)) return null;
+
+        // Try to find the SD directly.
+        var sd = resolver.FindStructureDefinition(typeName);
+        if (sd is null && !typeName.Contains("://", StringComparison.Ordinal))
+            sd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + typeName);
+
+        var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
+
+        while (sd is not null)
+        {
+            // A Specialization SD defines a base type; a Constraint SD is a profile.
+            if (sd.Derivation == StructureDefinition.TypeDerivationRule.Specialization
+                && !string.IsNullOrEmpty(sd.Type))
+                return sd.Type;
+
+            // For profiles, follow the chain via sd.Type first (the underlying resource type).
+            if (!string.IsNullOrEmpty(sd.Type))
+            {
+                var typeSd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + sd.Type);
+                if (typeSd?.Derivation == StructureDefinition.TypeDerivationRule.Specialization)
+                    return sd.Type;
+            }
+
+            // Walk the BaseDefinition chain.
+            if (string.IsNullOrEmpty(sd.BaseDefinition)) break;
+            if (!visited.Add(sd.BaseDefinition)) break;
+
+            sd = resolver.FindStructureDefinition(sd.BaseDefinition);
+        }
+
+        return null;
+    }
+
+
     /// </summary>
     /// <param name="typeName">The type/profile name to resolve.</param>
     /// <param name="inspector">Version-specific model inspector.</param>

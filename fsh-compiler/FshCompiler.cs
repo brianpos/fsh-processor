@@ -357,28 +357,45 @@ public static class FshCompiler
     {
         var opts = options ?? new CompilerOptions();
 
-        // C-PR3: Determine the profile's Kind from the parent type via the ModelInspector.
+        // C-PR3: Determine the profile's Kind from the parent type via the resolver or ModelInspector.
         // For profiles of resources → "resource"; for datatypes → "complex-type".
         // Fall back to "resource" when the type can't be resolved (most common case).
         var parentTypeName = profile.Parent?.Value ?? "DomainResource";
-        if (opts.Inspector?.IsKnownResource(parentTypeName) == true || opts.Inspector?.IsDataType(parentTypeName) == true)
-            parentTypeName = opts.Inspector.CanonicalUriForFhirCoreType(parentTypeName);
+
+        // Build a merged resolver that includes both compiled SDs and the external resolver.
+        var compiledSdResolver = new AliasResolver(context.CompiledStructureDefinitions);
+        IResourceResolver mergedResolver = opts.Resolver == null
+            ? compiledSdResolver
+            : new MultiResolver(compiledSdResolver, opts.Resolver);
+
+        // Resolve the parent type name to a canonical URL when it is a bare core FHIR type.
+        // Prefer using the resolver to find the SD; fall back to the inspector for backward
+        // compatibility when no resolver is available.
+        var parentBaseSd = FindStructureDefinitionForType(parentTypeName, mergedResolver);
+        if (parentBaseSd?.Url != null)
+            parentTypeName = parentBaseSd.Url;
+        else if (opts.Inspector?.IsKnownResource(parentTypeName) == true || opts.Inspector?.IsDataType(parentTypeName) == true)
+            parentTypeName = opts.Inspector.CanonicalUriForFhirCoreType(parentTypeName) ?? parentTypeName;
 
         var resolvedParent = context.ResolveAlias(parentTypeName);
 
         // C-PR4: StructureDefinition.Type must be the bare FHIR type name.
         // When the parent is a URL (e.g. from an alias), strip to the last segment and
-        // check whether that segment is a known base FHIR type via the ModelInspector.
+        // check whether that segment is a known base FHIR type via the resolver or ModelInspector.
         // Only use the stripped name when it is a recognised type; otherwise fall back to
         // the pre-alias-resolution name so profiles-of-profiles don't produce a bogus type.
-        var typeValue = ExtractBareTypeName(resolvedParent, parentTypeName, opts.Inspector);
-        if (!IsKnownFhirType(typeValue, opts.Inspector))
+        var typeValue = ExtractBareTypeName(resolvedParent, parentTypeName, opts.Inspector, mergedResolver);
+        if (!IsKnownFhirType(typeValue, opts.Inspector, mergedResolver))
         {
-            if (opts.Inspector != null)
+            // Try resolver-based profile chain walk first (no inspector required).
+            var resolvedFromSd = context.ResolveBaseTypeFromResolver(resolvedParent, mergedResolver);
+            if (!string.IsNullOrEmpty(resolvedFromSd))
             {
-                var ar = new AliasResolver(context.CompiledStructureDefinitions);
-                IResourceResolver imr = opts.Resolver == null ? ar : new MultiResolver(ar, opts.Resolver);
-                var classMap = context.ResolveClassMappingForProfile(resolvedParent, opts.Inspector, imr, out _);
+                typeValue = resolvedFromSd;
+            }
+            else if (opts.Inspector != null)
+            {
+                var classMap = context.ResolveClassMappingForProfile(resolvedParent, opts.Inspector, mergedResolver, out _);
                 if (classMap != null)
                     typeValue = classMap.Name;
             }
@@ -394,7 +411,7 @@ public static class FshCompiler
                 typeValue = resolvedType;
         }
 
-        var kind = InferKindFromType(typeValue, opts.Inspector);
+        var kind = InferKindFromType(typeValue, opts.Inspector, opts.Resolver);
 
         var sd = new StructureDefinition
         {
@@ -439,12 +456,13 @@ public static class FshCompiler
 
     /// <summary>
     /// Infers the <see cref="StructureDefinition.StructureDefinitionKind"/> for a profile
-    /// given its parent type name (possibly a URL).  Uses the optional <paramref name="inspector"/>
-    /// to look up whether the type is a resource.  Defaults to <c>Resource</c> when the
-    /// type cannot be resolved.
+    /// given its parent type name (possibly a URL).  Prefers the <paramref name="resolver"/>
+    /// to look up the StructureDefinition's <c>Kind</c> property directly; falls back to
+    /// <paramref name="inspector"/> when the resolver is unavailable.  Defaults to
+    /// <c>Resource</c> when the type cannot be resolved.
     /// </summary>
     private static StructureDefinition.StructureDefinitionKind InferKindFromType(
-        string? parentTypeOrUrl, ModelInspector? inspector)
+        string? parentTypeOrUrl, ModelInspector? inspector, IResourceResolver? resolver = null)
     {
         if (string.IsNullOrEmpty(parentTypeOrUrl))
             return StructureDefinition.StructureDefinitionKind.Resource;
@@ -455,6 +473,19 @@ public static class FshCompiler
         {
             var lastSlash = typeName.LastIndexOf('/');
             if (lastSlash >= 0) typeName = typeName[(lastSlash + 1)..];
+        }
+
+        // Prefer resolver-based lookup: read Kind directly from the StructureDefinition.
+        if (resolver != null)
+        {
+            var sd = FindStructureDefinitionForType(typeName, resolver)
+                  ?? (IsAbsoluteUrl(parentTypeOrUrl) ? resolver.FindStructureDefinition(parentTypeOrUrl) : null);
+            if (sd?.Kind != null)
+            {
+                return sd.Kind == StructureDefinition.StructureDefinitionKind.Resource
+                    ? StructureDefinition.StructureDefinitionKind.Resource
+                    : StructureDefinition.StructureDefinitionKind.ComplexType;
+            }
         }
 
         if (inspector != null)
@@ -484,13 +515,14 @@ public static class FshCompiler
     /// <summary>
     /// Extracts the bare FHIR type name from a parent type name or URL.
     /// When <paramref name="resolvedParent"/> is a URL, strips the last segment and
-    /// checks whether it is a known base FHIR type via <paramref name="inspector"/>.
+    /// checks whether it is a known base FHIR type via <paramref name="resolver"/> (preferred)
+    /// or <paramref name="inspector"/> (fallback).
     /// Falls back to <paramref name="originalParent"/> (pre-alias-resolution name) so that
     /// profiles-of-profiles (where the URL segment is a profile id, not a type name) don't
     /// produce a bogus type value.
     /// </summary>
     private static string ExtractBareTypeName(
-        string resolvedParent, string originalParent, ModelInspector? inspector)
+        string resolvedParent, string originalParent, ModelInspector? inspector, IResourceResolver? resolver = null)
     {
         if (!IsAbsoluteUrl(resolvedParent))
             return resolvedParent;   // Already bare (e.g. "Patient", "DomainResource").
@@ -498,8 +530,11 @@ public static class FshCompiler
         var lastSlash = resolvedParent.LastIndexOf('/');
         var segment = lastSlash >= 0 ? resolvedParent[(lastSlash + 1)..] : resolvedParent;
 
-        // Only use the URL segment when the ModelInspector recognises it as a known FHIR type.
-        // Otherwise keep the original pre-alias name (the next best approximation).
+        // Prefer resolver: look up the segment as a core FHIR type.
+        if (resolver != null && FindStructureDefinitionForType(segment, resolver) != null)
+            return segment;
+
+        // Fall back to inspector.
         if (inspector != null && inspector.FindClassMapping(segment) != null)
             return segment;
 
@@ -1559,7 +1594,7 @@ public static class FshCompiler
         // back to alphabetical ordering within each type group (primitives first, then
         // complex datatypes).
         var typeRefs = onlyRule.TargetTypes.Select(tt => ParseTypeRef(tt, context, opts)).ToList();
-        var baseOrder = GetBaseChoiceTypeOrder(onlyRule.Path, sd, opts?.Inspector);
+        var baseOrder = GetBaseChoiceTypeOrder(onlyRule.Path, sd, opts?.Inspector, opts?.Resolver);
         if (baseOrder != null && baseOrder.Count > 1)
         {
             ed.Type = typeRefs
@@ -1588,12 +1623,23 @@ public static class FshCompiler
     /// <summary>
     /// Resolves the base element's declared choice-type ordering for <paramref name="path"/>
     /// on <paramref name="sd"/>.  Returns a dictionary mapping FHIR type name → zero-based
-    /// index in the base property's <c>FhirType[]</c> array, or <c>null</c> when the path or
-    /// inspector cannot be resolved.
+    /// index in the element's <c>type</c> array, or <c>null</c> when the path or
+    /// resolver/inspector cannot be resolved.
+    /// Prefers the <paramref name="resolver"/> (StructureDefinition-based navigation) and
+    /// falls back to the <paramref name="inspector"/> (ModelInspector-based walk) when the
+    /// resolver is unavailable or does not find the element.
     /// </summary>
     private static Dictionary<string, int>? GetBaseChoiceTypeOrder(
-        string path, StructureDefinition sd, ModelInspector? inspector)
+        string path, StructureDefinition sd, ModelInspector? inspector, IResourceResolver? resolver = null)
     {
+        // Preferred: resolver-based lookup using StructureDefinition element lists.
+        if (resolver != null && !string.IsNullOrEmpty(sd.Type))
+        {
+            var result = GetChoiceTypeOrderFromResolver(path, sd.Type, resolver);
+            if (result != null) return result;
+        }
+
+        // Fallback: ModelInspector-based property walk.
         if (inspector is null || string.IsNullOrEmpty(sd.Type)) return null;
         var current = inspector.FindClassMapping(sd.Type);
         if (current is null) return null;
@@ -1641,6 +1687,90 @@ public static class FshCompiler
     }
 
     /// <summary>
+    /// Resolves choice-type ordering by navigating the base StructureDefinition's element list.
+    /// Strips slice names from the path segments, constructs the full canonical path, and
+    /// looks for the element in the snapshot (preferred) or differential.
+    /// Returns <c>null</c> when the element or its types cannot be resolved.
+    /// </summary>
+    private static Dictionary<string, int>? GetChoiceTypeOrderFromResolver(
+        string path, string sdType, IResourceResolver resolver)
+    {
+        // Strip slice names and array indices from path segments to get a clean element path.
+        static string StripSlicesAndIndices(string rawPath)
+        {
+            var segs = rawPath.Split('.');
+            for (int i = 0; i < segs.Length; i++)
+            {
+                var s = segs[i];
+                var colon = s.IndexOf(':');
+                if (colon >= 0) s = s[..colon];
+                var bracket = s.IndexOf('[');
+                if (bracket >= 0) s = s[..bracket];
+                segs[i] = s;
+            }
+            return string.Join('.', segs);
+        }
+
+        var cleanPath = StripSlicesAndIndices(path);
+
+        // Iteratively look for the element by navigating through the path.
+        // Each segment may belong to a different StructureDefinition (e.g. when the path
+        // goes through an 'extension' segment, we need to follow into Extension SD).
+        var segments = cleanPath.Split('.');
+        var currentType = sdType;
+
+        for (int i = 0; i < segments.Length; i++)
+        {
+            var seg = segments[i];
+            if (string.IsNullOrEmpty(seg)) return null;
+
+            // Build the path of the element we're looking for in the current type's SD.
+            var remainingPath = string.Join('.', segments[i..]);
+            var fullElementPath = currentType + "." + remainingPath;
+
+            var typeSd = FindStructureDefinitionForType(currentType, resolver);
+            if (typeSd == null) return null;
+
+            // Look in snapshot first, then differential.
+            var elements = (IList<ElementDefinition>?)typeSd.Snapshot?.Element ?? typeSd.Differential?.Element;
+            if (elements == null) return null;
+
+            // Try exact match for the full remaining path.
+            var el = elements.FirstOrDefault(e => e.Path == fullElementPath);
+            if (el != null)
+            {
+                // Found the target element.  Return the type codes in order (empty list → null).
+                if (el.Type == null || el.Type.Count == 0) return null;
+                var order = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (int j = 0; j < el.Type.Count; j++)
+                {
+                    var code = el.Type[j].Code;
+                    if (!string.IsNullOrEmpty(code) && !order.ContainsKey(code))
+                        order[code] = j;
+                }
+                return order.Count > 0 ? order : null;
+            }
+
+            // Not found at this level — navigate one step: find the current segment's element
+            // and follow its type to a nested SD.
+            var parentPath = currentType + "." + seg;
+            var parentEl = elements.FirstOrDefault(e => e.Path == parentPath);
+            if (parentEl == null || parentEl.Type == null || parentEl.Type.Count == 0) return null;
+
+            // Use the first type code to navigate into the nested SD.
+            var nextTypeCode = parentEl.Type[0].Code;
+            if (string.IsNullOrEmpty(nextTypeCode)) return null;
+
+            currentType = nextTypeCode;
+            // Remove the processed segment and continue the loop from the remaining path.
+            segments = segments[(i + 1)..];
+            i = -1; // will be incremented to 0 at top of loop
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Parses a FSH target-type expression into a Firely <see cref="ElementDefinition.TypeRefComponent"/>.
     /// Handles bare type names as well as <c>Reference(...)</c>, <c>Canonical(...)</c>,
     /// and <c>CodeableReference(...)</c> expressions with optional " or "-separated targets.
@@ -1684,26 +1814,27 @@ public static class FshCompiler
 
         // If the name refers to a profile of a core FHIR type (e.g. SimpleQuantity → Quantity),
         // emit { Code = baseType, Profile = [canonicalUrl] } to match sushi behaviour.
+        // Prefer resolver-based lookup (no version-specific inspector required).
         // Note: some FHIR model assemblies (e.g. R4 Firely) include POCO ClassMappings for
-        // profiled datatypes like SimpleQuantity, and CompilerContext.ResolveClassMappingForProfile
-        // is tuned for resolving to a base *resource* type (used by InstanceOf lookup), so it
-        // doesn't handle profiles of complex-type datatypes. Here we probe the resolver directly
-        // and trust the StructureDefinition's Type field to identify the underlying FHIR type.
-        if (opts?.Inspector is { } inspector && opts?.Resolver is { } resolver
-            && !inspector.IsKnownResource(resolved)
+        // profiled datatypes like SimpleQuantity, so we check the resolver directly and
+        // trust the StructureDefinition's Type field to identify the underlying FHIR type.
+        if (opts?.Resolver is { } resolver
             && !resolved.Contains("://", StringComparison.Ordinal))
         {
-            var sd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + resolved)
-                  ?? resolver.FindStructureDefinition(resolved);
-            if (sd is not null
-                && !string.IsNullOrEmpty(sd.Type)
-                && !string.IsNullOrEmpty(sd.Url)
-                && !string.Equals(sd.Type, resolved, StringComparison.Ordinal))
+            // Only emit a Profile constraint when the name isn't already a bare FHIR resource type.
+            var resolvedSd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + resolved)
+                          ?? resolver.FindStructureDefinition(resolved);
+            var isKnownResource = resolvedSd?.Kind == StructureDefinition.StructureDefinitionKind.Resource
+                || opts.Inspector?.IsKnownResource(resolved) == true;
+            if (!isKnownResource && resolvedSd is not null
+                && !string.IsNullOrEmpty(resolvedSd.Type)
+                && !string.IsNullOrEmpty(resolvedSd.Url)
+                && !string.Equals(resolvedSd.Type, resolved, StringComparison.Ordinal))
             {
                 return new ElementDefinition.TypeRefComponent
                 {
-                    Code = sd.Type,
-                    Profile = new List<string> { sd.Url }
+                    Code = resolvedSd.Type,
+                    Profile = new List<string> { resolvedSd.Url }
                 };
             }
         }
@@ -2773,7 +2904,7 @@ public static class FshCompiler
     {
         if (depth > 10) return null; // Prevent infinite loops.
 
-        if (IsKnownFhirType(typeName, opts.Inspector)) return typeName;
+        if (IsKnownFhirType(typeName, opts.Inspector, opts.Resolver)) return typeName;
 
         // Look up in compiled SDs by name/id.
         StructureDefinition? parentSd;
@@ -2788,7 +2919,7 @@ public static class FshCompiler
         {
             if (!string.IsNullOrEmpty(parentSd.Type))
             {
-                if (IsKnownFhirType(parentSd.Type, opts.Inspector)) return parentSd.Type;
+                if (IsKnownFhirType(parentSd.Type, opts.Inspector, opts.Resolver)) return parentSd.Type;
 
                 var resolvedFromType = ResolveUnderlyingFhirType(parentSd.Type, context, opts, byUrl, depth + 1);
                 if (!string.IsNullOrEmpty(resolvedFromType)) return resolvedFromType;
@@ -2801,27 +2932,54 @@ public static class FshCompiler
         }
 
         // Fall back to the resolver for profiles from external sources (e.g. specification.zip).
-        if (opts.Resolver != null && opts.Inspector != null)
+        if (opts.Resolver != null)
         {
             var lookupName = IsAbsoluteUrl(typeName) ? typeName
                 : context.CanonicalsFromSpecificationZip.TryGetValue($"StructureDefinition#{typeName}", out var specUrl)
                     ? specUrl : typeName;
 
-            var classMap = context.ResolveClassMappingForProfile(lookupName, opts.Inspector, opts.Resolver, out _);
-            if (classMap != null) return classMap.Name;
+            // Preferred: resolver-based walk - no inspector required.
+            var resolvedType = context.ResolveBaseTypeFromResolver(lookupName, opts.Resolver);
+            if (resolvedType != null) return resolvedType;
+
+            // Fallback: inspector-based walk when inspector is also available.
+            if (opts.Inspector != null)
+            {
+                var ar = new AliasResolver(context.CompiledStructureDefinitions);
+                IResourceResolver imr = new MultiResolver(ar, opts.Resolver);
+                var classMap = context.ResolveClassMappingForProfile(lookupName, opts.Inspector, imr, out _);
+                if (classMap != null) return classMap.Name;
+            }
         }
 
         return null;
     }
 
     /// <summary>
-    /// Returns <c>true</c> when <paramref name="typeName"/> is a base FHIR type known to the model
-    /// inspector (e.g. <c>"Questionnaire"</c>, <c>"Extension"</c>, <c>"string"</c>).
+    /// Returns <c>true</c> when <paramref name="typeName"/> is a base FHIR type known to the
+    /// resolver (preferred) or the model inspector (fallback).
+    /// Checks e.g. <c>"Questionnaire"</c>, <c>"Extension"</c>, <c>"string"</c>.
     /// </summary>
-    private static bool IsKnownFhirType(string typeName, ModelInspector? inspector)
+    private static bool IsKnownFhirType(string typeName, ModelInspector? inspector, IResourceResolver? resolver = null)
     {
+        if (resolver != null && FindStructureDefinitionForType(typeName, resolver) != null)
+            return true;
         if (inspector == null) return false;
         return inspector.FindClassMapping(typeName) != null;
+    }
+
+    /// <summary>
+    /// Looks up a FHIR core StructureDefinition for a bare type name (e.g. <c>"Patient"</c>)
+    /// using the standard <c>http://hl7.org/fhir/StructureDefinition/{typeName}</c> canonical.
+    /// Returns <c>null</c> when the resolver is unavailable or the type is not found.
+    /// </summary>
+    private static StructureDefinition? FindStructureDefinitionForType(string typeName, IResourceResolver? resolver)
+    {
+        if (resolver is null || string.IsNullOrEmpty(typeName)) return null;
+        // Avoid double-lookup when already a URL.
+        if (IsAbsoluteUrl(typeName))
+            return resolver.FindStructureDefinition(typeName);
+        return resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + typeName);
     }
 
     /// <summary>
@@ -2869,10 +3027,12 @@ public static class FshCompiler
     /// Otherwise:
     /// 1. The name is looked up in the specification-zip canonicals index as
     ///    <c>"StructureDefinition#{name}"</c>.
-    /// 2. If the model inspector recognises it as a FHIR core type, the canonical is constructed
+    /// 2. The resolver is used to look up the canonical URL directly from the StructureDefinition
+    ///    (preferred, no version-specific inspector required).
+    /// 3. If the model inspector recognises it as a FHIR core type, the canonical is constructed
     ///    as <c>http://hl7.org/fhir/StructureDefinition/{name}</c>.
-    /// 3. If a compiled StructureDefinition with this name/id has been registered, its URL is used.
-    /// 4. Falls back to constructing a URL using the IG canonical base for non-base-FHIR names.
+    /// 4. If a compiled StructureDefinition with this name/id has been registered, its URL is used.
+    /// 5. Falls back to constructing a URL using the IG canonical base for non-base-FHIR names.
     /// </summary>
     private static string ResolveBaseDefinitionCanonical(
         string resolvedName, string fallbackTypeName, CompilerContext context, CompilerOptions? opts = null)
@@ -2884,9 +3044,17 @@ public static class FshCompiler
         if (context.CanonicalsFromSpecificationZip.TryGetValue(specKey, out var specCanonical))
             return specCanonical;
 
-        // For known FHIR core types (e.g. Patient, Questionnaire, Extension), construct
-        // the standard canonical URL directly from the model inspector.
         var inspector = opts?.Inspector;
+        var resolver = opts?.Resolver;
+
+        // Preferred: use the resolver to find the canonical URL from the StructureDefinition itself.
+        if (resolver != null)
+        {
+            var sd = FindStructureDefinitionForType(resolvedName, resolver);
+            if (sd?.Url != null) return sd.Url;
+        }
+
+        // Fall back to inspector for known FHIR core types.
         if (inspector != null && inspector.FindClassMapping(resolvedName) != null)
         {
             var coreCanonical = inspector.CanonicalUriForFhirCoreType(resolvedName);
