@@ -1685,14 +1685,16 @@ public static class FshCompiler
 
     /// <summary>
     /// Resolves choice-type ordering by navigating the base StructureDefinition's element list.
-    /// Strips slice names from the path segments, constructs the full canonical path, and
-    /// looks for the element in the snapshot (preferred) or differential.
+    /// Strips slice names and array indices from the path segments, constructs the full canonical
+    /// path, and looks for the element in the snapshot (preferred, as it contains all inherited
+    /// elements) or differential (fallback for non-expanded SDs).
     /// Returns <c>null</c> when the element or its types cannot be resolved.
     /// </summary>
     private static Dictionary<string, int>? GetChoiceTypeOrderFromResolver(
         string path, string sdType, IResourceResolver resolver)
     {
-        // Strip slice names and array indices from path segments to get a clean element path.
+        // Strip slice names (colon syntax) and array indices from path segments.
+        // Example: "item:condition.answerOption.value[x]" → "item.answerOption.value[x]"
         static string StripSlicesAndIndices(string rawPath)
         {
             var segs = rawPath.Split('.');
@@ -1713,6 +1715,7 @@ public static class FshCompiler
         // Walk the path segment by segment. Each segment may belong to a different
         // StructureDefinition (e.g. when the path goes through an 'extension' segment,
         // we follow into the Extension SD).
+        // segIndex advances by one per outer iteration, so the loop is always finite.
         var segments = cleanPath.Split('.');
         var currentType = sdType;
         var segIndex = 0;
@@ -1725,7 +1728,8 @@ public static class FshCompiler
             var typeSd = FindStructureDefinitionForType(currentType, resolver);
             if (typeSd == null) return null;
 
-            // Look in snapshot first, then differential.
+            // Snapshot is preferred because it contains all inherited elements.
+            // Differential is used as fallback for SDs that have not been expanded.
             var elements = (IList<ElementDefinition>?)typeSd.Snapshot?.Element ?? typeSd.Differential?.Element;
             if (elements == null) return null;
 
@@ -1749,6 +1753,9 @@ public static class FshCompiler
 
             // Exact match not found at this level — navigate one step by following the
             // current segment's element type into a nested SD.
+            // When the element is polymorphic (multiple types), we follow Type[0] because
+            // we're navigating intermediate path segments, not a final choice element.
+            // The final element is found by the exact-match check above.
             var parentPath = currentType + "." + seg;
             var parentEl = elements.FirstOrDefault(e => e.Path == parentPath);
             if (parentEl == null || parentEl.Type == null || parentEl.Type.Count == 0) return null;
@@ -2987,6 +2994,8 @@ public static class FshCompiler
 
     /// <summary>
     /// Rewrites <see cref="ElementDefinition.Path"/> and <see cref="ElementDefinition.ElementId"/>
+    /// for all elements whose path starts with <paramref name="oldPrefix"/> followed by <c>'.'</c>
+    /// or exactly equals <paramref name="oldPrefix"/> (root element).
     /// </summary>
     private static void RewriteElementPathPrefixes(
         StructureDefinition sd, string oldPrefix, string newPrefix)

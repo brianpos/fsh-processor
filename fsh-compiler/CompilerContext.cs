@@ -163,6 +163,7 @@ public class CompilerContext
         if (sd is null && !typeName.Contains("://", StringComparison.Ordinal))
             sd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + typeName);
 
+        // Track visited BaseDefinition URLs to prevent infinite loops in circular SD chains.
         var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
 
         while (sd is not null)
@@ -180,7 +181,7 @@ public class CompilerContext
                     return sd.Type;
             }
 
-            // Walk the BaseDefinition chain.
+            // Walk the BaseDefinition chain; break on cycle or missing base.
             if (string.IsNullOrEmpty(sd.BaseDefinition)) break;
             if (!visited.Add(sd.BaseDefinition)) break;
 
@@ -189,7 +190,6 @@ public class CompilerContext
 
         return null;
     }
-
 
     /// <summary>
     /// When <paramref name="typeName"/> is a profile identifier rather than a bare FHIR resource
