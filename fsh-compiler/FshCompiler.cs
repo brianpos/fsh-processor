@@ -290,7 +290,7 @@ public static class FshCompiler
                         continue;
                     }
 
-                    ApplyMappingToSD(mapping, targetSd, context);
+                    ApplyMappingToSD(mapping, targetSd, context, opts);
                     continue;
                 }
 
@@ -372,6 +372,27 @@ public static class FshCompiler
         // Only use the stripped name when it is a recognised type; otherwise fall back to
         // the pre-alias-resolution name so profiles-of-profiles don't produce a bogus type.
         var typeValue = ExtractBareTypeName(resolvedParent, parentTypeName, opts.Inspector);
+        if (!IsKnownFhirType(typeValue, opts.Inspector))
+        {
+            if (opts.Inspector != null)
+            {
+                var ar = new AliasResolver(context.CompiledStructureDefinitions);
+                IResourceResolver imr = opts.Resolver == null ? ar : new MultiResolver(ar, opts.Resolver);
+                var classMap = context.ResolveClassMappingForProfile(resolvedParent, opts.Inspector, imr, out _);
+                if (classMap != null)
+                    typeValue = classMap.Name;
+            }
+
+            var byUrl = context.CompiledStructureDefinitions
+                .Values
+                .Where(s => !string.IsNullOrEmpty(s.Url))
+                .GroupBy(s => s.Url!, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+            var resolvedType = ResolveUnderlyingFhirType(typeValue, context, opts, byUrl, depth: 0);
+            if (!string.IsNullOrEmpty(resolvedType))
+                typeValue = resolvedType;
+        }
 
         var kind = InferKindFromType(typeValue, opts.Inspector);
 
@@ -411,6 +432,8 @@ public static class FshCompiler
         sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type, ElementId = sd.Type });
 
         ApplySdRules(profile.Rules, sd, context, opts);
+        RemoveRedundantCardinalityAgainstBase(sd, context, opts);
+        RemoveNoOpScaffoldElements(sd);
         return sd;
     }
 
@@ -861,6 +884,8 @@ public static class FshCompiler
         }
 
         ApplySdRules(logical.Rules, sd, context, opts);
+        RemoveRedundantCardinalityAgainstBase(sd, context, opts);
+        RemoveNoOpScaffoldElements(sd);
         return sd;
     }
 
@@ -897,6 +922,8 @@ public static class FshCompiler
         sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type, ElementId = sd.Type });
 
         ApplySdRules(fshResource.Rules, sd, context, opts);
+        RemoveRedundantCardinalityAgainstBase(sd, context, opts);
+        RemoveNoOpScaffoldElements(sd);
         return sd;
     }
 
@@ -1132,12 +1159,14 @@ public static class FshCompiler
             {
                 effectivePath = string.IsNullOrEmpty(rule.Path)
                     ? parentPath               // caret/obeys rule with no element path → inherits parent
-                    : $"{parentPath}.{rule.Path}";
+                    : CombineFshPaths(parentPath, rule.Path);
             }
             else
             {
                 effectivePath = rule.Path;
             }
+
+            effectivePath = NormalizeComposedPath(effectivePath);
 
             // Push this rule as potential context for deeper children.
             if (!string.IsNullOrEmpty(effectivePath))
@@ -1154,6 +1183,23 @@ public static class FshCompiler
                 yield return clone ?? rule;
             }
         }
+    }
+
+    private static string CombineFshPaths(string parentPath, string childPath)
+    {
+        if (string.IsNullOrEmpty(parentPath)) return childPath;
+        if (string.IsNullOrEmpty(childPath)) return NormalizeComposedPath(parentPath);
+
+        var parent = parentPath.TrimEnd('.');
+        var child = childPath.TrimStart('.');
+        return $"{parent}.{child}";
+    }
+
+    private static string NormalizeComposedPath(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return path ?? string.Empty;
+        if (path == ".") return path;
+        return path.TrimEnd('.');
     }
 
     private static void ApplySdRules(
@@ -1197,7 +1243,7 @@ public static class FshCompiler
                     break;
 
                 case ContainsRule containsRule:
-                    ApplyContainsRule(containsRule, sd, context);
+                    ApplyContainsRule(containsRule, sd, context, opts);
                     break;
 
                 case OnlyRule onlyRule:
@@ -1224,7 +1270,7 @@ public static class FshCompiler
                             {
                                 if (string.IsNullOrEmpty(r.Path))
                                     return r;
-                                var clone = CloneRuleWithPath(r, $"{pathPrefix}.{r.Path}");
+                                var clone = CloneRuleWithPath(r, CombineFshPaths(pathPrefix, r.Path));
                                 return clone ?? r;
                             }).ToList();
                             ApplySdRules(prefixed, sd, context, opts);
@@ -1348,7 +1394,7 @@ public static class FshCompiler
         }
     }
 
-    private static void ApplyContainsRule(ContainsRule containsRule, StructureDefinition sd, CompilerContext context)
+    private static void ApplyContainsRule(ContainsRule containsRule, StructureDefinition sd, CompilerContext context, CompilerOptions? opts = null)
     {
         if (string.IsNullOrEmpty(containsRule.Path) || containsRule.Items.Count == 0) return;
 
@@ -1427,10 +1473,25 @@ public static class FshCompiler
             if (item.NamedAlias != null)
             {
                 var resolvedType = context.ResolveAlias(item.Name);
-                sliceEd.Type =
-                [
-                    new ElementDefinition.TypeRefComponent { Code = resolvedType }
-                ];
+                if (isExtensionPath)
+                {
+                    var resolvedProfile = ResolveBaseDefinitionCanonical(resolvedType, item.Name, context, opts);
+                    sliceEd.Type =
+                    [
+                        new ElementDefinition.TypeRefComponent
+                        {
+                            Code = "Extension",
+                            Profile = [resolvedProfile]
+                        }
+                    ];
+                }
+                else
+                {
+                    sliceEd.Type =
+                    [
+                        new ElementDefinition.TypeRefComponent { Code = resolvedType }
+                    ];
+                }
             }
         }
     }
@@ -2563,6 +2624,142 @@ public static class FshCompiler
             }
         }
     }
+
+    /// <summary>
+    /// Removes differential elements that contain no constraints beyond identity/path and only
+    /// exist as scaffolding parents for child element changes.
+    /// </summary>
+    private static void RemoveNoOpScaffoldElements(StructureDefinition sd)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null || elements.Count == 0) return;
+
+        var toRemove = elements
+            .Where(ed => IsNoOpScaffoldElement(ed, elements, sd.Type ?? string.Empty))
+            .ToList();
+
+        foreach (var ed in toRemove)
+            elements.Remove(ed);
+    }
+
+    private static bool IsNoOpScaffoldElement(
+        ElementDefinition ed,
+        List<ElementDefinition> allElements,
+        string rootType)
+    {
+        if (ed.Path == null || ed.ElementId == null) return false;
+        if (!string.IsNullOrEmpty(ed.SliceName)) return false;
+        if (!string.Equals(ed.Path, ed.ElementId, StringComparison.Ordinal)) return false;
+        if (string.Equals(ed.Path, rootType, StringComparison.Ordinal)) return false;
+
+        var hasChildren = allElements.Any(child =>
+            !ReferenceEquals(child, ed)
+            && child.Path != null
+            && child.Path.StartsWith(ed.Path + ".", StringComparison.Ordinal));
+        if (!hasChildren) return false;
+
+        var hasMeaningfulContent =
+            !string.IsNullOrEmpty(ed.Short)
+            || !string.IsNullOrEmpty(ed.Definition)
+            || !string.IsNullOrEmpty(ed.Comment)
+            || !string.IsNullOrEmpty(ed.Requirements)
+            || ed.Slicing != null
+            || ed.Binding != null
+            || ed.Type?.Count > 0
+            || ed.Constraint?.Count > 0
+            || ed.Mapping?.Count > 0
+            || ed.Extension?.Count > 0
+            || ed.MinElement != null
+            || ed.MaxElement != null
+            || ed.MustSupportElement != null
+            || ed.IsModifierElement != null
+            || ed.IsSummaryElement != null
+            || ed.Fixed != null
+            || ed.Pattern != null
+            || ed.DefaultValue != null
+            || ed.Example?.Count > 0;
+
+        return !hasMeaningfulContent;
+    }
+
+    /// <summary>
+    /// Removes cardinality values from differential elements when they are identical to the
+    /// inherited cardinality on the corresponding base profile element.
+    /// </summary>
+    private static void RemoveRedundantCardinalityAgainstBase(
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null || elements.Count == 0) return;
+        if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
+
+        foreach (var ed in elements)
+        {
+            if (!string.IsNullOrEmpty(ed.SliceName)) continue;
+            if (ed.MinElement == null && ed.MaxElement == null) continue;
+
+            var baseEd = ResolveBaseElement(sd, ed, context, opts);
+            if (baseEd == null) continue;
+
+            if (ed.MinElement != null && ed.Min == baseEd.Min)
+                ed.MinElement = null;
+
+            if (ed.MaxElement != null && string.Equals(ed.Max, baseEd.Max, StringComparison.Ordinal))
+                ed.MaxElement = null;
+        }
+    }
+
+    private static ElementDefinition? ResolveBaseElement(
+        StructureDefinition sd,
+        ElementDefinition ed,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (string.IsNullOrEmpty(sd.BaseDefinition) || string.IsNullOrEmpty(ed.Path)) return null;
+
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) return null;
+
+            var basePath = RewritePathRoot(ed.Path, sd.Type, baseSd.Type);
+            var match = (baseSd.Snapshot?.Element ?? baseSd.Differential?.Element)
+                ?.FirstOrDefault(e => e.Path == basePath && string.IsNullOrEmpty(e.SliceName));
+            if (match != null) return match;
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return null;
+    }
+
+    private static StructureDefinition? ResolveStructureDefinition(
+        string canonical,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (context.CompiledStructureDefinitions.TryGetValue(canonical, out var compiled))
+            return compiled;
+
+        return opts.Resolver?.FindStructureDefinition(canonical);
+    }
+
+    private static string RewritePathRoot(string path, string? fromRoot, string? toRoot)
+    {
+        if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(fromRoot) || string.IsNullOrEmpty(toRoot))
+            return path;
+
+        if (path == fromRoot) return toRoot;
+        if (path.StartsWith(fromRoot + ".", StringComparison.Ordinal))
+            return toRoot + path[fromRoot.Length..];
+        return path;
+    }
+
     /// <summary>
     /// Walks the profile chain to find the underlying FHIR base type.
     /// Returns the FHIR type name (e.g. <c>"Questionnaire"</c>) or <c>null</c> when unresolvable.
@@ -2589,9 +2786,18 @@ public static class FshCompiler
 
         if (parentSd != null)
         {
-            if (parentSd.Type == null) return null;
-            if (IsKnownFhirType(parentSd.Type, opts.Inspector)) return parentSd.Type;
-            return ResolveUnderlyingFhirType(parentSd.Type, context, opts, byUrl, depth + 1);
+            if (!string.IsNullOrEmpty(parentSd.Type))
+            {
+                if (IsKnownFhirType(parentSd.Type, opts.Inspector)) return parentSd.Type;
+
+                var resolvedFromType = ResolveUnderlyingFhirType(parentSd.Type, context, opts, byUrl, depth + 1);
+                if (!string.IsNullOrEmpty(resolvedFromType)) return resolvedFromType;
+            }
+
+            if (!string.IsNullOrEmpty(parentSd.BaseDefinition))
+                return ResolveUnderlyingFhirType(parentSd.BaseDefinition, context, opts, byUrl, depth + 1);
+
+            return null;
         }
 
         // Fall back to the resolver for profiles from external sources (e.g. specification.zip).
@@ -3218,7 +3424,7 @@ public static class FshCompiler
     /// </list>
     /// </summary>
     private static void ApplyMappingToSD(
-        fsh_processor.Models.Mapping mapping, StructureDefinition sd, CompilerContext context)
+        fsh_processor.Models.Mapping mapping, StructureDefinition sd, CompilerContext context, CompilerOptions? opts = null)
     {
         // Register the mapping identity on the StructureDefinition.
         var identity = mapping.Id ?? mapping.Name;
@@ -3252,6 +3458,53 @@ public static class FshCompiler
                 Map = mapRule.Target,
                 Language = mapRule.Language
             });
+        }
+
+        ReorderDifferentialByBasePath(sd, context, opts);
+    }
+
+    private static void ReorderDifferentialByBasePath(
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions? opts)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null || elements.Count <= 1) return;
+        if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
+
+        var baseSd = ResolveStructureDefinition(sd.BaseDefinition, context, opts ?? new CompilerOptions());
+        if (baseSd == null) return;
+
+        var baseElements = baseSd.Snapshot?.Element ?? baseSd.Differential?.Element;
+        if (baseElements == null || baseElements.Count == 0) return;
+
+        var basePathOrder = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < baseElements.Count; i++)
+        {
+            var p = baseElements[i].Path;
+            if (!string.IsNullOrEmpty(p) && !basePathOrder.ContainsKey(p))
+                basePathOrder[p] = i;
+        }
+
+        var currentRoot = sd.Type ?? string.Empty;
+        var baseRoot = baseSd.Type ?? currentRoot;
+
+        var reordered = elements
+            .Select((ed, idx) => new
+            {
+                Element = ed,
+                Index = idx,
+                BasePath = RewritePathRoot(ed.Path ?? string.Empty, currentRoot, baseRoot)
+            })
+            .OrderBy(x => basePathOrder.TryGetValue(x.BasePath, out var order) ? order : int.MaxValue)
+            .ThenBy(x => x.Index)
+            .Select(x => x.Element)
+            .ToList();
+
+        if (!reordered.SequenceEqual(elements))
+        {
+            elements.Clear();
+            elements.AddRange(reordered);
         }
     }
 

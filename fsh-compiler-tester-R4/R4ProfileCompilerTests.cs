@@ -843,9 +843,15 @@ public class R4ProfileCompilerTests
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyPatient");
         var sliceEd = CompilerTestHelper.GetSliceElement(sd, "extension", "myExt");
+        Assert.AreEqual("myExt", sliceEd.SliceName);
         Assert.IsNotNull(sliceEd.Type, "Slice element should have Type set");
         Assert.AreEqual(1, sliceEd.Type.Count);
-        Assert.AreEqual("http://example.org/StructureDefinition/myExt", sliceEd.Type[0].Code);
+        // Per FHIR: a profiled extension slice uses type.code = "Extension" with the
+        // extension's canonical URL carried in type.profile.
+        Assert.AreEqual("Extension", sliceEd.Type[0].Code);
+        Assert.AreEqual(
+            "http://example.org/StructureDefinition/myExt",
+            sliceEd.Type[0].Profile.Single());
     }
 
     [TestMethod]

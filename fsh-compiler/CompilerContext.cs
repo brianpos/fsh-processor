@@ -134,6 +134,7 @@ public class CompilerContext
         CompiledStructureDefinitions.TryAdd(entityName, sd);
         if (!string.IsNullOrEmpty(sd.Url))
         {
+            CompiledStructureDefinitions.TryAdd(sd.Url, sd);
             var lastSlash = sd.Url.LastIndexOf('/');
             var urlSegment = lastSlash >= 0 ? sd.Url[(lastSlash + 1)..] : sd.Url;
             CompiledStructureDefinitions.TryAdd(urlSegment, sd);
