@@ -43,7 +43,9 @@ public static class FhirValueMapper
         value switch
         {
             StringValue sv => new FhirString(NormalizeLineEndings(sv.Value)),
-            NumberValue nv => new FhirDecimal(nv.Value),
+            // Normalize whole-number decimals (e.g. 0.0 → 0, 1.0 → 1) to match sushi's
+            // JSON serialisation behaviour, which omits the trailing decimal point.
+            NumberValue nv => new FhirDecimal(nv.Value == decimal.Truncate(nv.Value) ? decimal.Truncate(nv.Value) : nv.Value),
             BooleanValue bv => new FhirBoolean(bv.Value),
             DateTimeValue dtv => new FhirDateTime(dtv.Value),
             TimeValue tv => new Time(tv.Value),
