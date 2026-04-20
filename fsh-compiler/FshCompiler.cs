@@ -418,7 +418,10 @@ public static class FshCompiler
                 typeValue = resolvedType;
         }
 
-        var kind = InferKindFromType(typeValue, opts.Inspector, opts.Resolver);
+        // C-PR3: Use the merged resolver (compiled SDs + external) so that profiles-of-profiles
+        // resolve the correct Kind (e.g. a profile of an in-IG profile that ultimately profiles
+        // a core resource type gets Kind=Resource, not Kind=ComplexType).
+        var kind = InferKindFromType(typeValue, opts.Inspector, mergedResolver);
 
         var sd = new StructureDefinition
         {
