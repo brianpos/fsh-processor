@@ -503,6 +503,18 @@ public static class FhirCaretValueWriter
             catch (FormatException) { return null; }
         }
 
+        // Instant — the Firely SDK's Instant type has no string constructor (only DateTimeOffset?).
+        // Parse the FSH string value to DateTimeOffset so the FHIR instant value can be set.
+        if (targetType == typeof(Instant) && fshValue is StringValue instSv)
+        {
+            if (System.DateTimeOffset.TryParse(instSv.Value,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind,
+                    out var dto))
+                return new Instant(dto);
+            return null;
+        }
+
         // Code<TEnum> — use EnumUtility.ParseLiteral so that FHIR kebab-case literals
         // (e.g. "is-a", "grouped-by") are resolved correctly against [EnumLiteral] attributes.
         if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Code<>))
