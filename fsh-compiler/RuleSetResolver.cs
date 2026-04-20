@@ -159,8 +159,14 @@ public static class RuleSetResolver
             // quoting via the # prefix followed by a double-quoted string — they are valid
             // FSH tokens and must NOT be wrapped in [[...]] because DOUBLE_BRACKET_STRING is
             // not accepted in code-value positions by the FSH parser.
+            //
+            // Exception: FSH code values with a system prefix and optional display string
+            // (e.g. CodeSystemCSPHQ9#Not-at-all "Not at all") are also valid FSH tokens
+            // because the display string is properly quoted.  Wrapping in [[...]] would
+            // make the FSH parser treat the whole value as a plain string (StringValue),
+            // silently preventing it from being used as a Coding (e.g. answer.valueCoding).
             if (!value.StartsWith('"') && !value.StartsWith("[[") &&
-                !value.StartsWith("#\"") &&
+                !value.Contains('#') &&
                 value.Any(char.IsWhiteSpace))
             {
                 content = content.Replace($"\"{placeholder}\"", $"\"{value}\"");
