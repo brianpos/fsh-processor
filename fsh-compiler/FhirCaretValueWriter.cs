@@ -272,7 +272,14 @@ public static class FhirCaretValueWriter
         if (classMap is null) return null;
 
         var propMap = classMap.FindMappedElementByName(baseName);
-        if (propMap is null) return null;
+        if (propMap is null)
+        {
+            // Not found by direct name — try interpreting as a choice-type suffix, e.g.
+            // "valueExpression" → base="value", type="Expression".  This allows compound
+            // caret paths such as `^extension.valueExpression.name` to navigate into the
+            // polymorphic value[x] property of an Extension using the JSON-style suffixed name.
+            return TryNavigateChoiceType(parent, baseName, create, activeInspector);
+        }
 
         if (propMap.IsCollection)
         {
@@ -368,6 +375,50 @@ public static class FhirCaretValueWriter
             }
             return current;
         }
+    }
+
+    /// <summary>
+    /// Attempts to navigate into a choice-type property (<c>value[x]</c>) using the JSON-style
+    /// suffixed name (e.g. <c>"valueExpression"</c> → base property <c>"value"</c>, concrete
+    /// type <c>Expression</c>).  When the property is found and a concrete instance is created
+    /// or already present, the instance is returned; otherwise <c>null</c>.
+    /// </summary>
+    private static Base? TryNavigateChoiceType(Base parent, string name, bool create, ModelInspector inspector)
+    {
+        var classMap = inspector.FindClassMapping(parent.GetType());
+        if (classMap is null) return null;
+
+        // Scan from right-to-left; each uppercase letter is a candidate split point where
+        // name[..i] is the base property name and name[i..] is the FHIR type name.
+        for (int i = name.Length - 1; i > 0; i--)
+        {
+            if (!char.IsUpper(name[i])) continue;
+            var baseName   = name[..i];
+            var typeSuffix = name[i..];
+
+            var propMap = classMap.FindMappedElementByName(baseName);
+            if (propMap is null) continue;
+
+            // Verify the suffix is a recognised FHIR type.
+            var typeClassMap = inspector.FindClassMapping(typeSuffix);
+            if (typeClassMap is null) continue;
+
+            // Get the existing value; if absent and create=true, instantiate the concrete type.
+            var current = propMap.GetValue(parent);
+            if (current == null)
+            {
+                if (!create) return null;
+                try
+                {
+                    current = Activator.CreateInstance(typeClassMap.NativeType);
+                    if (current is not null)
+                        propMap.SetValue(parent, current);
+                }
+                catch { return null; }
+            }
+            return current as Base;
+        }
+        return null;
     }
 
     /// <summary>

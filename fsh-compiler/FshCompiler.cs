@@ -468,7 +468,9 @@ public static class FshCompiler
         NormalizeChoiceTypeSlices(sd, parentBaseSd, coreTypeSd, mergedResolver);
 
         RemoveRedundantCardinalityAgainstBase(sd, context, opts);
+        RemoveRedundantTypeConstraints(sd, context, opts);
         RemoveNoOpScaffoldElements(sd);
+        SortDifferentialElementsByCanonicalOrder(sd, opts.Inspector);
         return sd;
     }
 
@@ -895,9 +897,12 @@ public static class FshCompiler
     {
         var opts = options ?? new CompilerOptions();
 
-        // Logical models use the full canonical URL as Type (spec §Logical).
+        // Logical models use the full canonical URL as Type (spec §Logical), but element
+        // paths use the short id so that element ids look like "SdcQuestionLibrary.dob"
+        // rather than "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary.dob".
         var logicalUrl = ResolveUrl(logical.Id, opts, "StructureDefinition");
         var logicalType = !string.IsNullOrEmpty(logicalUrl) ? logicalUrl : logical.Name;
+        var logicalPathPrefix = logical.Id ?? logical.Name;
 
         var sd = new StructureDefinition
         {
@@ -921,7 +926,18 @@ public static class FshCompiler
             }
         };
 
-        sd.Differential.Element.Add(new ElementDefinition(logicalType) { Path = logicalType, ElementId = logicalType });
+        if (opts.FhirVersion != null && sd.FhirVersion == null)
+        {
+            sd.FhirVersion = opts.FhirVersion switch
+            {
+                "4.0.1" or "4.0" => FHIRVersion.N4_0_1,
+                "4.3.0" or "4.3" => FHIRVersion.N4_3_0,
+                "5.0.0" or "5.0" => FHIRVersion.N5_0_0,
+                _ => EnumUtility.ParseLiteral<FHIRVersion>(opts.FhirVersion, ignoreCase: true)
+            };
+        }
+
+        sd.Differential.Element.Add(new ElementDefinition(logicalPathPrefix) { Path = logicalPathPrefix, ElementId = logicalPathPrefix });
 
         // C-LG1: Emit type-characteristics extension for each Characteristics code.
         if (logical.Characteristics.Count > 0)
@@ -1377,9 +1393,14 @@ public static class FshCompiler
         if (string.IsNullOrEmpty(path)) return;
         var ed = GetOrCreateElement(path, sd);
         var parts = cardinality.Split("..");
+        int? newMin = null;
         if (parts.Length == 2)
         {
-            if (int.TryParse(parts[0], out var min)) ed.Min = min;
+            if (int.TryParse(parts[0], out var min))
+            {
+                ed.Min = min;
+                newMin = min;
+            }
             // FSH permits open-ended cardinality (e.g. "1..") which leaves the upper bound
             // implicit.  Sushi omits the max element in that case; an empty string would
             // otherwise serialise as ""max": """ which is invalid FHIR.
@@ -1387,6 +1408,25 @@ public static class FshCompiler
                 ed.Max = parts[1];
         }
         ApplyFlags(ed, flags);
+
+        // When a named extension slice gets a positive minimum cardinality, sushi also
+        // adds (or tightens) the parent (non-sliced) extension element minimum so that FHIR
+        // profiling validity rules are met (parent min ≥ sum of required slice mins).
+        if (newMin > 0 && !string.IsNullOrEmpty(ed.SliceName) && IsExtensionPath(path))
+        {
+            // Derive the parent path by stripping the bracket-index or colon notation.
+            var bracketIdx = path.IndexOf('[');
+            var colonIdx   = path.IndexOf(':');
+            var parentPath = bracketIdx >= 0 ? path[..bracketIdx]
+                           : colonIdx   >= 0 ? path[..colonIdx]
+                           : null;
+            if (parentPath != null)
+            {
+                var parentEd = FindElement(parentPath, sd) ?? GetOrCreateElement(parentPath, sd);
+                if (!parentEd.Min.HasValue || parentEd.Min.Value < newMin.Value)
+                    parentEd.Min = newMin.Value;
+            }
+        }
     }
 
     private static void ApplyFlagRule(FlagRule flagRule, StructureDefinition sd) =>
@@ -1932,6 +1972,11 @@ public static class FshCompiler
             // Only emit a Profile constraint when the name isn't already a bare FHIR resource type.
             var resolvedSd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + resolved)
                           ?? resolver.FindStructureDefinition(resolved);
+
+            // Also look up in-IG compiled SDs (e.g. extension profiles like AssembleExpectation).
+            if (resolvedSd == null)
+                context.CompiledStructureDefinitions.TryGetValue(resolved, out resolvedSd);
+
             var isKnownResource = resolvedSd?.Kind == StructureDefinition.StructureDefinitionKind.Resource
                 || opts.Inspector?.IsKnownResource(resolved) == true;
             if (!isKnownResource && resolvedSd is not null
@@ -2080,6 +2125,12 @@ public static class FshCompiler
         }
         else if (FhirCaretValueWriter.TrySet(ed, path, rule.Value, inspector, aliasResolver))
         {
+            return;
+        }
+        else if (inspector != null && rule.Value != null
+              && FhirCaretValueWriter.TrySetChoiceTypeLeaf(ed, path, rule.Value, inspector, aliasResolver))
+        {
+            // Handles choice-type paths like minValueDate, maxValueDate, etc. on ElementDefinition.
             return;
         }
 
@@ -2558,7 +2609,7 @@ public static class FshCompiler
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
-        var type = sd.Type ?? string.Empty;
+        var type = GetElementPathPrefix(sd);
 
         if (path == ".")
             return sd.Differential.Element.FirstOrDefault(e => e.Path == type && e.SliceName == null);
@@ -2586,7 +2637,7 @@ public static class FshCompiler
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("Path is required", nameof(path));
 
-        var type = sd.Type ?? string.Empty;
+        var type = GetElementPathPrefix(sd);
 
         // Path "." refers to the root element whose path equals the type itself.
         if (path == ".")
@@ -2670,6 +2721,24 @@ public static class FshCompiler
             sd.Differential.Element.Add(ed);
         }
         return ed;
+    }
+
+    /// <summary>
+    /// Returns the element-path prefix to use when building element id/path values for
+    /// a given StructureDefinition.  For logical models the <c>Type</c> property carries
+    /// the full canonical URL, but element paths must use the short id (e.g.
+    /// <c>SdcQuestionLibrary</c> rather than
+    /// <c>http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary</c>).
+    /// </summary>
+    private static string GetElementPathPrefix(StructureDefinition sd)
+    {
+        if (sd.Kind == StructureDefinition.StructureDefinitionKind.Logical
+            && !string.IsNullOrEmpty(sd.Id)
+            && (sd.Type?.Contains('/') ?? false))
+        {
+            return sd.Id;
+        }
+        return sd.Type ?? string.Empty;
     }
 
     /// <summary>
@@ -2873,7 +2942,7 @@ public static class FshCompiler
         var elements = sd.Differential?.Element;
         if (elements == null || elements.Count == 0) return;
 
-        var rootType = sd.Type ?? string.Empty;
+        var rootType = GetElementPathPrefix(sd);
 
         var toRemove = elements
             .Where(ed => IsNoOpScaffoldElement(ed, elements, rootType))
@@ -2937,6 +3006,90 @@ public static class FshCompiler
             || ed.Example?.Count > 0;
 
         return !hasMeaningfulContent;
+    }
+
+    /// <summary>
+    /// Known canonical positions of FHIR base resource elements (Resource + DomainResource)
+    /// used to ensure differential elements are sorted before extension slices.
+    /// </summary>
+    private static readonly Dictionary<string, int> _fhirBaseElementOrder =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["id"]               = 0,
+            ["meta"]             = 1,
+            ["implicitRules"]    = 2,
+            ["language"]         = 3,
+            ["text"]             = 4,
+            ["contained"]        = 5,
+            ["extension"]        = 6,
+            ["modifierExtension"]= 7,
+        };
+
+    /// <summary>
+    /// Sorts the differential elements of a profile into canonical FHIR path order.
+    /// Base Resource / DomainResource elements (id, meta, text, contained, extension, etc.)
+    /// are ordered canonically before resource-specific elements, which retain their
+    /// relative FSH source order.  The root element is always kept at position 0.
+    /// Slices of the same parent retain their relative order within the parent group.
+    /// </summary>
+    private static void SortDifferentialElementsByCanonicalOrder(
+        StructureDefinition sd, ModelInspector? inspector)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null || elements.Count <= 1) return;
+
+        // Build canonical index: try ModelInspector first, fall back to the known base table.
+        var canonicalIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var sdType = sd.Type ?? string.Empty;
+
+        var classMap = inspector?.FindClassMapping(sdType);
+        if (classMap != null)
+        {
+            for (int i = 0; i < classMap.PropertyMappings.Count; i++)
+                canonicalIndex.TryAdd(classMap.PropertyMappings[i].Name, i);
+        }
+
+        // Always seed the base Resource/DomainResource entries from the known order table
+        // so that "contained" and "extension" are correctly ordered even when the
+        // inspector doesn't find the class mapping.
+        foreach (var (name, pos) in _fhirBaseElementOrder)
+            canonicalIndex.TryAdd(name, pos);
+
+        var pathPrefix = GetElementPathPrefix(sd);
+
+        var indexed = elements.Select((el, idx) => (el, idx)).ToList();
+        var sorted = indexed
+            .OrderBy(x =>
+            {
+                // Root element always first.
+                if (string.Equals(x.el.Path, pathPrefix, StringComparison.Ordinal)
+                    && string.IsNullOrEmpty(x.el.SliceName))
+                    return -1;
+
+                // Get the immediate child name below the root type prefix.
+                var basePath = x.el.Path ?? string.Empty;
+                string childName;
+                if (!string.IsNullOrEmpty(sdType) && basePath.StartsWith(sdType + ".", StringComparison.Ordinal))
+                {
+                    var rest = basePath[(sdType.Length + 1)..];
+                    var dot = rest.IndexOf('.');
+                    childName = dot >= 0 ? rest[..dot] : rest;
+                }
+                else
+                {
+                    childName = basePath;
+                }
+
+                return canonicalIndex.TryGetValue(childName, out var pos) ? pos : int.MaxValue;
+            })
+            .ThenBy(x => !string.IsNullOrEmpty(x.el.SliceName) ? 1 : 0)
+            .ThenBy(x => x.idx)
+            .Select(x => x.el)
+            .ToList();
+
+        elements.Clear();
+        foreach (var el in sorted)
+            elements.Add(el);
     }
 
     /// <summary>
@@ -3199,7 +3352,7 @@ public static class FshCompiler
         foreach (var ed in elements)
         {
             if (!string.IsNullOrEmpty(ed.SliceName)) continue;
-            if (ed.MinElement == null && ed.MaxElement == null) continue;
+            if (ed.MinElement == null && ed.MaxElement == null && ed.MustSupportElement == null) continue;
 
             var baseEd = ResolveBaseElement(sd, ed, context, opts);
             if (baseEd == null) continue;
@@ -3209,7 +3362,57 @@ public static class FshCompiler
 
             if (ed.MaxElement != null && string.Equals(ed.Max, baseEd.Max, StringComparison.Ordinal))
                 ed.MaxElement = null;
+
+            // Remove redundant mustSupport when it matches the base element.
+            if (ed.MustSupportElement != null && ed.MustSupport == baseEd.MustSupport)
+                ed.MustSupportElement = null;
         }
+    }
+
+    /// <summary>
+    /// Removes type constraints from differential elements when they are identical to the
+    /// inherited type on the corresponding base profile element.  This prevents redundant
+    /// <c>only X</c> constraints from appearing in the differential when the parent already
+    /// declares the same type.
+    /// </summary>
+    private static void RemoveRedundantTypeConstraints(
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null || elements.Count == 0) return;
+        if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
+
+        foreach (var ed in elements)
+        {
+            if (ed.Type == null || ed.Type.Count == 0) continue;
+
+            var baseEd = ResolveBaseElement(sd, ed, context, opts);
+            if (baseEd == null || baseEd.Type == null || baseEd.Type.Count == 0) continue;
+
+            if (AreTypeListsEquivalent(ed.Type, baseEd.Type))
+                ed.Type = null;
+        }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when two type-ref lists describe the same type constraints
+    /// (same codes, profiles and target profiles, order-insensitive).
+    /// </summary>
+    private static bool AreTypeListsEquivalent(
+        List<ElementDefinition.TypeRefComponent> a,
+        List<ElementDefinition.TypeRefComponent> b)
+    {
+        if (a.Count != b.Count) return false;
+
+        // Build a stable key for each type ref for comparison.
+        static string TypeRefKey(ElementDefinition.TypeRefComponent t) =>
+            $"{t.Code}|{string.Join(",", (t.Profile ?? []).Order())}|{string.Join(",", (t.TargetProfile ?? []).Order())}";
+
+        var aKeys = a.Select(TypeRefKey).Order().ToList();
+        var bKeys = b.Select(TypeRefKey).Order().ToList();
+        return aKeys.SequenceEqual(bKeys, StringComparer.Ordinal);
     }
 
     private static ElementDefinition? ResolveBaseElement(
