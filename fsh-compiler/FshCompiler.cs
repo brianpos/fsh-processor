@@ -4115,14 +4115,8 @@ public static class FshCompiler
         if (a.Count != b.Count) return false;
 
         // Build a stable key for each type ref for comparison.
-        // When the compiled type (a) has no profiles/targetProfiles, treat it as equivalent
-        // to any base (b) type with the same code regardless of the base's profiles —
-        // because `Reference` (no target) in FSH means "any reference", which is the same
-        // as the base's `Reference(Resource)` or similar unconstrained base types.
-        static string TypeRefKey(ElementDefinition.TypeRefComponent t, bool ignoreProfiles) =>
-            ignoreProfiles
-                ? t.Code ?? string.Empty
-                : $"{t.Code}|{string.Join(",", (t.Profile ?? []).Order())}|{string.Join(",", (t.TargetProfile ?? []).Order())}";
+        static string TypeRefKey(ElementDefinition.TypeRefComponent t) =>
+            $"{t.Code}|{string.Join(",", (t.Profile ?? []).Order())}|{string.Join(",", (t.TargetProfile ?? []).Order())}";
 
         // Sort by code to compare sets irrespective of order.
         var aSorted = a.OrderBy(x => x.Code, StringComparer.Ordinal).ToList();
@@ -4133,18 +4127,28 @@ public static class FshCompiler
             var ai = aSorted[i];
             var bi = bSorted[i];
 
+            if (!string.Equals(ai.Code, bi.Code, StringComparison.Ordinal)) return false;
+
             // When the compiled type has no profile/targetProfile constraints, treat it as
-            // equivalent to the base type with the same code (profile-unaware comparison).
+            // equivalent to the base type when the base's profiles are all abstract "any"
+            // sentinels (e.g. Reference(Resource)).  This handles the common case where
+            // FSH writes `only Reference` (no target) and the base has Reference(Resource),
+            // which FHIR uses to indicate "Reference to any resource" — semantically identical.
             var aHasProfiles = (ai.Profile?.Any() ?? false) || (ai.TargetProfile?.Any() ?? false);
             if (!aHasProfiles)
             {
-                // Only code equality needed — any base profile (e.g. Reference(Resource)) is
-                // compatible with an unconstrained FSH type.
-                if (!string.Equals(ai.Code, bi.Code, StringComparison.Ordinal)) return false;
+                // Accept the base as equivalent when it also has no profiles, or when its
+                // targetProfiles consist exclusively of the abstract FHIR Resource type.
+                var bProfiles = (bi.Profile ?? []).Concat(bi.TargetProfile ?? []).ToList();
+                var bIsUnconstrained = bProfiles.Count == 0
+                    || bProfiles.All(u => string.Equals(u,
+                        "http://hl7.org/fhir/StructureDefinition/Resource",
+                        StringComparison.Ordinal));
+                if (!bIsUnconstrained) return false;
             }
             else
             {
-                if (TypeRefKey(ai, false) != TypeRefKey(bi, false)) return false;
+                if (TypeRefKey(ai) != TypeRefKey(bi)) return false;
             }
         }
         return true;
