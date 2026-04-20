@@ -1694,12 +1694,12 @@ public static class FshCompiler
         // use it as the primary sort key so that e.g. `only Quantity or string` on
         // Observation.value[x] serialises in the order declared by the base element.
         //
-        // Special case: when the base element is "any DataType" (e.g. Extension.value[x]
-        // in R4, whose FhirType resolves to the abstract DataType base class), sushi falls
-        // back to alphabetical ordering within each type group (primitives first, then
-        // complex datatypes).
+        // Special case: when the path targets a named extension slice (e.g. extension[adheresTo].value[x]),
+        // sushi looks up the specific named extension's SD for type ordering.  When that extension SD
+        // cannot be resolved (e.g. it is from an external package not in the local resolver), sushi
+        // preserves the FSH source order instead of alphabetical.
         var typeRefs = onlyRule.TargetTypes.Select(tt => ParseTypeRef(tt, context, opts)).ToList();
-        var baseOrder = GetBaseChoiceTypeOrder(onlyRule.Path, sd, opts?.Inspector, opts?.Resolver);
+        var (baseOrder, useSourceOrder) = GetBaseChoiceTypeOrder(onlyRule.Path, sd, opts?.Inspector, opts?.Resolver);
         if (baseOrder != null && baseOrder.Count > 1)
         {
             ed.Type = typeRefs
@@ -1710,9 +1710,15 @@ public static class FshCompiler
                 .Select(x => x.t)
                 .ToList();
         }
+        else if (useSourceOrder)
+        {
+            // An external named extension was detected whose SD cannot be resolved.
+            // Preserve FSH source order, matching sushi's behaviour.
+            ed.Type = typeRefs;
+        }
         else
         {
-            // Fallback: primitive datatypes (lowercase initial) before complex datatypes /
+            // General fallback: primitive datatypes (lowercase initial) before complex datatypes /
             // resources (uppercase initial), then alphabetical by type code within each group.
             // Matches sushi's behaviour for "any DataType" elements like Extension.value[x].
             ed.Type = typeRefs
@@ -1727,27 +1733,45 @@ public static class FshCompiler
 
     /// <summary>
     /// Resolves the base element's declared choice-type ordering for <paramref name="path"/>
-    /// on <paramref name="sd"/>.  Returns a dictionary mapping FHIR type name → zero-based
-    /// index in the element's <c>type</c> array, or <c>null</c> when the path or
-    /// resolver/inspector cannot be resolved.
+    /// on <paramref name="sd"/>.  Returns a tuple:
+    /// <list type="bullet">
+    ///   <item><description><c>Order != null</c> — use this ordering.</description></item>
+    ///   <item><description><c>Order == null, UseSourceOrder = true</c> — an external named
+    ///     extension was detected but could not be resolved; caller should use FSH source order.</description></item>
+    ///   <item><description><c>Order == null, UseSourceOrder = false</c> — general fallback;
+    ///     caller should use alphabetical-within-tier ordering.</description></item>
+    /// </list>
     /// Prefers the <paramref name="resolver"/> (StructureDefinition-based navigation) and
     /// falls back to the <paramref name="inspector"/> (ModelInspector-based walk) when the
     /// resolver is unavailable or does not find the element.
+    /// When the path includes an external extension slice (e.g. <c>extension[adheresTo].value[x]</c>)
+    /// whose SD cannot be resolved, returns <c>(null, true)</c> so the caller preserves FSH source order.
     /// </summary>
-    private static Dictionary<string, int>? GetBaseChoiceTypeOrder(
+    private static (Dictionary<string, int>? Order, bool UseSourceOrder) GetBaseChoiceTypeOrder(
         string path, StructureDefinition sd, ModelInspector? inspector, IResourceResolver? resolver = null)
     {
+        // When the path targets a specific named extension slice (e.g. extension[adheresTo].value[x]),
+        // try to resolve the named extension's SD directly and return its value[x] type ordering.
+        // If a named external extension exists as a slice with a type.profile but cannot be
+        // resolved, return (null, true) so the caller uses FSH source order (not the generic
+        // Extension.value[x] 50-type ordering which would produce wrong results).
+        if (resolver != null)
+        {
+            var namedExtResult = GetChoiceTypeOrderForNamedExtensionSlice(path, sd, resolver);
+            if (namedExtResult.Resolved) return (namedExtResult.Order, namedExtResult.Order == null);  // unresolvable external → UseSourceOrder=true
+        }
+
         // Preferred: resolver-based lookup using StructureDefinition element lists.
         if (resolver != null && !string.IsNullOrEmpty(sd.Type))
         {
             var result = GetChoiceTypeOrderFromResolver(path, sd.Type, resolver);
-            if (result != null) return result;
+            if (result != null) return (result, false);
         }
 
         // Fallback: ModelInspector-based property walk.
-        if (inspector is null || string.IsNullOrEmpty(sd.Type)) return null;
+        if (inspector is null || string.IsNullOrEmpty(sd.Type)) return (null, false);
         var current = inspector.FindClassMapping(sd.Type);
-        if (current is null) return null;
+        if (current is null) return (null, false);
 
         var segments = path.Split('.');
         for (int i = 0; i < segments.Length; i++)
@@ -1757,21 +1781,21 @@ public static class FshCompiler
             if (colon >= 0) seg = seg[..colon];
             var bracket = seg.IndexOf('[');
             if (bracket >= 0) seg = seg[..bracket];
-            if (string.IsNullOrEmpty(seg)) return null;
+            if (string.IsNullOrEmpty(seg)) return (null, false);
 
             var propMap = current.FindMappedElementByName(seg);
-            if (propMap is null) return null;
+            if (propMap is null) return (null, false);
 
             if (i == segments.Length - 1)
             {
                 var fhirTypes = propMap.FhirType;
-                if (fhirTypes is null || fhirTypes.Length == 0) return null;
+                if (fhirTypes is null || fhirTypes.Length == 0) return (null, false);
 
                 // Skip the "any DataType" case (Extension.value[x] in R4 resolves its
                 // FhirType to just the abstract DataType base class). An abstract-only
                 // entry carries no ordering information, so fall through to the
                 // alphabetical-within-tier fallback.
-                if (fhirTypes.Length == 1 && fhirTypes[0].IsAbstract) return null;
+                if (fhirTypes.Length == 1 && fhirTypes[0].IsAbstract) return (null, false);
 
                 var order = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 for (int j = 0; j < fhirTypes.Length; j++)
@@ -1780,15 +1804,92 @@ public static class FshCompiler
                     if (cm != null && !order.ContainsKey(cm.Name))
                         order[cm.Name] = j;
                 }
-                return order.Count > 0 ? order : null;
+                return (order.Count > 0 ? order : null, false);
             }
 
             var nextType = propMap.ImplementingType;
-            if (nextType is null) return null;
+            if (nextType is null) return (null, false);
             current = inspector.FindClassMapping(nextType);
-            if (current is null) return null;
+            if (current is null) return (null, false);
         }
-        return null;
+        return (null, false);
+    }
+
+    /// <summary>
+    /// Checks whether <paramref name="path"/> begins with an extension slice segment such as
+    /// <c>extension[adheresTo]</c> or <c>modifierExtension[foo]</c>, and if so tries to look
+    /// up the specific named extension's profile URL from <paramref name="sd"/>'s differential,
+    /// then resolve that extension's <c>value[x]</c> type ordering.
+    /// Returns a tuple where <c>Resolved</c> is <c>true</c> when an external extension profile
+    /// was detected (and <c>Order</c> is the resolved ordering or <c>null</c> when the SD could
+    /// not be found), or <c>false</c> when no external extension slice was detected (fall through
+    /// to the generic resolver path).
+    /// </summary>
+    private static (bool Resolved, Dictionary<string, int>? Order) GetChoiceTypeOrderForNamedExtensionSlice(
+        string path, StructureDefinition sd, IResourceResolver resolver)
+    {
+        // Only applies to paths that start with "extension[name]..." or "modifierExtension[name]...".
+        var firstDot = path.IndexOf('.');
+        var firstSegment = firstDot >= 0 ? path[..firstDot] : path;
+        var bracketOpen = firstSegment.IndexOf('[');
+        var bracketClose = firstSegment.IndexOf(']');
+        if (bracketOpen < 0 || bracketClose <= bracketOpen) return (false, null);
+
+        var baseElementName = firstSegment[..bracketOpen]; // "extension" or "modifierExtension"
+        if (!string.Equals(baseElementName, "extension", StringComparison.Ordinal)
+            && !string.Equals(baseElementName, "modifierExtension", StringComparison.Ordinal))
+            return (false, null);
+
+        var sliceName = firstSegment[(bracketOpen + 1)..bracketClose];
+        if (string.IsNullOrEmpty(sliceName) || sliceName.StartsWith('+') || sliceName.StartsWith('='))
+            return (false, null);
+
+        // Look up the extension element for this slice in the SD differential to get its profile URL.
+        var sliceElementPath = (sd.Type ?? string.Empty) + "." + baseElementName + ":" + sliceName;
+        var elements = (IList<ElementDefinition>?)sd.Differential?.Element;
+        if (elements == null) return (false, null);
+
+        var sliceEl = elements.FirstOrDefault(e =>
+            e.Path == (sd.Type + "." + baseElementName) && e.SliceName == sliceName);
+        if (sliceEl == null)
+        {
+            // Try the snapshot for lookup of already-expanded elements.
+            sliceEl = sd.Snapshot?.Element?.FirstOrDefault(e =>
+                e.Path == (sd.Type + "." + baseElementName) && e.SliceName == sliceName);
+        }
+
+        // If no type or no external profile URL → this is an inline extension slice; fall through.
+        var profileUrl = sliceEl?.Type?.FirstOrDefault()?.Profile?.FirstOrDefault();
+        if (string.IsNullOrEmpty(profileUrl)) return (false, null);
+
+        // We have an external extension URL. Try to resolve it.
+        var extSd = FindStructureDefinitionByUrl(profileUrl, resolver);
+        if (extSd == null)
+        {
+            // External extension exists but can't be resolved → signal that no ordering is
+            // available so the caller uses FSH source order.
+            return (true, null);
+        }
+
+        // Resolve the value[x] element within the extension SD.
+        var tailPath = firstDot >= 0 ? path[(firstDot + 1)..] : string.Empty;
+        if (!string.IsNullOrEmpty(tailPath))
+        {
+            var extOrder = GetChoiceTypeOrderFromResolver(tailPath, extSd.Type ?? "Extension", resolver);
+            return (true, extOrder);
+        }
+
+        return (true, null);
+    }
+
+    /// <summary>
+    /// Finds a <see cref="StructureDefinition"/> by canonical URL using <paramref name="resolver"/>.
+    /// Returns <c>null</c> when not found.
+    /// </summary>
+    private static StructureDefinition? FindStructureDefinitionByUrl(string url, IResourceResolver resolver)
+    {
+        try { return resolver.FindStructureDefinition(url); }
+        catch { return null; }
     }
 
     /// <summary>
@@ -4014,12 +4115,39 @@ public static class FshCompiler
         if (a.Count != b.Count) return false;
 
         // Build a stable key for each type ref for comparison.
-        static string TypeRefKey(ElementDefinition.TypeRefComponent t) =>
-            $"{t.Code}|{string.Join(",", (t.Profile ?? []).Order())}|{string.Join(",", (t.TargetProfile ?? []).Order())}";
+        // When the compiled type (a) has no profiles/targetProfiles, treat it as equivalent
+        // to any base (b) type with the same code regardless of the base's profiles —
+        // because `Reference` (no target) in FSH means "any reference", which is the same
+        // as the base's `Reference(Resource)` or similar unconstrained base types.
+        static string TypeRefKey(ElementDefinition.TypeRefComponent t, bool ignoreProfiles) =>
+            ignoreProfiles
+                ? t.Code ?? string.Empty
+                : $"{t.Code}|{string.Join(",", (t.Profile ?? []).Order())}|{string.Join(",", (t.TargetProfile ?? []).Order())}";
 
-        var aKeys = a.Select(TypeRefKey).Order().ToList();
-        var bKeys = b.Select(TypeRefKey).Order().ToList();
-        return aKeys.SequenceEqual(bKeys, StringComparer.Ordinal);
+        // Sort by code to compare sets irrespective of order.
+        var aSorted = a.OrderBy(x => x.Code, StringComparer.Ordinal).ToList();
+        var bSorted = b.OrderBy(x => x.Code, StringComparer.Ordinal).ToList();
+
+        for (int i = 0; i < aSorted.Count; i++)
+        {
+            var ai = aSorted[i];
+            var bi = bSorted[i];
+
+            // When the compiled type has no profile/targetProfile constraints, treat it as
+            // equivalent to the base type with the same code (profile-unaware comparison).
+            var aHasProfiles = (ai.Profile?.Any() ?? false) || (ai.TargetProfile?.Any() ?? false);
+            if (!aHasProfiles)
+            {
+                // Only code equality needed — any base profile (e.g. Reference(Resource)) is
+                // compatible with an unconstrained FSH type.
+                if (!string.Equals(ai.Code, bi.Code, StringComparison.Ordinal)) return false;
+            }
+            else
+            {
+                if (TypeRefKey(ai, false) != TypeRefKey(bi, false)) return false;
+            }
+        }
+        return true;
     }
 
     private static ElementDefinition? ResolveBaseElement(
