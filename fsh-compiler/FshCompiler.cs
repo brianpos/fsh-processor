@@ -1330,7 +1330,7 @@ public static class FshCompiler
                     break;
 
                 case CaretValueRule caretValueRule:
-                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, context.ResolveAlias, caretSoftIndexState);
+                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, context.ResolveAlias, caretSoftIndexState, context, opts);
                     break;
 
                 case InsertRule insertRule:
@@ -1517,17 +1517,23 @@ public static class FshCompiler
     {
         if (string.IsNullOrEmpty(containsRule.Path) || containsRule.Items.Count == 0) return;
 
-        // For extension slicing (`* extension contains ...`), sushi emits only the slice
-        // rows unless the unsliced `extension` element is explicitly constrained elsewhere.
-        // Avoid creating a bare parent element just because of a contains rule.
         var isExtensionPath = IsExtensionPath(containsRule.Path);
-        var ed = isExtensionPath
-            ? FindElement(containsRule.Path, sd)
-            : GetOrCreateElement(containsRule.Path, sd);
+        ElementDefinition? ed;
 
-        var requiredSliceMinSum = 0;
         if (isExtensionPath)
         {
+            // For extension slicing, the bare parent element is needed to carry the slicing
+            // discriminator when the direct parent SD doesn't already define extension slicing.
+            // When the parent has named extension slices (slicing is inherited), we skip creating
+            // the bare element — RemoveRedundantSlicingAgainstBase handles inherited slicing.
+            ed = FindElement(containsRule.Path, sd);
+            if (ed == null && !DirectParentHasNamedExtensionSlices(containsRule.Path, sd, context, opts))
+                ed = GetOrCreateElement(containsRule.Path, sd);
+
+            // Contains rules for extensions define slice-level cardinalities on the extension
+            // array. To keep cardinalities compliant with FHIR profiling rules, the unsliced
+            // extension element minimum must be at least the sum of all required slice mins.
+            var requiredSliceMinSum = 0;
             foreach (var item in containsRule.Items)
             {
                 var parts = item.Cardinality.Split("..");
@@ -1535,16 +1541,16 @@ public static class FshCompiler
                     requiredSliceMinSum += min;
             }
 
-            // Contains rules for extensions define slice-level cardinalities on the extension
-            // array. To keep cardinalities compliant with FHIR profiling rules, the unsliced
-            // extension element minimum must be at least the sum of all required slice mins.
-            // Create the parent element before slice rows so output ordering matches sushi.
             if (requiredSliceMinSum > 0)
             {
                 ed ??= GetOrCreateElement(containsRule.Path, sd);
                 if (!ed.Min.HasValue || ed.Min.Value < requiredSliceMinSum)
                     ed.Min = requiredSliceMinSum;
             }
+        }
+        else
+        {
+            ed = GetOrCreateElement(containsRule.Path, sd);
         }
 
         if (ed is not null && ed.Slicing == null)
@@ -1595,6 +1601,12 @@ public static class FshCompiler
                 if (isExtensionPath)
                 {
                     var resolvedProfile = ResolveBaseDefinitionCanonical(resolvedType, item.Name, context, opts);
+                    // URL-encode brackets in the profile URL (e.g. value[x] → value%5Bx%5D).
+                    // Brackets are not valid unencoded in URIs and sushi always percent-encodes them.
+                    if (resolvedProfile.Contains('[') || resolvedProfile.Contains(']'))
+                        resolvedProfile = resolvedProfile
+                            .Replace("[", "%5B", StringComparison.Ordinal)
+                            .Replace("]", "%5D", StringComparison.Ordinal);
                     sliceEd.Type =
                     [
                         new ElementDefinition.TypeRefComponent
@@ -2068,7 +2080,9 @@ public static class FshCompiler
         StructureDefinition sd,
         ModelInspector? inspector,
         Func<string, string>? aliasResolver = null,
-        Dictionary<string, int>? softIndexState = null)
+        Dictionary<string, int>? softIndexState = null,
+        CompilerContext? context = null,
+        CompilerOptions? opts = null)
     {
         if (string.IsNullOrEmpty(caretValueRule.CaretPath)) return;
 
@@ -2081,9 +2095,71 @@ public static class FshCompiler
         else
         {
             var ed = GetOrCreateElement(caretValueRule.Path, sd);
+            // Adjust absolute constraint[N] indices to differential-local indices.
+            // FSH indexes constraints against the full snapshot (base + own), but our
+            // differential only has the profile's own constraints.  Subtract the number
+            // of inherited constraints from the parent SD to get the local index.
+            var adjustedRule = AdjustConstraintIndex(caretValueRule, ed, sd, context, opts);
             // Each element gets its own soft-index state for element-level compound paths.
-            ApplyEdCaretPath(caretValueRule, ed, inspector, aliasResolver);
+            ApplyEdCaretPath(adjustedRule, ed, inspector, aliasResolver);
         }
+    }
+
+    /// <summary>
+    /// When a caret rule targets <c>constraint[N]</c> and N is beyond the current
+    /// differential constraint list, the index is absolute (snapshot-level) and must be
+    /// adjusted by subtracting the number of inherited base constraints.
+    /// </summary>
+    private static CaretValueRule AdjustConstraintIndex(
+        CaretValueRule rule,
+        ElementDefinition ed,
+        StructureDefinition sd,
+        CompilerContext? context,
+        CompilerOptions? opts)
+    {
+        var caretPath = rule.CaretPath.TrimStart('^');
+        // Only adjust when the path starts with "constraint[N]" and N is out of bounds.
+        if (!caretPath.StartsWith("constraint[", StringComparison.Ordinal)) return rule;
+
+        var closeBracket = caretPath.IndexOf(']');
+        if (closeBracket < 0) return rule;
+        var indexStr = caretPath[11..closeBracket]; // After "constraint["
+        if (!int.TryParse(indexStr, out var absIndex)) return rule;
+
+        var ownCount = ed.Constraint?.Count ?? 0;
+        if (absIndex < ownCount) return rule; // Index is already within own constraint list.
+
+        // Need to determine how many base constraints the parent element has.
+        int baseCount = 0;
+        if (context != null && opts != null && !string.IsNullOrEmpty(sd.BaseDefinition))
+        {
+            var baseSd = ResolveStructureDefinition(sd.BaseDefinition, context, opts);
+            if (baseSd != null)
+            {
+                var basePath = RewritePathRoot(ed.Path ?? string.Empty, sd.Type, baseSd.Type);
+                var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
+                          ?? baseSd.Differential?.Element;
+                var baseEl = source?.FirstOrDefault(e =>
+                    e.Path == basePath && string.IsNullOrEmpty(e.SliceName));
+                baseCount = baseEl?.Constraint?.Count ?? 0;
+            }
+        }
+
+        if (baseCount == 0) return rule;
+
+        var localIndex = absIndex - baseCount;
+        if (localIndex < 0 || localIndex >= ownCount) return rule;
+
+        // Return a copy of the rule with the adjusted index.
+        var adjustedPath = "^constraint[" + localIndex + "]" + caretPath[(closeBracket + 1)..];
+        return new CaretValueRule
+        {
+            Path = rule.Path,
+            CaretPath = adjustedPath,
+            Value = rule.Value,
+            Position = rule.Position,
+            Indent = rule.Indent,
+        };
     }
 
     private static void ApplySdCaretPath(
@@ -3566,9 +3642,43 @@ public static class FshCompiler
     }
 
     /// <summary>
-    /// Returns <c>true</c> when two type-ref lists describe the same type constraints
-    /// (same codes, profiles and target profiles, order-insensitive).
+    /// Returns <c>true</c> when the direct parent SD already has at least one named slice
+    /// on the extension path, OR when the SD is itself an Extension type (for which the
+    /// slicing on <c>Extension.extension</c> is always inherited from core and never re-emitted).
+    /// Used in <c>ApplyContainsRule</c> to decide whether to create a bare extension element.
     /// </summary>
+    private static bool DirectParentHasNamedExtensionSlices(
+        string fshExtensionPath,
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (string.IsNullOrEmpty(sd.BaseDefinition)) return false;
+        var baseSd = ResolveStructureDefinition(sd.BaseDefinition, context, opts);
+        if (baseSd == null) return false;
+
+        // For Extension SDs (type="Extension"), the Extension.extension slicing is always
+        // inherited from the core Extension definition — never re-emit the slicing element.
+        if (string.Equals(baseSd.Type, "Extension", StringComparison.Ordinal)
+            || string.Equals(sd.Type, "Extension", StringComparison.Ordinal))
+            return true;
+
+        // Build the full FHIR path from the FSH relative path (e.g. "extension" → "Questionnaire.extension").
+        var sdPathPrefix = GetElementPathPrefix(sd);
+        var fullFhirPath = string.IsNullOrEmpty(fshExtensionPath)
+            ? sdPathPrefix
+            : sdPathPrefix + "." + fshExtensionPath;
+
+        // Rewrite path root to match the parent SD's type.
+        var basePath = RewritePathRoot(fullFhirPath, sd.Type ?? sdPathPrefix, baseSd.Type ?? GetElementPathPrefix(baseSd));
+
+        var parentDiff = baseSd.Differential?.Element;
+        return parentDiff?.Any(e =>
+            e.Path == basePath
+            && !string.IsNullOrEmpty(e.SliceName)) == true;
+    }
+
+
     private static bool AreTypeListsEquivalent(
         List<ElementDefinition.TypeRefComponent> a,
         List<ElementDefinition.TypeRefComponent> b)
