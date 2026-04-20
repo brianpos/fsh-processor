@@ -1817,6 +1817,9 @@ public static class FshCompiler
     /// Navigates through intermediate types when the path has multiple segments.
     /// Returns <c>null</c> when the type cannot be resolved.
     /// </summary>
+    /// <param name="fshPath">The FSH path of the element (e.g. <c>"code"</c>).</param>
+    /// <param name="sdType">The FHIR resource/datatype name (e.g. <c>"ServiceRequest"</c>).</param>
+    /// <param name="resolver">The resource resolver used to look up base StructureDefinitions.</param>
     private static string? ResolveElementTypeCode(string fshPath, string sdType, IResourceResolver resolver)
     {
         if (string.IsNullOrEmpty(fshPath) || string.IsNullOrEmpty(sdType)) return null;
@@ -1875,6 +1878,8 @@ public static class FshCompiler
     }
 
 
+    /// <summary>
+    /// Parses a FSH target-type expression into a Firely <see cref="ElementDefinition.TypeRefComponent"/>.
     /// Handles bare type names as well as <c>Reference(...)</c>, <c>Canonical(...)</c>,
     /// and <c>CodeableReference(...)</c> expressions with optional " or "-separated targets.
     /// </summary>
