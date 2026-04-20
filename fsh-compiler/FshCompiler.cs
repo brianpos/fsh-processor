@@ -3882,11 +3882,18 @@ public static class FshCompiler
             if (match?.Type?.Count > 0)
             {
                 var typeName = match.Type[0].Code;
-                // BackboneElement and Resource are not data types.
+                // Only COMPLEX data types (Coding, Identifier, CodeableConcept, etc.) are
+                // considered "data type elements" whose extension slicing is always inherited.
+                // Primitives (string, boolean, decimal, code, etc.) require an explicit bare
+                // extension element in the differential.
+                // Exclude: structural types (BackboneElement, Resource, DomainResource) and
+                // all FHIR primitive types that start with a lowercase letter (FHIR naming
+                // convention: all primitive type codes begin lowercase).
                 return !string.IsNullOrEmpty(typeName)
                     && !string.Equals(typeName, "BackboneElement", StringComparison.OrdinalIgnoreCase)
                     && !string.Equals(typeName, "Resource", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(typeName, "DomainResource", StringComparison.OrdinalIgnoreCase);
+                    && !string.Equals(typeName, "DomainResource", StringComparison.OrdinalIgnoreCase)
+                    && char.IsUpper(typeName[0]);  // primitives start lowercase; complex types start uppercase
             }
 
             currentBase = baseSd.BaseDefinition;
