@@ -3727,30 +3727,100 @@ public static class FshCompiler
         CompilerOptions opts)
     {
         if (string.IsNullOrEmpty(sd.BaseDefinition)) return false;
-        var baseSd = ResolveStructureDefinition(sd.BaseDefinition, context, opts);
-        if (baseSd == null) return false;
 
         // For Extension SDs (type="Extension"), the Extension.extension slicing is always
         // inherited from the core Extension definition — never re-emit the slicing element.
-        if (string.Equals(baseSd.Type, "Extension", StringComparison.Ordinal)
-            || string.Equals(sd.Type, "Extension", StringComparison.Ordinal))
-            return true;
+        if (string.Equals(sd.Type, "Extension", StringComparison.Ordinal)) return true;
 
-        // Build the full FHIR path from the FSH relative path (e.g. "extension" → "Questionnaire.extension").
         var sdPathPrefix = GetElementPathPrefix(sd);
         var fullFhirPath = string.IsNullOrEmpty(fshExtensionPath)
             ? sdPathPrefix
             : sdPathPrefix + "." + fshExtensionPath;
 
-        // Rewrite path root to match the parent SD's type.
-        var basePath = RewritePathRoot(fullFhirPath, sd.Type ?? sdPathPrefix, baseSd.Type ?? GetElementPathPrefix(baseSd));
+        // When the extension path is on a nested data type element (e.g. item.code.extension
+        // where item.code has type Coding), the slicing discriminator is already defined by
+        // the data type itself — there's no need to emit a bare slicing element.
+        // Detect this by checking whether the parent element (the path before ".extension")
+        // is a known FHIR data type in the resolved ancestor chain.
+        var parentOfExtension = fullFhirPath.EndsWith(".extension", StringComparison.Ordinal)
+            ? fullFhirPath[..^".extension".Length]
+            : fullFhirPath.EndsWith(".modifierExtension", StringComparison.Ordinal)
+            ? fullFhirPath[..^".modifierExtension".Length]
+            : null;
+        if (parentOfExtension != null && IsDataTypeElement(parentOfExtension, sd, context, opts))
+            return true;
 
-        var parentDiff = baseSd.Differential?.Element;
-        return parentDiff?.Any(e =>
-            e.Path == basePath
-            && !string.IsNullOrEmpty(e.SliceName)) == true;
+        // Walk the full ancestor chain. If ANY ancestor has named extension slices on this
+        // path, the slicing is inherited and we don't need to re-emit the bare element.
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) break;
+
+            if (string.Equals(baseSd.Type, "Extension", StringComparison.Ordinal))
+                return true;
+
+            var basePath = RewritePathRoot(fullFhirPath, sd.Type ?? sdPathPrefix, baseSd.Type ?? GetElementPathPrefix(baseSd));
+            var parentDiff = baseSd.Differential?.Element;
+            if (parentDiff?.Any(e =>
+                e.Path == basePath
+                && !string.IsNullOrEmpty(e.SliceName)) == true)
+                return true;
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return false;
     }
 
+    /// <summary>
+    /// Returns <c>true</c> when the FHIR element at <paramref name="fhirPath"/> (e.g.
+    /// <c>Questionnaire.item.code</c>) has a FHIR complex data type (not BackboneElement or
+    /// Resource) in the resolved ancestor chain.  Used to avoid emitting redundant bare
+    /// extension slicing elements for paths like <c>item.code.extension</c> where the data
+    /// type's own extension slicing is already defined by the FHIR spec.
+    /// </summary>
+    private static bool IsDataTypeElement(string fhirPath, StructureDefinition sd, CompilerContext context, CompilerOptions opts)
+    {
+        // Only relevant for paths with more than one segment (resource-level is never data type).
+        if (!fhirPath.Contains('.')) return false;
+
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var sdType = sd.Type ?? GetElementPathPrefix(sd);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) break;
+
+            var baseType = baseSd.Type ?? GetElementPathPrefix(baseSd);
+            var rewritten = RewritePathRoot(fhirPath, sdType, baseType);
+
+            var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
+                      ?? baseSd.Differential?.Element;
+            var match = source?.FirstOrDefault(e =>
+                string.Equals(e.Path, rewritten, StringComparison.Ordinal)
+                && string.IsNullOrEmpty(e.SliceName));
+
+            if (match?.Type?.Count > 0)
+            {
+                var typeName = match.Type[0].Code;
+                // BackboneElement and Resource are not data types.
+                return !string.IsNullOrEmpty(typeName)
+                    && !string.Equals(typeName, "BackboneElement", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(typeName, "Resource", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(typeName, "DomainResource", StringComparison.OrdinalIgnoreCase);
+            }
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return false;
+    }
 
     private static bool AreTypeListsEquivalent(
         List<ElementDefinition.TypeRefComponent> a,
