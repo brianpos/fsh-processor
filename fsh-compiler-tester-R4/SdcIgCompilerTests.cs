@@ -706,6 +706,17 @@ public class SdcIgCompilerTests
         FshDoc parsedFshShared = GetFshDocument("shared.fsh", out _);
         var outputDir = Path.Combine(AppContext.BaseDirectory, "TestOutput", "sdc-fhir-output");
 
+        if (parsedFsh.Entities.All(e => e is Mapping))
+        {
+            // this is a mapping only, so nothing to actually test in the compiled output
+            Console.WriteLine("Mapping definition only, nothing to compile. Will be verified in other tests that use these mappings.");
+            // scan over _fileDependencies to see of our filename is a dependency for other things and list them out
+            var deps = _fileDependencies.Where(kvp => kvp.Value.Contains(fshFileName));
+            Console.WriteLine($"  Tested by: {String.Join(", ", deps.Select(kvp => kvp.Key))}");
+            Assert.IsGreaterThan(0, deps.Count(), "Expected this mapping to be a dependency for at least one other file, but it was not found as a dependency anywhere.");
+            return;
+        }
+
         // Load any additional FSH files required to resolve cross-file references
         // (e.g. CodeSystem definitions needed for ValueSet system URL resolution).
         var autoDepFiles = _fileDependencies.TryGetValue(fshFileName, out var depArray) ? depArray : [];
