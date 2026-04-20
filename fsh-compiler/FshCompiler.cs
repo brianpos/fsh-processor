@@ -2882,10 +2882,10 @@ public static class FshCompiler
         // compilation; the FHIR snapshot generator requires root to precede its children.
         if (!string.IsNullOrEmpty(rootType) && elements.Count > 1)
         {
-            var rootIdx = elements.FindIndex(i =>
-                string.Equals(elements[i].Path, rootType, StringComparison.Ordinal)
-                && string.IsNullOrEmpty(elements[i].SliceName)
-                && string.Equals(elements[i].ElementId, rootType, StringComparison.Ordinal));
+            var rootIdx = elements.FindIndex(e =>
+                string.Equals(e.Path, rootType, StringComparison.Ordinal)
+                && string.IsNullOrEmpty(e.SliceName)
+                && string.Equals(e.ElementId, rootType, StringComparison.Ordinal));
             if (rootIdx > 0)
             {
                 var rootEd = elements[rootIdx];
