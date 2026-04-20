@@ -563,8 +563,11 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                     // they form a single parameter value (e.g. "System#code" followed by
                     // '"display"' — where the display is a STRING token not captured by
                     // ruleSetParamText because STRING is not in ruleSetParamPart).
-                    // Recover the combined text from the token stream so the whitespace
-                    // between the two parts is preserved exactly as authored.
+                    // We use _tokenStream.GetText(Interval) rather than concatenating the
+                    // two visited values because it reads the raw characters from the token
+                    // stream — including any hidden-channel whitespace between the two parts
+                    // — which preserves the exact spacing as authored (e.g. a single space
+                    // between `System#code` and `"display"`).
                     var combinedText = _tokenStream.GetText(
                         new Antlr4.Runtime.Misc.Interval(
                             currentParamContext.Start.TokenIndex,

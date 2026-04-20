@@ -155,18 +155,17 @@ public static class RuleSetResolver
             // so that already-quoted occurrences are handled correctly and do not receive
             // the extra [[ ]] wrapping.
             //
-            // Exception: FSH quoted codes (#"code with spaces") already carry their own
-            // quoting via the # prefix followed by a double-quoted string — they are valid
-            // FSH tokens and must NOT be wrapped in [[...]] because DOUBLE_BRACKET_STRING is
-            // not accepted in code-value positions by the FSH parser.
-            //
-            // Exception: FSH code values with a system prefix and optional display string
-            // (e.g. CodeSystemCSPHQ9#Not-at-all "Not at all") are also valid FSH tokens
-            // because the display string is properly quoted.  Wrapping in [[...]] would
-            // make the FSH parser treat the whole value as a plain string (StringValue),
-            // silently preventing it from being used as a Coding (e.g. answer.valueCoding).
+            // Exception: FSH code values — either standalone (#code, #"quoted code")
+            // or system-prefixed (System#code, System#"quoted code") — already carry
+            // their own FSH token structure and must NOT be wrapped in [[...]] because
+            // DOUBLE_BRACKET_STRING is not accepted in code-value positions by the FSH parser.
+            // These are identified by the presence of a '#' character that occurs before
+            // any whitespace in the value (i.e. the '#' is within the code token itself,
+            // not in the trailing display string).
+            var hashBeforeWhitespace = value.IndexOf('#') is int hashPos && hashPos >= 0 &&
+                !value.Take(hashPos).Any(char.IsWhiteSpace);
             if (!value.StartsWith('"') && !value.StartsWith("[[") &&
-                !value.Contains('#') &&
+                !hashBeforeWhitespace &&
                 value.Any(char.IsWhiteSpace))
             {
                 content = content.Replace($"\"{placeholder}\"", $"\"{value}\"");
