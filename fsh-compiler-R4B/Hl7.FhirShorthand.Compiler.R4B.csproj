@@ -2,15 +2,26 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>fsh_compiler_r4b</RootNamespace>
+    <RootNamespace>Hl7.FhirShorthand.Compiler_r4b</RootNamespace>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageId>Hl7.FhirShorthand.Compiler.R4B</PackageId>
+    <Title>HL7 FHIR Shorthand Compiler — R4B</Title>
+    <Description>FHIR R4B (4.3.0) adapter for the Hl7.FhirShorthand.Compiler base package. Provides R4BFshCompiler to compile a parsed FshDoc into FHIR R4B resources.</Description>
+    <PackageTags>FHIR;FSH;FHIRShorthand;HL7;compiler;R4B</PackageTags>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Hl7.Fhir.R4B" Version="5.13.2" />
     <PackageReference Include="Hl7.Fhir.Conformance" Version="5.13.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE.txt" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

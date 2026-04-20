@@ -53,6 +53,14 @@ public class CompilerContext
     public Dictionary<string, string> CodeSystemUrls { get; } = new([new KeyValuePair<string, string>("SNOMED_CT", "http://snomed.info/sct")], StringComparer.Ordinal);
 
     /// <summary>
+    /// ValueSet name/id → canonical URL, populated by a pre-scan of all <see cref="FshDoc"/>
+    /// entities before compilation begins.  Used by <c>Canonical(X)</c> resolution in instance
+    /// rules to map a bare ValueSet entity name to its full canonical URL (e.g.
+    /// <c>QuestionnaireBehaviorConditions</c> → <c>http://hl7.org/fhir/uv/sdc/ValueSet/formBehaviorConditions</c>).
+    /// </summary>
+    public Dictionary<string, string> ValueSetUrls { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// resource ID to Canonical URL that were loaded from the Core Specification.zip file
     /// </summary>
     public Dictionary<string, string> CanonicalsFromSpecificationZip { get; } = new(StringComparer.Ordinal);

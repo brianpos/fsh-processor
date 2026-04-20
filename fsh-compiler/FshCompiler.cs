@@ -69,8 +69,9 @@ public static class FshCompiler
             foreach (var kvp in opts.AliasOverrides)
                 context.Aliases[kvp.Key] = kvp.Value;
 
-        // Pre-scan: register CodeSystem name/id → canonical URL for system name resolution in
-        // ValueSet compose components (e.g. TemporaryCodes → .../CodeSystem/temp).
+        // Pre-scan: register CodeSystem/ValueSet name/id → canonical URL for system name and
+        // Canonical() resolution (e.g. TemporaryCodes → .../CodeSystem/temp,
+        // QuestionnaireBehaviorConditions → .../ValueSet/formBehaviorConditions).
         foreach (var doc in docList)
         {
             foreach (var entity in doc.Entities)
@@ -83,6 +84,15 @@ public static class FshCompiler
                         context.CodeSystemUrls.TryAdd(cs.Name, csUrl);
                     if (!string.IsNullOrEmpty(cs.Id))
                         context.CodeSystemUrls.TryAdd(cs.Id, csUrl);
+                }
+                else if (entity is Hl7.FhirShorthand.Serialization.Models.ValueSet vs)
+                {
+                    var vsUrl = ResolveUrl(vs.Id ?? vs.Name, opts, "ValueSet");
+                    if (vsUrl is null) continue;
+                    if (!string.IsNullOrEmpty(vs.Name))
+                        context.ValueSetUrls.TryAdd(vs.Name, vsUrl);
+                    if (!string.IsNullOrEmpty(vs.Id))
+                        context.ValueSetUrls.TryAdd(vs.Id, vsUrl);
                 }
             }
         }
@@ -408,7 +418,10 @@ public static class FshCompiler
                 typeValue = resolvedType;
         }
 
-        var kind = InferKindFromType(typeValue, opts.Inspector, opts.Resolver);
+        // C-PR3: Use the merged resolver (compiled SDs + external) so that profiles-of-profiles
+        // resolve the correct Kind (e.g. a profile of an in-IG profile that ultimately profiles
+        // a core resource type gets Kind=Resource, not Kind=ComplexType).
+        var kind = InferKindFromType(typeValue, opts.Inspector, mergedResolver);
 
         var sd = new StructureDefinition
         {
@@ -3485,6 +3498,10 @@ public static class FshCompiler
                 {
                     return sd.Url;
                 }
+                // Resolve bare CodeSystem entity names to their canonical URLs
+                // (e.g. KeyboardTypeCodes → http://hl7.org/fhir/uv/sdc/CodeSystem/keyboardType).
+                if (context.CodeSystemUrls.TryGetValue(name, out var csUrl))
+                    return csUrl;
                 // Try extension slice name lookup across all compiled profiles.
                 var sliceUrl = context.FindExtensionUrlBySliceName(name);
                 if (sliceUrl != null)
@@ -4227,6 +4244,15 @@ public static class FshCompiler
         {
             return new Hl7.FhirShorthand.Serialization.Models.Canonical { Url = refSd.Url, Version = can.Version };
         }
+
+        // Resolve Canonical references to pre-scanned ValueSet entities by name or id
+        // (e.g. Canonical(QuestionnaireBehaviorConditions) → .../ValueSet/formBehaviorConditions).
+        if (context.ValueSetUrls.TryGetValue(can.Url, out var vsCanonicalUrl))
+            return new Hl7.FhirShorthand.Serialization.Models.Canonical { Url = vsCanonicalUrl, Version = can.Version };
+
+        // Resolve Canonical references to pre-scanned CodeSystem entities by name or id.
+        if (context.CodeSystemUrls.TryGetValue(can.Url, out var csCanonicalUrl))
+            return new Hl7.FhirShorthand.Serialization.Models.Canonical { Url = csCanonicalUrl, Version = can.Version };
 
         // Fall back to constructing a canonical URL from the CanonicalBase when available.
         var resolved = ResolveBaseDefinitionCanonical(can.Url, can.Url, context, opts);
