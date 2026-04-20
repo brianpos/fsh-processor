@@ -469,6 +469,7 @@ public static class FshCompiler
 
         RemoveRedundantCardinalityAgainstBase(sd, context, opts);
         RemoveRedundantTypeConstraints(sd, context, opts);
+        RemoveRedundantSlicingAgainstBase(sd, context, opts);
         RemoveNoOpScaffoldElements(sd);
         SortDifferentialElementsByCanonicalOrder(sd, opts.Inspector);
         return sd;
@@ -1619,9 +1620,11 @@ public static class FshCompiler
         if (string.IsNullOrEmpty(fshPath)) return false;
         var lastDot = fshPath.LastIndexOf('.');
         var lastSeg = lastDot >= 0 ? fshPath[(lastDot + 1)..] : fshPath;
-        // Strip slice notation if present (e.g. "extension:name" → "extension").
+        // Strip slice notation: colon form "extension:name" or bracket form "extension[name]".
         var colonPos = lastSeg.IndexOf(':');
         if (colonPos >= 0) lastSeg = lastSeg[..colonPos];
+        var bracketPos = lastSeg.IndexOf('[');
+        if (bracketPos >= 0) lastSeg = lastSeg[..bracketPos];
         return string.Equals(lastSeg, "extension", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -3057,38 +3060,49 @@ public static class FshCompiler
 
         var pathPrefix = GetElementPathPrefix(sd);
 
-        var indexed = elements.Select((el, idx) => (el, idx)).ToList();
-        var sorted = indexed
-            .OrderBy(x =>
-            {
-                // Root element always first.
-                if (string.Equals(x.el.Path, pathPrefix, StringComparison.Ordinal)
-                    && string.IsNullOrEmpty(x.el.SliceName))
-                    return -1;
-
-                // Get the immediate child name below the root type prefix.
-                var basePath = x.el.Path ?? string.Empty;
-                string childName;
-                if (!string.IsNullOrEmpty(sdType) && basePath.StartsWith(sdType + ".", StringComparison.Ordinal))
-                {
-                    var rest = basePath[(sdType.Length + 1)..];
-                    var dot = rest.IndexOf('.');
-                    childName = dot >= 0 ? rest[..dot] : rest;
-                }
-                else
-                {
-                    childName = basePath;
-                }
-
-                return canonicalIndex.TryGetValue(childName, out var pos) ? pos : int.MaxValue;
-            })
-            .ThenBy(x => !string.IsNullOrEmpty(x.el.SliceName) ? 1 : 0)
-            .ThenBy(x => x.idx)
-            .Select(x => x.el)
+        // Separate the root element (if present) so it is always at position 0 after sorting.
+        // This avoids any ambiguity in the LINQ stable sort when comparing against pathPrefix.
+        var roots = elements
+            .Where(e => string.Equals(e.Path, pathPrefix, StringComparison.Ordinal)
+                        && string.IsNullOrEmpty(e.SliceName))
+            .ToList();
+        var nonRoots = elements
+            .Where(e => !(string.Equals(e.Path, pathPrefix, StringComparison.Ordinal)
+                          && string.IsNullOrEmpty(e.SliceName)))
             .ToList();
 
+        // Only sort when there is something meaningful to order (avoids redundant work).
+        if (canonicalIndex.Count > 0)
+        {
+            var indexed = nonRoots.Select((el, idx) => (el, idx)).ToList();
+            nonRoots = indexed
+                .OrderBy(x =>
+                {
+                    var basePath = x.el.Path ?? string.Empty;
+                    string childName;
+                    if (!string.IsNullOrEmpty(sdType) && basePath.StartsWith(sdType + ".", StringComparison.Ordinal))
+                    {
+                        var rest = basePath[(sdType.Length + 1)..];
+                        var dot = rest.IndexOf('.');
+                        childName = dot >= 0 ? rest[..dot] : rest;
+                    }
+                    else
+                    {
+                        childName = basePath;
+                    }
+
+                    return canonicalIndex.TryGetValue(childName, out var pos) ? pos : int.MaxValue;
+                })
+                .ThenBy(x => !string.IsNullOrEmpty(x.el.SliceName) ? 1 : 0)
+                .ThenBy(x => x.idx)
+                .Select(x => x.el)
+                .ToList();
+        }
+
         elements.Clear();
-        foreach (var el in sorted)
+        foreach (var el in roots)
+            elements.Add(el);
+        foreach (var el in nonRoots)
             elements.Add(el);
     }
 
@@ -3388,12 +3402,123 @@ public static class FshCompiler
         {
             if (ed.Type == null || ed.Type.Count == 0) continue;
 
-            var baseEd = ResolveBaseElement(sd, ed, context, opts);
-            if (baseEd == null || baseEd.Type == null || baseEd.Type.Count == 0) continue;
+            List<ElementDefinition.TypeRefComponent>? baseType = null;
 
-            if (AreTypeListsEquivalent(ed.Type, baseEd.Type))
+            if (!string.IsNullOrEmpty(ed.SliceName))
+            {
+                // For a named slice, look up the same-named slice in the base SD so that
+                // `* extension[foo] only SomeExtensionProfile` is suppressed when the
+                // parent profile already defines the slice with the same type constraint.
+                baseType = ResolveBaseSliceType(sd, ed, context, opts);
+            }
+            else
+            {
+                var baseEd = ResolveBaseElement(sd, ed, context, opts);
+                if (baseEd?.Type != null && baseEd.Type.Count > 0)
+                    baseType = baseEd.Type;
+            }
+
+            if (baseType != null && AreTypeListsEquivalent(ed.Type, baseType))
                 ed.Type = null;
         }
+    }
+
+    /// <summary>
+    /// Resolves the type list for a named slice in the nearest base SD that defines
+    /// an element with the same path and slice name.
+    /// </summary>
+    private static List<ElementDefinition.TypeRefComponent>? ResolveBaseSliceType(
+        StructureDefinition sd,
+        ElementDefinition ed,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (string.IsNullOrEmpty(sd.BaseDefinition) || string.IsNullOrEmpty(ed.SliceName)) return null;
+
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) return null;
+
+            var basePath = RewritePathRoot(ed.Path, sd.Type, baseSd.Type);
+            var match = (baseSd.Snapshot?.Element ?? baseSd.Differential?.Element)
+                ?.FirstOrDefault(e =>
+                    e.Path == basePath
+                    && string.Equals(e.SliceName, ed.SliceName, StringComparison.Ordinal));
+
+            if (match?.Type != null && match.Type.Count > 0)
+                return match.Type;
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Removes slicing from differential elements when the base profile (or any ancestor)
+    /// already defines slicing on the same path.  Sushi does not re-emit slicing in a
+    /// child profile that inherits extension slicing from its parent.
+    /// </summary>
+    private static void RemoveRedundantSlicingAgainstBase(
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null || elements.Count == 0) return;
+        if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
+
+        foreach (var ed in elements)
+        {
+            if (ed.Slicing == null) continue;
+            // Don't remove slicing that was introduced by this profile itself (it won't
+            // appear in any base element).  Only remove when the base already has slicing.
+            if (!string.IsNullOrEmpty(ed.SliceName)) continue;
+
+            var baseSlicing = ResolveBaseSlicing(sd, ed, context, opts);
+            if (baseSlicing != null)
+                ed.Slicing = null;
+        }
+    }
+
+    /// <summary>
+    /// Looks up the slicing component for <paramref name="ed"/> in the nearest ancestor SD.
+    /// Returns <c>null</c> if no ancestor defines slicing on this element path.
+    /// </summary>
+    private static ElementDefinition.SlicingComponent? ResolveBaseSlicing(
+        StructureDefinition sd,
+        ElementDefinition ed,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (string.IsNullOrEmpty(sd.BaseDefinition) || string.IsNullOrEmpty(ed.Path)) return null;
+
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) return null;
+
+            var basePath = RewritePathRoot(ed.Path, sd.Type, baseSd.Type);
+            // Look in snapshot first (complete), then differential.
+            var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
+                      ?? baseSd.Differential?.Element;
+            var match = source?.FirstOrDefault(e =>
+                e.Path == basePath
+                && string.IsNullOrEmpty(e.SliceName)
+                && e.Slicing != null);
+            if (match != null) return match.Slicing;
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return null;
     }
 
     /// <summary>

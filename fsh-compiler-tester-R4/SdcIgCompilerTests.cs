@@ -665,7 +665,7 @@ public class SdcIgCompilerTests
             ["SDCParametersQuestionnaireNextQuestionnaireOut.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh"],
             ["SDCParametersQuestionnairePopulateOut.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
             ["SDCParametersQuestionnaireProcessResponseIn.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh"],
-            ["SDCParametersQuestionnaireResponseExtractIn.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "DefinitionExtractExtension.fsh", "DefinitionExtractValueExtension.fsh", "ExtractAllocateIdExtension.fsh", "IsSubjectExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "ObservationExtractCategory.fsh", "ObservationExtractEntry.fsh", "ObservationExtractExtension.fsh", "ObservationExtractRelationship.fsh", "ObservationExtractRelationshipCodes.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractDefinition.fsh", "SDCQuestionnaireExtractObservation.fsh", "SDCQuestionnaireExtractStructureMap.fsh", "SDCQuestionnaireExtractTemplate.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh", "TargetStructureMapExtension.fsh", "TemplateExtractBundleExtension.fsh", "TemplateExtractContextExtension.fsh", "TemplateExtractExtension.fsh"],
+            ["SDCParametersQuestionnaireResponseExtractIn.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "DefinitionExtractExtension.fsh", "DefinitionExtractValueExtension.fsh", "ExtractAllocateIdExtension.fsh", "IsSubjectExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "ObservationExtractCategory.fsh", "ObservationExtractEntry.fsh", "ObservationExtractExtension.fsh", "ObservationExtractRelationship.fsh", "ObservationExtractRelationshipCodes.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractDefinition.fsh", "SDCQuestionnaireExtractObservation.fsh", "SDCQuestionnaireExtractStructureMap.fsh", "SDCQuestionnaireExtractTemplate.fsh", "SDCQuestionnaireResponse.fsh", "SDCQuestionnaireResponseCommon.fsh", "TargetStructureMapExtension.fsh", "TemplateExtractBundleExtension.fsh", "TemplateExtractContextExtension.fsh", "TemplateExtractExtension.fsh", "tev-1.fsh"],
             ["SDCQuestionnaireAdapt.fsh"] = ["ihe-sdc-for-SDCQuestionnaireAdapt.fsh", "QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireCommon.fsh"],
             ["SDCQuestionnaireAdaptSearch.fsh"] = ["AssembledFromExtension.fsh", "EndpointExtension.fsh", "ihe-sdc-for-SDCQuestionnaireAdaptSearch.fsh", "QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireSearch.fsh", "SDCUsageContext.fsh"],
             ["SDCQuestionnaireBehave.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "EntryModeCodes.fsh", "ihe-sdc-for-SDCQuestionnaireBehave.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "KeyboardTypeCodes.fsh", "LaunchContext.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAnswerConstraintCodes.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
@@ -673,7 +673,7 @@ public class SdcIgCompilerTests
             ["SDCQuestionnaireExtractDefinition.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "DefinitionExtractExtension.fsh", "DefinitionExtractValueExtension.fsh", "ExtractAllocateIdExtension.fsh", "ihe-sdc-for-SDCQuestionnaireExtractDefinition.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
             ["SDCQuestionnaireExtractObservation.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "ihe-sdc-for-SDCQuestionnaireExtractObservation.fsh", "IsSubjectExtension.fsh", "ObservationExtractCategory.fsh", "ObservationExtractEntry.fsh", "ObservationExtractExtension.fsh", "ObservationExtractRelationship.fsh", "ObservationExtractRelationshipCodes.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
             ["SDCQuestionnaireExtractStructureMap.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "ihe-sdc-for-SDCQuestionnaireExtractStructureMap.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "TargetStructureMapExtension.fsh"],
-            ["SDCQuestionnaireExtractTemplate.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "ExtractAllocateIdExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "TemplateExtractBundleExtension.fsh", "TemplateExtractContextExtension.fsh", "TemplateExtractExtension.fsh"],
+            ["SDCQuestionnaireExtractTemplate.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "ExtractAllocateIdExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "TemplateExtractBundleExtension.fsh", "TemplateExtractContextExtension.fsh", "TemplateExtractExtension.fsh", "tev-1.fsh"],
             ["SDCQuestionnaireLibraryUsageContext.fsh"] = ["SDCUsageContext.fsh"],
             ["SDCQuestionnairePopulateExpression.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "CandidateExpressionExtension.fsh", "ChoiceColumnExtension.fsh", "ContextExpressionExtension.fsh", "ihe-sdc-for-SDCQuestionnairePopulateExpression.fsh", "InitialExpressionExtension.fsh", "IsSubjectExtension.fsh", "ItemPopulationContextExtension.fsh", "LaunchContext.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
             ["SDCQuestionnairePopulateObservation.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "ihe-sdc-for-SDCQuestionnairePopulateObservation.fsh", "IsSubjectExtension.fsh", "ObservationLinkPeriodExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
@@ -1664,6 +1664,9 @@ public class SdcIgCompilerTests
                                 entityDeps.Add((mEntity.Name, mEntity.Source));
                             }
                             break;
+                        case Invariant invEntity:
+                            entitySource.TryAdd(invEntity.Name, fa.Name);
+                            break;
                     }
 
                     if (e is Profile p && p.Parent != null && !ModelInfo.ModelInspector.IsKnownResource(p.Parent.Value))
@@ -1841,6 +1844,21 @@ public class SdcIgCompilerTests
 
                             entityDeps.Add((e.Name, typeName));
                             entitySource.TryAdd(e.Name, fa.Name);
+                        }
+                    }
+
+                    // Scan ObeysRule references: `* obeys invName` makes the entity depend on
+                    // the invariant definition.  The invariant must be in context so its
+                    // human-readable description and expression can populate the constraint.
+                    foreach (var obeysRule in rules.OfType<ObeysRule>())
+                    {
+                        foreach (var invName in obeysRule.InvariantNames)
+                        {
+                            if (!string.IsNullOrEmpty(invName))
+                            {
+                                entityDeps.Add((e.Name, invName));
+                                entitySource.TryAdd(e.Name, fa.Name);
+                            }
                         }
                     }
 
