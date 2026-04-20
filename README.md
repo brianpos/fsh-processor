@@ -1,16 +1,44 @@
 # fsh-processor
 
-A .NET library for parsing, validating, and serializing [FHIR Shorthand (FSH)](https://build.fhir.org/ig/HL7/fhir-shorthand/) files. Built on an ANTLR4 grammar, it produces a strongly-typed object model that can be inspected, transformed, and round-tripped back to FSH text.
+A .NET solution for parsing, serializing, and compiling [FHIR Shorthand (FSH)](https://build.fhir.org/ig/HL7/fhir-shorthand/) files, targeting FHIR R4, R4B, and R5.
 
-## Features
+## Packages
 
-* **Parse** FSH text into a structured `FshDoc` object model via `FshParser.Parse()`
-* **Serialize** a `FshDoc` back to valid FSH text via `FshSerializer.Serialize()` (round-trip capable, preserving comments and whitespace)
-* **Compile** parsed FSH definitions to FHIR resources via version-specific compilers targeting R4, R4B, and R5
-* **Full entity support** — Alias, Profile, Extension, Logical, Resource, Instance, Invariant, ValueSet, CodeSystem, RuleSet (including parameterized), and Mapping
-* **Rich rule model** — Cardinality, Flag, Type, Assignment, Binding, Contains, Obeys, Caret-value, Insert, AddElement, and more
-* **Source-position tracking** — every node carries line/column information for diagnostics
-* **Hidden-token preservation** — comments and blank lines are captured so serialized output faithfully reproduces the original formatting
+### [Hl7.FhirShorthand.Serialization](fsh-processor/README.md)
+
+[![NuGet](https://img.shields.io/nuget/v/Hl7.FhirShorthand.Serialization)](https://www.nuget.org/packages/Hl7.FhirShorthand.Serialization)
+
+Parses FSH text into a strongly-typed `FshDoc` object model and serializes it back to FSH with full comment and whitespace round-trip fidelity. No FHIR version dependency — suitable as a standalone FSH parser.
+
+```bash
+dotnet add package Hl7.FhirShorthand.Serialization
+```
+
+→ [Full documentation](fsh-processor/README.md)
+
+---
+
+### [Hl7.FhirShorthand.Compiler](fsh-compiler/README.md)
+
+[![NuGet](https://img.shields.io/nuget/v/Hl7.FhirShorthand.Compiler)](https://www.nuget.org/packages/Hl7.FhirShorthand.Compiler)
+
+Compiles a parsed `FshDoc` into FHIR resources (`StructureDefinition`, `ValueSet`, `CodeSystem`, `Instance`, etc.). 
+
+Can use the base project providing your own ModelInspector, or use with a version-specific adapter:
+
+| FHIR version | Package | NuGet |
+|---|---|---|
+| R4 (4.0.1) | `Hl7.FhirShorthand.Compiler.R4` | [![NuGet](https://img.shields.io/nuget/v/Hl7.FhirShorthand.Compiler.R4)](https://www.nuget.org/packages/Hl7.FhirShorthand.Compiler.R4) |
+| R4B (4.3.0) | `Hl7.FhirShorthand.Compiler.R4B` | [![NuGet](https://img.shields.io/nuget/v/Hl7.FhirShorthand.Compiler.R4B)](https://www.nuget.org/packages/Hl7.FhirShorthand.Compiler.R4B) |
+| R5 (5.0.0) | `Hl7.FhirShorthand.Compiler.R5` | [![NuGet](https://img.shields.io/nuget/v/Hl7.FhirShorthand.Compiler.R5)](https://www.nuget.org/packages/Hl7.FhirShorthand.Compiler.R5) |
+
+```bash
+dotnet add package Hl7.FhirShorthand.Compiler.R4   # or .R4B / .R5
+```
+
+→ [Full documentation](fsh-compiler/README.md)
+
+---
 
 ## Getting Started
 
@@ -30,108 +58,25 @@ dotnet build
 dotnet test
 ```
 
-### Basic Usage
-
-```csharp
-using Hl7.FhirShorthand.Serialization;
-using Hl7.FhirShorthand.Serialization.Models;
-
-string fshText = """
-    Profile: MyPatientProfile
-    Parent: Patient
-    Title: "My Patient Profile"
-    Description: "A custom patient profile"
-    * name 1..* MS
-    * birthDate 1..1
-    """;
-
-ParseResult result = FshParser.Parse(fshText);
-
-if (result is ParseResult.Success success)
-{
-    FshDoc doc = success.Document;
-
-    // Inspect parsed entities
-    foreach (var entity in doc.Entities)
-    {
-        Console.WriteLine($"{entity.GetType().Name}: {entity.Name}");
-    }
-
-    // Round-trip back to FSH text
-    string output = FshSerializer.Serialize(doc);
-}
-else if (result is ParseResult.Failure failure)
-{
-    foreach (var error in failure.Errors)
-    {
-        Console.WriteLine($"{error.Severity} {error.Location}: {error.Message}");
-    }
-}
-```
-
-## Project Structure
+## Solution Structure
 
 ```
-fsh-processor/                  # Core library — parsing, object model, and serialization
-│                               # Namespace: Hl7.FhirShorthand.Serialization
-├── antlr/                      # ANTLR4-generated lexer, parser, visitor/listener base classes (do not hand-edit)
-├── Models/                     # Strongly-typed object model (FshDoc, FshEntity, FshRule subclasses, etc.)
-│                               # Namespace: Hl7.FhirShorthand.Serialization.Models
-├── Visitors/                   # FshModelVisitor — builds the object model from the ANTLR parse tree
-├── FshParser.cs                # Public entry point: FshParser.Parse(string) → ParseResult
-└── FshSerializer.cs            # Public entry point: FshSerializer.Serialize(FshDoc) → string
-
-fsh-compiler/                   # Version-agnostic FSH compiler core (alias resolution, rule-set expansion, etc.)
-│                               # Namespace: Hl7.FhirShorthand.Compiler
-├── FshCompiler.cs              # Main compiler orchestration
-├── AliasResolver.cs            # Resolves FSH aliases across documents
-├── RuleSetResolver.cs          # Expands parameterized RuleSet references
-├── CompilerContext.cs          # Compilation state and options
-└── ...                         # Supporting types (CompileResult, CompilerError, CompilerWarning, etc.)
-
-fsh-compiler-R4/                # FHIR R4 compiler — converts parsed FSH to R4 FHIR resources
-│                               # Namespace: Hl7.FhirShorthand.Compiler_r4
-└── R4FshCompiler.cs
-
-fsh-compiler-R4B/               # FHIR R4B compiler — converts parsed FSH to R4B FHIR resources
-│                               # Namespace: Hl7.FhirShorthand.Compiler_r4b
-└── R4BFshCompiler.cs
-
-fsh-compiler-R5/                # FHIR R5 compiler — converts parsed FSH to R5 FHIR resources
-│                               # Namespace: Hl7.FhirShorthand.Compiler_r5
-└── R5FshCompiler.cs
-
-fsh-tester/                     # MSTest project for the parser and serializer
-├── ParserTests.cs              # Core parser tests
-├── RoundTripTests.cs           # Round-trip (parse → serialize → parse) tests
-├── Sushi/                      # Sushi-compatible parser tests (per entity type)
-├── TestData/SDC/               # Real-world SDC IG .fsh files used as test input
-└── ...                         # Additional test suites (add-element, multiline strings, token debug, etc.)
-
-fsh-compiler-tester-R4/         # MSTest project for the R4 compiler
-├── R4ProfileCompilerTests.cs   # Profile compilation tests
-├── R4ExtensionCompilerTests.cs # Extension compilation tests
-├── SdcIgCompilerTests.cs       # Full SDC IG compilation tests
-├── TestData/sushi-generated/   # Expected JSON output (generated by Sushi) for comparison
-└── ...                         # Additional R4 compiler test suites
+fsh-processor/              # Hl7.FhirShorthand.Serialization — FSH parser and object model
+fsh-compiler/               # Hl7.FhirShorthand.Compiler — version-agnostic compiler core
+fsh-compiler-R4/            # Hl7.FhirShorthand.Compiler.R4 — FHIR R4 adapter
+fsh-compiler-R4B/           # Hl7.FhirShorthand.Compiler.R4B — FHIR R4B adapter
+fsh-compiler-R5/            # Hl7.FhirShorthand.Compiler.R5 — FHIR R5 adapter
+fsh-tester/                 # MSTest project — parser and serializer tests
+fsh-compiler-tester-R4/     # MSTest project — R4 compiler tests
 ```
-
-## Dependencies
-
-| Package | Used by | Purpose |
-|---------|---------|---------|
-| [Antlr4.Runtime.Standard](https://www.nuget.org/packages/Antlr4.Runtime.Standard) | `fsh-processor` | ANTLR4 runtime for the FSH grammar |
-| [Hl7.Fhir.Conformance](https://www.nuget.org/packages/Hl7.Fhir.Conformance) | `fsh-processor` | Firely SDK annotation infrastructure (`IAnnotated`, `IAnnotatable`, `AnnotationList`) used by `FshNode` to attach arbitrary metadata to model nodes — no FHIR resource types are used from this package |
-| [Hl7.Fhir.R4](https://www.nuget.org/packages/Hl7.Fhir.R4) | `fsh-compiler-R4`, `fsh-compiler-tester-R4` | Firely .NET SDK — FHIR R4 resource models |
-| [Hl7.Fhir.R4B](https://www.nuget.org/packages/Hl7.Fhir.R4B) | `fsh-compiler-R4B` | Firely .NET SDK — FHIR R4B resource models |
-| [Hl7.Fhir.R5](https://www.nuget.org/packages/Hl7.Fhir.R5) | `fsh-compiler-R5` | Firely .NET SDK — FHIR R5 resource models |
 
 ## License
 
-This project is licensed under the **BSD 3-Clause License** — see [LICENSE.txt](LICENSE.txt) for details.
+BSD 3-Clause — see [LICENSE.txt](LICENSE.txt) for details.
 
 ## Acknowledgements
 
 * [FHIR Shorthand specification](https://build.fhir.org/ig/HL7/fhir-shorthand/)
 * [Firely .NET SDK](https://github.com/FirelyTeam/firely-net-sdk)
 * [ANTLR4](https://www.antlr.org/)
+
