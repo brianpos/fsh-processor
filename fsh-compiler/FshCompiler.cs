@@ -382,13 +382,10 @@ public static class FshCompiler
         // Only use the stripped name when it is a recognised type; otherwise fall back to
         // the pre-alias-resolution name so profiles-of-profiles don't produce a bogus type.
         var typeValue = ExtractBareTypeName(resolvedParent, parentTypeName, opts.Inspector, mergedResolver);
-        bool debugThis = profile.Name == "SDCBaseQuestionnaire" || profile.Name == "SDCQuestionnaireExtractObservation" || profile.Name == "SDCQuestionnaireCommon";
-        if (debugThis) Console.WriteLine($"DEBUG [{profile.Name}] after ExtractBareTypeName: typeValue={typeValue}, resolvedParent={resolvedParent}, parentTypeName={parentTypeName}");
         if (!IsKnownFhirType(typeValue, opts.Inspector, mergedResolver))
         {
             // Try resolver-based profile chain walk first (no inspector required).
             var resolvedFromSd = context.ResolveBaseTypeFromResolver(resolvedParent, mergedResolver);
-            if (debugThis) Console.WriteLine($"DEBUG [{profile.Name}] resolvedFromSd={resolvedFromSd}");
             if (!string.IsNullOrEmpty(resolvedFromSd))
             {
                 typeValue = resolvedFromSd;
@@ -398,7 +395,6 @@ public static class FshCompiler
                 var classMap = context.ResolveClassMappingForProfile(resolvedParent, opts.Inspector, mergedResolver, out _);
                 if (classMap != null)
                     typeValue = classMap.Name;
-                if (debugThis) Console.WriteLine($"DEBUG [{profile.Name}] classMap={classMap?.Name}, typeValue now={typeValue}");
             }
 
             var byUrl = context.CompiledStructureDefinitions
@@ -407,16 +403,15 @@ public static class FshCompiler
                 .GroupBy(s => s.Url!, StringComparer.Ordinal)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
-            if (debugThis) Console.WriteLine($"DEBUG [{profile.Name}] byUrl keys: {String.Join(", ", byUrl.Keys.Select(k => k.Split('/').Last()))}");
             var resolvedType = ResolveUnderlyingFhirType(typeValue, context, opts, byUrl, depth: 0);
-            if (debugThis) Console.WriteLine($"DEBUG [{profile.Name}] resolvedType={resolvedType}");
             if (!string.IsNullOrEmpty(resolvedType))
                 typeValue = resolvedType;
         }
 
-        var kind = InferKindFromType(typeValue, opts.Inspector, opts.Resolver);
-        if (debugThis)
-            Console.WriteLine($"DEBUG [{profile.Name}] FINAL typeValue={typeValue}, kind={kind}");
+        // C-PR3: Use the merged resolver (compiled SDs + external) so that profiles-of-profiles
+        // resolve the correct Kind (e.g. a profile of an in-IG profile that ultimately profiles
+        // a core resource type gets Kind=Resource, not Kind=ComplexType).
+        var kind = InferKindFromType(typeValue, opts.Inspector, mergedResolver);
 
         var sd = new StructureDefinition
         {
