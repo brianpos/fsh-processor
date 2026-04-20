@@ -1630,7 +1630,8 @@ public static class FshCompiler
     /// <summary>
     /// Returns <c>true</c> when <paramref name="fshPath"/> refers to an extension element,
     /// i.e. when the final segment (after the last <c>'.'</c>) is <c>"extension"</c> or
-    /// when the path itself is <c>"extension"</c>.
+    /// <c>"modifierExtension"</c> (both use value-URL discriminator slicing and require an
+    /// Extension type profile).
     /// </summary>
     private static bool IsExtensionPath(string fshPath)
     {
@@ -1642,7 +1643,8 @@ public static class FshCompiler
         if (colonPos >= 0) lastSeg = lastSeg[..colonPos];
         var bracketPos = lastSeg.IndexOf('[');
         if (bracketPos >= 0) lastSeg = lastSeg[..bracketPos];
-        return string.Equals(lastSeg, "extension", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(lastSeg, "extension", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(lastSeg, "modifierExtension", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
