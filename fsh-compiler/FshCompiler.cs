@@ -1292,7 +1292,7 @@ public static class FshCompiler
                     break;
 
                 case FixedValueRule fixedValueRule:
-                    ApplyFixedValueRule(fixedValueRule, sd, opts.Inspector);
+                    ApplyFixedValueRule(fixedValueRule, sd, opts.Inspector, context.ResolveAlias, opts.Resolver);
                     break;
 
                 case ContainsRule containsRule:
@@ -1432,13 +1432,33 @@ public static class FshCompiler
         };
     }
 
-    private static void ApplyFixedValueRule(FixedValueRule fixedValueRule, StructureDefinition sd, ModelInspector? inspector = null)
+    private static void ApplyFixedValueRule(FixedValueRule fixedValueRule, StructureDefinition sd, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null, IResourceResolver? resolver = null)
     {
         if (string.IsNullOrEmpty(fixedValueRule.Path) || fixedValueRule.Value is null) return;
         var ed = GetOrCreateElement(fixedValueRule.Path, sd);
-        var dt = FhirValueMapper.ToDataType(fixedValueRule.Value, inspector);
+        var dt = FhirValueMapper.ToDataType(fixedValueRule.Value, inspector, aliasResolver);
         if (dt != null)
         {
+            // When the mapped value is a Coding but the target element type is CodeableConcept
+            // (e.g. `* code = $system#code` on a CodeableConcept field), wrap the Coding in a
+            // CodeableConcept to produce the correct pattern[x] variant.
+            if (dt is Hl7.Fhir.Model.Coding coding && resolver != null && sd.Type != null)
+            {
+                var typeCode = ResolveElementTypeCode(fixedValueRule.Path, sd.Type, resolver);
+                if (string.Equals(typeCode, "CodeableConcept", StringComparison.Ordinal))
+                {
+                    dt = new Hl7.Fhir.Model.CodeableConcept
+                    {
+                        Coding = [new Hl7.Fhir.Model.Coding
+                        {
+                            System  = coding.System,
+                            Code    = coding.Code,
+                            Display = coding.Display,
+                        }]
+                    };
+                }
+            }
+
             // "exactly" modifier → fixed[x]; omitted → pattern[x]
             if (fixedValueRule.Exactly)
                 ed.Fixed = dt;
@@ -1790,6 +1810,73 @@ public static class FshCompiler
 
         return null;
     }
+
+    /// <summary>
+    /// Returns the first FHIR type code for the element at <paramref name="fshPath"/> in the
+    /// base StructureDefinition identified by <paramref name="sdType"/> (e.g. <c>"ServiceRequest"</c>).
+    /// Navigates through intermediate types when the path has multiple segments.
+    /// Returns <c>null</c> when the type cannot be resolved.
+    /// </summary>
+    /// <param name="fshPath">The FSH path of the element (e.g. <c>"code"</c>).</param>
+    /// <param name="sdType">The FHIR resource/datatype name (e.g. <c>"ServiceRequest"</c>).</param>
+    /// <param name="resolver">The resource resolver used to look up base StructureDefinitions.</param>
+    private static string? ResolveElementTypeCode(string fshPath, string sdType, IResourceResolver resolver)
+    {
+        if (string.IsNullOrEmpty(fshPath) || string.IsNullOrEmpty(sdType)) return null;
+
+        // Strip slice notation and array indices from path segments.
+        static string StripSlicesAndIndices(string rawPath)
+        {
+            var segs = rawPath.Split('.');
+            for (int i = 0; i < segs.Length; i++)
+            {
+                var s = segs[i];
+                var colon = s.IndexOf(':');
+                if (colon >= 0) s = s[..colon];
+                var bracket = s.IndexOf('[');
+                if (bracket >= 0) s = s[..bracket];
+                segs[i] = s;
+            }
+            return string.Join('.', segs);
+        }
+
+        var cleanPath = StripSlicesAndIndices(fshPath);
+        var segments = cleanPath.Split('.');
+        var currentType = sdType;
+        var segIndex = 0;
+
+        while (segIndex < segments.Length)
+        {
+            var seg = segments[segIndex];
+            if (string.IsNullOrEmpty(seg)) return null;
+
+            var typeSd = FindStructureDefinitionForType(currentType, resolver);
+            if (typeSd == null) return null;
+
+            var elements = (IList<ElementDefinition>?)typeSd.Snapshot?.Element ?? typeSd.Differential?.Element;
+            if (elements == null) return null;
+
+            var remainingPath = string.Join('.', segments[segIndex..]);
+            var fullElementPath = currentType + "." + remainingPath;
+            var el = elements.FirstOrDefault(e => e.Path == fullElementPath);
+            if (el != null)
+                return el.Type?.FirstOrDefault()?.Code;
+
+            // Navigate one step.
+            var parentPath = currentType + "." + seg;
+            var parentEl = elements.FirstOrDefault(e => e.Path == parentPath);
+            if (parentEl == null || parentEl.Type == null || parentEl.Type.Count == 0) return null;
+
+            var nextTypeCode = parentEl.Type[0].Code;
+            if (string.IsNullOrEmpty(nextTypeCode)) return null;
+
+            currentType = nextTypeCode;
+            segIndex++;
+        }
+
+        return null;
+    }
+
 
     /// <summary>
     /// Parses a FSH target-type expression into a Firely <see cref="ElementDefinition.TypeRefComponent"/>.
@@ -2786,12 +2873,31 @@ public static class FshCompiler
         var elements = sd.Differential?.Element;
         if (elements == null || elements.Count == 0) return;
 
+        var rootType = sd.Type ?? string.Empty;
+
         var toRemove = elements
-            .Where(ed => IsNoOpScaffoldElement(ed, elements, sd.Type ?? string.Empty))
+            .Where(ed => IsNoOpScaffoldElement(ed, elements, rootType))
             .ToList();
 
         foreach (var ed in toRemove)
             elements.Remove(ed);
+
+        // Ensure the root element (if present) is always at position 0.  In multi-document
+        // compilation the root can be displaced when profiles-of-profiles are fixed up after
+        // compilation; the FHIR snapshot generator requires root to precede its children.
+        if (!string.IsNullOrEmpty(rootType) && elements.Count > 1)
+        {
+            var rootIdx = elements.FindIndex(e =>
+                string.Equals(e.Path, rootType, StringComparison.Ordinal)
+                && string.IsNullOrEmpty(e.SliceName)
+                && string.Equals(e.ElementId, rootType, StringComparison.Ordinal));
+            if (rootIdx > 0)
+            {
+                var rootEd = elements[rootIdx];
+                elements.RemoveAt(rootIdx);
+                elements.Insert(0, rootEd);
+            }
+        }
     }
 
     private static bool IsNoOpScaffoldElement(
@@ -2802,7 +2908,6 @@ public static class FshCompiler
         if (ed.Path == null || ed.ElementId == null) return false;
         if (!string.IsNullOrEmpty(ed.SliceName)) return false;
         if (!string.Equals(ed.Path, ed.ElementId, StringComparison.Ordinal)) return false;
-        if (string.Equals(ed.Path, rootType, StringComparison.Ordinal)) return false;
 
         var hasChildren = allElements.Any(child =>
             !ReferenceEquals(child, ed)
