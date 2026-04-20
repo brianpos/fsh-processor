@@ -2107,9 +2107,81 @@ public static class FshCompiler
             // differential only has the profile's own constraints.  Subtract the number
             // of inherited constraints from the parent SD to get the local index.
             var adjustedRule = AdjustConstraintIndex(caretValueRule, ed, sd, context, opts);
+            // Pre-seed inherited list-typed element properties from the base element before
+            // applying indexed caret assignments.  For example, `* . ^alias[0] = "Form Data"`
+            // must preserve base-inherited aliases at other indices (e.g. alias[1]).
+            PreSeedInheritedListFromBase(caretValueRule.CaretPath.TrimStart('^'), ed, sd, context, opts);
             // Each element gets its own soft-index state for element-level compound paths.
             ApplyEdCaretPath(adjustedRule, ed, inspector, aliasResolver);
         }
+    }
+
+    /// <summary>
+    /// When a caret path targets a specific index of a list property on an
+    /// <see cref="ElementDefinition"/> (e.g. <c>alias[0]</c>), pre-seeds the element's
+    /// list with values inherited from the corresponding base element so that indices not
+    /// touched by FSH rules retain their inherited values.
+    /// Does nothing when the property is not a list, the index is 0 and the list is already
+    /// populated, or no base element is found.
+    /// </summary>
+    private static void PreSeedInheritedListFromBase(
+        string caretPath,
+        ElementDefinition ed,
+        StructureDefinition sd,
+        CompilerContext? context,
+        CompilerOptions? opts)
+    {
+        if (context == null || opts == null) return;
+
+        // Only applies to indexed paths like "alias[0]", "alias[1]", etc.
+        var bracketStart = caretPath.IndexOf('[');
+        if (bracketStart < 0) return;
+        var bracketEnd = caretPath.IndexOf(']', bracketStart);
+        if (bracketEnd < 0) return;
+        var propertyName = caretPath[..bracketStart];
+        var indexStr = caretPath[(bracketStart + 1)..bracketEnd];
+        if (!int.TryParse(indexStr, out _)) return;
+
+        // Resolve the base element from the parent SD.
+        if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
+        var baseSd = ResolveStructureDefinition(sd.BaseDefinition, context, opts);
+        if (baseSd == null) return;
+
+        var basePath = RewritePathRoot(ed.Path ?? string.Empty, sd.Type, baseSd.Type);
+        var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
+                  ?? baseSd.Differential?.Element;
+        var baseEl = source?.FirstOrDefault(e =>
+            e.Path == basePath && string.IsNullOrEmpty(e.SliceName));
+        if (baseEl == null) return;
+
+        // Look for a property whose FHIR name matches caretPath property.
+        // We use the Firely SDK ModelInspector mapping.
+        var mi = Hl7.Fhir.Introspection.ModelInspector.ForAssembly(typeof(ElementDefinition).Assembly);
+        var classMap = mi?.FindClassMapping(typeof(ElementDefinition));
+        if (classMap == null) return;
+
+        var propMap = classMap.FindMappedElementByName(propertyName);
+        if (propMap == null || !propMap.IsCollection) return;
+
+        // Get the base list value.
+        var baseList = propMap.GetValue(baseEl) as System.Collections.IList;
+        if (baseList == null || baseList.Count == 0) return;
+
+        // Get (or create) the list on the differential element.
+        var edList = propMap.GetValue(ed) as System.Collections.IList;
+        if (edList == null)
+        {
+            var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+            edList = (System.Collections.IList)Activator.CreateInstance(listType)!;
+            propMap.SetValue(ed, edList);
+        }
+
+        // Only seed if the ed list is currently empty (don't overwrite explicit FSH values).
+        if (edList.Count > 0) return;
+
+        // Copy base list items into the ed list.
+        foreach (var item in baseList)
+            edList.Add(item);
     }
 
     /// <summary>
