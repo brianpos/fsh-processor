@@ -7,6 +7,12 @@
   "status": "active",
   "description": "Describes the elements that should be exposed in a response to a search for questionnaires.",
   "fhirVersion": "4.0.1",
+  "mapping": [
+    {
+      "identity": "ihe-sdc",
+      "name": "IHE SDC"
+    }
+  ],
   "kind": "resource",
   "abstract": false,
   "type": "Questionnaire",

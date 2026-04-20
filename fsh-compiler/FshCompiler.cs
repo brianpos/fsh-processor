@@ -352,6 +352,12 @@ public static class FshCompiler
         // and replace bare ValueSet names with their compiled canonical URLs.
         FixUpValueSetBindings(resources.OfType<StructureDefinition>().ToList(), resources, context, opts);
 
+        // Sort differential elements into canonical FHIR order after all post-processing is done
+        // (mappings, type fixup, etc. may add or reorder elements).  Run this last so the
+        // snapshot generator sees elements in the expected order (root first, children in schema order).
+        foreach (var compiledSd in resources.OfType<StructureDefinition>())
+            SortDifferentialElementsByCanonicalOrder(compiledSd, opts.Inspector);
+
         return errors.Count > 0
             ? CompileResult<List<FhirResource>>.FromFailure(errors, context.Warnings)
             : CompileResult<List<FhirResource>>.FromSuccess(resources, context.Warnings);
@@ -468,6 +474,8 @@ public static class FshCompiler
         NormalizeChoiceTypeSlices(sd, parentBaseSd, coreTypeSd, mergedResolver);
 
         RemoveRedundantCardinalityAgainstBase(sd, context, opts);
+        RemoveRedundantTypeConstraints(sd, context, opts);
+        RemoveRedundantSlicingAgainstBase(sd, context, opts);
         RemoveNoOpScaffoldElements(sd);
         return sd;
     }
@@ -548,9 +556,14 @@ public static class FshCompiler
         var lastSlash = resolvedParent.LastIndexOf('/');
         var segment = lastSlash >= 0 ? resolvedParent[(lastSlash + 1)..] : resolvedParent;
 
-        // Prefer resolver: look up the segment as a core FHIR type.
-        if (resolver != null && FindStructureDefinitionForType(segment, resolver) != null)
-            return segment;
+        // Prefer resolver: look up the segment as a core FHIR type (Specialization only).
+        // Profiles (Constraint SDs) are not bare type names — they need further resolution.
+        if (resolver != null)
+        {
+            var sd = FindStructureDefinitionForType(segment, resolver);
+            if (sd?.Derivation == StructureDefinition.TypeDerivationRule.Specialization)
+                return segment;
+        }
 
         // Fall back to inspector.
         if (inspector != null && inspector.FindClassMapping(segment) != null)
@@ -895,9 +908,12 @@ public static class FshCompiler
     {
         var opts = options ?? new CompilerOptions();
 
-        // Logical models use the full canonical URL as Type (spec §Logical).
+        // Logical models use the full canonical URL as Type (spec §Logical), but element
+        // paths use the short id so that element ids look like "SdcQuestionLibrary.dob"
+        // rather than "http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary.dob".
         var logicalUrl = ResolveUrl(logical.Id, opts, "StructureDefinition");
         var logicalType = !string.IsNullOrEmpty(logicalUrl) ? logicalUrl : logical.Name;
+        var logicalPathPrefix = logical.Id ?? logical.Name;
 
         var sd = new StructureDefinition
         {
@@ -921,7 +937,18 @@ public static class FshCompiler
             }
         };
 
-        sd.Differential.Element.Add(new ElementDefinition(logicalType) { Path = logicalType, ElementId = logicalType });
+        if (opts.FhirVersion != null && sd.FhirVersion == null)
+        {
+            sd.FhirVersion = opts.FhirVersion switch
+            {
+                "4.0.1" or "4.0" => FHIRVersion.N4_0_1,
+                "4.3.0" or "4.3" => FHIRVersion.N4_3_0,
+                "5.0.0" or "5.0" => FHIRVersion.N5_0_0,
+                _ => EnumUtility.ParseLiteral<FHIRVersion>(opts.FhirVersion, ignoreCase: true)
+            };
+        }
+
+        sd.Differential.Element.Add(new ElementDefinition(logicalPathPrefix) { Path = logicalPathPrefix, ElementId = logicalPathPrefix });
 
         // C-LG1: Emit type-characteristics extension for each Characteristics code.
         if (logical.Characteristics.Count > 0)
@@ -1308,7 +1335,7 @@ public static class FshCompiler
                     break;
 
                 case CaretValueRule caretValueRule:
-                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, context.ResolveAlias, caretSoftIndexState);
+                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, context.ResolveAlias, caretSoftIndexState, context, opts);
                     break;
 
                 case InsertRule insertRule:
@@ -1377,9 +1404,14 @@ public static class FshCompiler
         if (string.IsNullOrEmpty(path)) return;
         var ed = GetOrCreateElement(path, sd);
         var parts = cardinality.Split("..");
+        int? newMin = null;
         if (parts.Length == 2)
         {
-            if (int.TryParse(parts[0], out var min)) ed.Min = min;
+            if (int.TryParse(parts[0], out var min))
+            {
+                ed.Min = min;
+                newMin = min;
+            }
             // FSH permits open-ended cardinality (e.g. "1..") which leaves the upper bound
             // implicit.  Sushi omits the max element in that case; an empty string would
             // otherwise serialise as ""max": """ which is invalid FHIR.
@@ -1387,6 +1419,25 @@ public static class FshCompiler
                 ed.Max = parts[1];
         }
         ApplyFlags(ed, flags);
+
+        // When a named extension slice gets a positive minimum cardinality, sushi also
+        // adds (or tightens) the parent (non-sliced) extension element minimum so that FHIR
+        // profiling validity rules are met (parent min ≥ sum of required slice mins).
+        if (newMin > 0 && !string.IsNullOrEmpty(ed.SliceName) && IsExtensionPath(path))
+        {
+            // Derive the parent path by stripping the bracket-index or colon notation.
+            var bracketIdx = path.IndexOf('[');
+            var colonIdx   = path.IndexOf(':');
+            var parentPath = bracketIdx >= 0 ? path[..bracketIdx]
+                           : colonIdx   >= 0 ? path[..colonIdx]
+                           : null;
+            if (parentPath != null)
+            {
+                var parentEd = FindElement(parentPath, sd) ?? GetOrCreateElement(parentPath, sd);
+                if (!parentEd.Min.HasValue || parentEd.Min.Value < newMin.Value)
+                    parentEd.Min = newMin.Value;
+            }
+        }
     }
 
     private static void ApplyFlagRule(FlagRule flagRule, StructureDefinition sd) =>
@@ -1471,17 +1522,23 @@ public static class FshCompiler
     {
         if (string.IsNullOrEmpty(containsRule.Path) || containsRule.Items.Count == 0) return;
 
-        // For extension slicing (`* extension contains ...`), sushi emits only the slice
-        // rows unless the unsliced `extension` element is explicitly constrained elsewhere.
-        // Avoid creating a bare parent element just because of a contains rule.
         var isExtensionPath = IsExtensionPath(containsRule.Path);
-        var ed = isExtensionPath
-            ? FindElement(containsRule.Path, sd)
-            : GetOrCreateElement(containsRule.Path, sd);
+        ElementDefinition? ed;
 
-        var requiredSliceMinSum = 0;
         if (isExtensionPath)
         {
+            // For extension slicing, the bare parent element is needed to carry the slicing
+            // discriminator when the direct parent SD doesn't already define extension slicing.
+            // When the parent has named extension slices (slicing is inherited), we skip creating
+            // the bare element — RemoveRedundantSlicingAgainstBase handles inherited slicing.
+            ed = FindElement(containsRule.Path, sd);
+            if (ed == null && !DirectParentHasNamedExtensionSlices(containsRule.Path, sd, context, opts))
+                ed = GetOrCreateElement(containsRule.Path, sd);
+
+            // Contains rules for extensions define slice-level cardinalities on the extension
+            // array. To keep cardinalities compliant with FHIR profiling rules, the unsliced
+            // extension element minimum must be at least the sum of all required slice mins.
+            var requiredSliceMinSum = 0;
             foreach (var item in containsRule.Items)
             {
                 var parts = item.Cardinality.Split("..");
@@ -1489,16 +1546,16 @@ public static class FshCompiler
                     requiredSliceMinSum += min;
             }
 
-            // Contains rules for extensions define slice-level cardinalities on the extension
-            // array. To keep cardinalities compliant with FHIR profiling rules, the unsliced
-            // extension element minimum must be at least the sum of all required slice mins.
-            // Create the parent element before slice rows so output ordering matches sushi.
             if (requiredSliceMinSum > 0)
             {
                 ed ??= GetOrCreateElement(containsRule.Path, sd);
                 if (!ed.Min.HasValue || ed.Min.Value < requiredSliceMinSum)
                     ed.Min = requiredSliceMinSum;
             }
+        }
+        else
+        {
+            ed = GetOrCreateElement(containsRule.Path, sd);
         }
 
         if (ed is not null && ed.Slicing == null)
@@ -1549,6 +1606,12 @@ public static class FshCompiler
                 if (isExtensionPath)
                 {
                     var resolvedProfile = ResolveBaseDefinitionCanonical(resolvedType, item.Name, context, opts);
+                    // URL-encode brackets in the profile URL (e.g. value[x] → value%5Bx%5D).
+                    // Brackets are not valid unencoded in URIs and sushi always percent-encodes them.
+                    if (resolvedProfile.Contains('[') || resolvedProfile.Contains(']'))
+                        resolvedProfile = resolvedProfile
+                            .Replace("[", "%5B", StringComparison.Ordinal)
+                            .Replace("]", "%5D", StringComparison.Ordinal);
                     sliceEd.Type =
                     [
                         new ElementDefinition.TypeRefComponent
@@ -1572,17 +1635,21 @@ public static class FshCompiler
     /// <summary>
     /// Returns <c>true</c> when <paramref name="fshPath"/> refers to an extension element,
     /// i.e. when the final segment (after the last <c>'.'</c>) is <c>"extension"</c> or
-    /// when the path itself is <c>"extension"</c>.
+    /// <c>"modifierExtension"</c> (both use value-URL discriminator slicing and require an
+    /// Extension type profile).
     /// </summary>
     private static bool IsExtensionPath(string fshPath)
     {
         if (string.IsNullOrEmpty(fshPath)) return false;
         var lastDot = fshPath.LastIndexOf('.');
         var lastSeg = lastDot >= 0 ? fshPath[(lastDot + 1)..] : fshPath;
-        // Strip slice notation if present (e.g. "extension:name" → "extension").
+        // Strip slice notation: colon form "extension:name" or bracket form "extension[name]".
         var colonPos = lastSeg.IndexOf(':');
         if (colonPos >= 0) lastSeg = lastSeg[..colonPos];
-        return string.Equals(lastSeg, "extension", StringComparison.OrdinalIgnoreCase);
+        var bracketPos = lastSeg.IndexOf('[');
+        if (bracketPos >= 0) lastSeg = lastSeg[..bracketPos];
+        return string.Equals(lastSeg, "extension", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(lastSeg, "modifierExtension", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -1627,12 +1694,12 @@ public static class FshCompiler
         // use it as the primary sort key so that e.g. `only Quantity or string` on
         // Observation.value[x] serialises in the order declared by the base element.
         //
-        // Special case: when the base element is "any DataType" (e.g. Extension.value[x]
-        // in R4, whose FhirType resolves to the abstract DataType base class), sushi falls
-        // back to alphabetical ordering within each type group (primitives first, then
-        // complex datatypes).
+        // Special case: when the path targets a named extension slice (e.g. extension[adheresTo].value[x]),
+        // sushi looks up the specific named extension's SD for type ordering.  When that extension SD
+        // cannot be resolved (e.g. it is from an external package not in the local resolver), sushi
+        // preserves the FSH source order instead of alphabetical.
         var typeRefs = onlyRule.TargetTypes.Select(tt => ParseTypeRef(tt, context, opts)).ToList();
-        var baseOrder = GetBaseChoiceTypeOrder(onlyRule.Path, sd, opts?.Inspector, opts?.Resolver);
+        var (baseOrder, useSourceOrder) = GetBaseChoiceTypeOrder(onlyRule.Path, sd, opts?.Inspector, opts?.Resolver);
         if (baseOrder != null && baseOrder.Count > 1)
         {
             ed.Type = typeRefs
@@ -1643,9 +1710,15 @@ public static class FshCompiler
                 .Select(x => x.t)
                 .ToList();
         }
+        else if (useSourceOrder)
+        {
+            // An external named extension was detected whose SD cannot be resolved.
+            // Preserve FSH source order, matching sushi's behaviour.
+            ed.Type = typeRefs;
+        }
         else
         {
-            // Fallback: primitive datatypes (lowercase initial) before complex datatypes /
+            // General fallback: primitive datatypes (lowercase initial) before complex datatypes /
             // resources (uppercase initial), then alphabetical by type code within each group.
             // Matches sushi's behaviour for "any DataType" elements like Extension.value[x].
             ed.Type = typeRefs
@@ -1660,27 +1733,45 @@ public static class FshCompiler
 
     /// <summary>
     /// Resolves the base element's declared choice-type ordering for <paramref name="path"/>
-    /// on <paramref name="sd"/>.  Returns a dictionary mapping FHIR type name → zero-based
-    /// index in the element's <c>type</c> array, or <c>null</c> when the path or
-    /// resolver/inspector cannot be resolved.
+    /// on <paramref name="sd"/>.  Returns a tuple:
+    /// <list type="bullet">
+    ///   <item><description><c>Order != null</c> — use this ordering.</description></item>
+    ///   <item><description><c>Order == null, UseSourceOrder = true</c> — an external named
+    ///     extension was detected but could not be resolved; caller should use FSH source order.</description></item>
+    ///   <item><description><c>Order == null, UseSourceOrder = false</c> — general fallback;
+    ///     caller should use alphabetical-within-tier ordering.</description></item>
+    /// </list>
     /// Prefers the <paramref name="resolver"/> (StructureDefinition-based navigation) and
     /// falls back to the <paramref name="inspector"/> (ModelInspector-based walk) when the
     /// resolver is unavailable or does not find the element.
+    /// When the path includes an external extension slice (e.g. <c>extension[adheresTo].value[x]</c>)
+    /// whose SD cannot be resolved, returns <c>(null, true)</c> so the caller preserves FSH source order.
     /// </summary>
-    private static Dictionary<string, int>? GetBaseChoiceTypeOrder(
+    private static (Dictionary<string, int>? Order, bool UseSourceOrder) GetBaseChoiceTypeOrder(
         string path, StructureDefinition sd, ModelInspector? inspector, IResourceResolver? resolver = null)
     {
+        // When the path targets a specific named extension slice (e.g. extension[adheresTo].value[x]),
+        // try to resolve the named extension's SD directly and return its value[x] type ordering.
+        // If a named external extension exists as a slice with a type.profile but cannot be
+        // resolved, return (null, true) so the caller uses FSH source order (not the generic
+        // Extension.value[x] 50-type ordering which would produce wrong results).
+        if (resolver != null)
+        {
+            var namedExtResult = GetChoiceTypeOrderForNamedExtensionSlice(path, sd, resolver);
+            if (namedExtResult.Resolved) return (namedExtResult.Order, namedExtResult.Order == null);  // unresolvable external → UseSourceOrder=true
+        }
+
         // Preferred: resolver-based lookup using StructureDefinition element lists.
         if (resolver != null && !string.IsNullOrEmpty(sd.Type))
         {
             var result = GetChoiceTypeOrderFromResolver(path, sd.Type, resolver);
-            if (result != null) return result;
+            if (result != null) return (result, false);
         }
 
         // Fallback: ModelInspector-based property walk.
-        if (inspector is null || string.IsNullOrEmpty(sd.Type)) return null;
+        if (inspector is null || string.IsNullOrEmpty(sd.Type)) return (null, false);
         var current = inspector.FindClassMapping(sd.Type);
-        if (current is null) return null;
+        if (current is null) return (null, false);
 
         var segments = path.Split('.');
         for (int i = 0; i < segments.Length; i++)
@@ -1690,21 +1781,21 @@ public static class FshCompiler
             if (colon >= 0) seg = seg[..colon];
             var bracket = seg.IndexOf('[');
             if (bracket >= 0) seg = seg[..bracket];
-            if (string.IsNullOrEmpty(seg)) return null;
+            if (string.IsNullOrEmpty(seg)) return (null, false);
 
             var propMap = current.FindMappedElementByName(seg);
-            if (propMap is null) return null;
+            if (propMap is null) return (null, false);
 
             if (i == segments.Length - 1)
             {
                 var fhirTypes = propMap.FhirType;
-                if (fhirTypes is null || fhirTypes.Length == 0) return null;
+                if (fhirTypes is null || fhirTypes.Length == 0) return (null, false);
 
                 // Skip the "any DataType" case (Extension.value[x] in R4 resolves its
                 // FhirType to just the abstract DataType base class). An abstract-only
                 // entry carries no ordering information, so fall through to the
                 // alphabetical-within-tier fallback.
-                if (fhirTypes.Length == 1 && fhirTypes[0].IsAbstract) return null;
+                if (fhirTypes.Length == 1 && fhirTypes[0].IsAbstract) return (null, false);
 
                 var order = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 for (int j = 0; j < fhirTypes.Length; j++)
@@ -1713,15 +1804,92 @@ public static class FshCompiler
                     if (cm != null && !order.ContainsKey(cm.Name))
                         order[cm.Name] = j;
                 }
-                return order.Count > 0 ? order : null;
+                return (order.Count > 0 ? order : null, false);
             }
 
             var nextType = propMap.ImplementingType;
-            if (nextType is null) return null;
+            if (nextType is null) return (null, false);
             current = inspector.FindClassMapping(nextType);
-            if (current is null) return null;
+            if (current is null) return (null, false);
         }
-        return null;
+        return (null, false);
+    }
+
+    /// <summary>
+    /// Checks whether <paramref name="path"/> begins with an extension slice segment such as
+    /// <c>extension[adheresTo]</c> or <c>modifierExtension[foo]</c>, and if so tries to look
+    /// up the specific named extension's profile URL from <paramref name="sd"/>'s differential,
+    /// then resolve that extension's <c>value[x]</c> type ordering.
+    /// Returns a tuple where <c>Resolved</c> is <c>true</c> when an external extension profile
+    /// was detected (and <c>Order</c> is the resolved ordering or <c>null</c> when the SD could
+    /// not be found), or <c>false</c> when no external extension slice was detected (fall through
+    /// to the generic resolver path).
+    /// </summary>
+    private static (bool Resolved, Dictionary<string, int>? Order) GetChoiceTypeOrderForNamedExtensionSlice(
+        string path, StructureDefinition sd, IResourceResolver resolver)
+    {
+        // Only applies to paths that start with "extension[name]..." or "modifierExtension[name]...".
+        var firstDot = path.IndexOf('.');
+        var firstSegment = firstDot >= 0 ? path[..firstDot] : path;
+        var bracketOpen = firstSegment.IndexOf('[');
+        var bracketClose = firstSegment.IndexOf(']');
+        if (bracketOpen < 0 || bracketClose <= bracketOpen) return (false, null);
+
+        var baseElementName = firstSegment[..bracketOpen]; // "extension" or "modifierExtension"
+        if (!string.Equals(baseElementName, "extension", StringComparison.Ordinal)
+            && !string.Equals(baseElementName, "modifierExtension", StringComparison.Ordinal))
+            return (false, null);
+
+        var sliceName = firstSegment[(bracketOpen + 1)..bracketClose];
+        if (string.IsNullOrEmpty(sliceName) || sliceName.StartsWith('+') || sliceName.StartsWith('='))
+            return (false, null);
+
+        // Look up the extension element for this slice in the SD differential to get its profile URL.
+        var sliceElementPath = (sd.Type ?? string.Empty) + "." + baseElementName + ":" + sliceName;
+        var elements = (IList<ElementDefinition>?)sd.Differential?.Element;
+        if (elements == null) return (false, null);
+
+        var sliceEl = elements.FirstOrDefault(e =>
+            e.Path == (sd.Type + "." + baseElementName) && e.SliceName == sliceName);
+        if (sliceEl == null)
+        {
+            // Try the snapshot for lookup of already-expanded elements.
+            sliceEl = sd.Snapshot?.Element?.FirstOrDefault(e =>
+                e.Path == (sd.Type + "." + baseElementName) && e.SliceName == sliceName);
+        }
+
+        // If no type or no external profile URL → this is an inline extension slice; fall through.
+        var profileUrl = sliceEl?.Type?.FirstOrDefault()?.Profile?.FirstOrDefault();
+        if (string.IsNullOrEmpty(profileUrl)) return (false, null);
+
+        // We have an external extension URL. Try to resolve it.
+        var extSd = FindStructureDefinitionByUrl(profileUrl, resolver);
+        if (extSd == null)
+        {
+            // External extension exists but can't be resolved → signal that no ordering is
+            // available so the caller uses FSH source order.
+            return (true, null);
+        }
+
+        // Resolve the value[x] element within the extension SD.
+        var tailPath = firstDot >= 0 ? path[(firstDot + 1)..] : string.Empty;
+        if (!string.IsNullOrEmpty(tailPath))
+        {
+            var extOrder = GetChoiceTypeOrderFromResolver(tailPath, extSd.Type ?? "Extension", resolver);
+            return (true, extOrder);
+        }
+
+        return (true, null);
+    }
+
+    /// <summary>
+    /// Finds a <see cref="StructureDefinition"/> by canonical URL using <paramref name="resolver"/>.
+    /// Returns <c>null</c> when not found.
+    /// </summary>
+    private static StructureDefinition? FindStructureDefinitionByUrl(string url, IResourceResolver resolver)
+    {
+        try { return resolver.FindStructureDefinition(url); }
+        catch { return null; }
     }
 
     /// <summary>
@@ -1932,6 +2100,11 @@ public static class FshCompiler
             // Only emit a Profile constraint when the name isn't already a bare FHIR resource type.
             var resolvedSd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + resolved)
                           ?? resolver.FindStructureDefinition(resolved);
+
+            // Also look up in-IG compiled SDs (e.g. extension profiles like AssembleExpectation).
+            if (resolvedSd == null)
+                context.CompiledStructureDefinitions.TryGetValue(resolved, out resolvedSd);
+
             var isKnownResource = resolvedSd?.Kind == StructureDefinition.StructureDefinitionKind.Resource
                 || opts.Inspector?.IsKnownResource(resolved) == true;
             if (!isKnownResource && resolvedSd is not null
@@ -2015,7 +2188,9 @@ public static class FshCompiler
         StructureDefinition sd,
         ModelInspector? inspector,
         Func<string, string>? aliasResolver = null,
-        Dictionary<string, int>? softIndexState = null)
+        Dictionary<string, int>? softIndexState = null,
+        CompilerContext? context = null,
+        CompilerOptions? opts = null)
     {
         if (string.IsNullOrEmpty(caretValueRule.CaretPath)) return;
 
@@ -2028,9 +2203,143 @@ public static class FshCompiler
         else
         {
             var ed = GetOrCreateElement(caretValueRule.Path, sd);
+            // Adjust absolute constraint[N] indices to differential-local indices.
+            // FSH indexes constraints against the full snapshot (base + own), but our
+            // differential only has the profile's own constraints.  Subtract the number
+            // of inherited constraints from the parent SD to get the local index.
+            var adjustedRule = AdjustConstraintIndex(caretValueRule, ed, sd, context, opts);
+            // Pre-seed inherited list-typed element properties from the base element before
+            // applying indexed caret assignments.  For example, `* . ^alias[0] = "Form Data"`
+            // must preserve base-inherited aliases at other indices (e.g. alias[1]).
+            PreSeedInheritedListFromBase(caretValueRule.CaretPath.TrimStart('^'), ed, sd, context, opts);
             // Each element gets its own soft-index state for element-level compound paths.
-            ApplyEdCaretPath(caretValueRule, ed, inspector, aliasResolver);
+            ApplyEdCaretPath(adjustedRule, ed, inspector, aliasResolver);
         }
+    }
+
+    /// <summary>
+    /// When a caret path targets a specific index of a list property on an
+    /// <see cref="ElementDefinition"/> (e.g. <c>alias[0]</c>), pre-seeds the element's
+    /// list with values inherited from the corresponding base element so that indices not
+    /// touched by FSH rules retain their inherited values.
+    /// Does nothing when the property is not a list, the index is 0 and the list is already
+    /// populated, or no base element is found.
+    /// </summary>
+    private static void PreSeedInheritedListFromBase(
+        string caretPath,
+        ElementDefinition ed,
+        StructureDefinition sd,
+        CompilerContext? context,
+        CompilerOptions? opts)
+    {
+        if (context == null || opts == null) return;
+
+        // Only applies to indexed paths like "alias[0]", "alias[1]", etc.
+        var bracketStart = caretPath.IndexOf('[');
+        if (bracketStart < 0) return;
+        var bracketEnd = caretPath.IndexOf(']', bracketStart);
+        if (bracketEnd < 0) return;
+        var propertyName = caretPath[..bracketStart];
+        var indexStr = caretPath[(bracketStart + 1)..bracketEnd];
+        if (!int.TryParse(indexStr, out _)) return;
+
+        // Resolve the base element from the parent SD.
+        if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
+        var baseSd = ResolveStructureDefinition(sd.BaseDefinition, context, opts);
+        if (baseSd == null) return;
+
+        var basePath = RewritePathRoot(ed.Path ?? string.Empty, sd.Type, baseSd.Type);
+        var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
+                  ?? baseSd.Differential?.Element;
+        var baseEl = source?.FirstOrDefault(e =>
+            e.Path == basePath && string.IsNullOrEmpty(e.SliceName));
+        if (baseEl == null) return;
+
+        // Look for a property whose FHIR name matches caretPath property.
+        // We use the Firely SDK ModelInspector mapping.
+        var mi = Hl7.Fhir.Introspection.ModelInspector.ForAssembly(typeof(ElementDefinition).Assembly);
+        var classMap = mi?.FindClassMapping(typeof(ElementDefinition));
+        if (classMap == null) return;
+
+        var propMap = classMap.FindMappedElementByName(propertyName);
+        if (propMap == null || !propMap.IsCollection) return;
+
+        // Get the base list value.
+        var baseList = propMap.GetValue(baseEl) as System.Collections.IList;
+        if (baseList == null || baseList.Count == 0) return;
+
+        // Get (or create) the list on the differential element.
+        var edList = propMap.GetValue(ed) as System.Collections.IList;
+        if (edList == null)
+        {
+            var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+            edList = (System.Collections.IList)Activator.CreateInstance(listType)!;
+            propMap.SetValue(ed, edList);
+        }
+
+        // Only seed if the ed list is currently empty (don't overwrite explicit FSH values).
+        if (edList.Count > 0) return;
+
+        // Copy base list items into the ed list.
+        foreach (var item in baseList)
+            edList.Add(item);
+    }
+
+    /// <summary>
+    /// When a caret rule targets <c>constraint[N]</c> and N is beyond the current
+    /// differential constraint list, the index is absolute (snapshot-level) and must be
+    /// adjusted by subtracting the number of inherited base constraints.
+    /// </summary>
+    private static CaretValueRule AdjustConstraintIndex(
+        CaretValueRule rule,
+        ElementDefinition ed,
+        StructureDefinition sd,
+        CompilerContext? context,
+        CompilerOptions? opts)
+    {
+        var caretPath = rule.CaretPath.TrimStart('^');
+        // Only adjust when the path starts with "constraint[N]" and N is out of bounds.
+        if (!caretPath.StartsWith("constraint[", StringComparison.Ordinal)) return rule;
+
+        var closeBracket = caretPath.IndexOf(']');
+        if (closeBracket < 0) return rule;
+        var indexStr = caretPath[11..closeBracket]; // After "constraint["
+        if (!int.TryParse(indexStr, out var absIndex)) return rule;
+
+        var ownCount = ed.Constraint?.Count ?? 0;
+        if (absIndex < ownCount) return rule; // Index is already within own constraint list.
+
+        // Need to determine how many base constraints the parent element has.
+        int baseCount = 0;
+        if (context != null && opts != null && !string.IsNullOrEmpty(sd.BaseDefinition))
+        {
+            var baseSd = ResolveStructureDefinition(sd.BaseDefinition, context, opts);
+            if (baseSd != null)
+            {
+                var basePath = RewritePathRoot(ed.Path ?? string.Empty, sd.Type, baseSd.Type);
+                var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
+                          ?? baseSd.Differential?.Element;
+                var baseEl = source?.FirstOrDefault(e =>
+                    e.Path == basePath && string.IsNullOrEmpty(e.SliceName));
+                baseCount = baseEl?.Constraint?.Count ?? 0;
+            }
+        }
+
+        if (baseCount == 0) return rule;
+
+        var localIndex = absIndex - baseCount;
+        if (localIndex < 0 || localIndex >= ownCount) return rule;
+
+        // Return a copy of the rule with the adjusted index.
+        var adjustedPath = "^constraint[" + localIndex + "]" + caretPath[(closeBracket + 1)..];
+        return new CaretValueRule
+        {
+            Path = rule.Path,
+            CaretPath = adjustedPath,
+            Value = rule.Value,
+            Position = rule.Position,
+            Indent = rule.Indent,
+        };
     }
 
     private static void ApplySdCaretPath(
@@ -2080,6 +2389,12 @@ public static class FshCompiler
         }
         else if (FhirCaretValueWriter.TrySet(ed, path, rule.Value, inspector, aliasResolver))
         {
+            return;
+        }
+        else if (inspector != null && rule.Value != null
+              && FhirCaretValueWriter.TrySetChoiceTypeLeaf(ed, path, rule.Value, inspector, aliasResolver))
+        {
+            // Handles choice-type paths like minValueDate, maxValueDate, etc. on ElementDefinition.
             return;
         }
 
@@ -2558,7 +2873,7 @@ public static class FshCompiler
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
-        var type = sd.Type ?? string.Empty;
+        var type = GetElementPathPrefix(sd);
 
         if (path == ".")
             return sd.Differential.Element.FirstOrDefault(e => e.Path == type && e.SliceName == null);
@@ -2586,7 +2901,7 @@ public static class FshCompiler
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("Path is required", nameof(path));
 
-        var type = sd.Type ?? string.Empty;
+        var type = GetElementPathPrefix(sd);
 
         // Path "." refers to the root element whose path equals the type itself.
         if (path == ".")
@@ -2667,9 +2982,36 @@ public static class FshCompiler
         {
             // C-EI1: Generate ElementDefinition.Id equal to the full path for non-slice elements.
             ed = new ElementDefinition(fhirPath) { Path = fhirPath, ElementId = fhirPath };
-            sd.Differential.Element.Add(ed);
+
+            // Insert the bare (non-slice) element BEFORE any existing slices at the same path
+            // so that canonical ordering (bare before slices) is preserved in the element list.
+            // This ensures idx-based stable sorts keep bare elements before their slices.
+            var firstSliceIdx = sd.Differential.Element.FindIndex(
+                e => e.Path == fhirPath && !string.IsNullOrEmpty(e.SliceName));
+            if (firstSliceIdx >= 0)
+                sd.Differential.Element.Insert(firstSliceIdx, ed);
+            else
+                sd.Differential.Element.Add(ed);
         }
         return ed;
+    }
+
+    /// <summary>
+    /// Returns the element-path prefix to use when building element id/path values for
+    /// a given StructureDefinition.  For logical models the <c>Type</c> property carries
+    /// the full canonical URL, but element paths must use the short id (e.g.
+    /// <c>SdcQuestionLibrary</c> rather than
+    /// <c>http://hl7.org/fhir/uv/sdc/StructureDefinition/SdcQuestionLibrary</c>).
+    /// </summary>
+    private static string GetElementPathPrefix(StructureDefinition sd)
+    {
+        if (sd.Kind == StructureDefinition.StructureDefinitionKind.Logical
+            && !string.IsNullOrEmpty(sd.Id)
+            && (sd.Type?.Contains('/') ?? false))
+        {
+            return sd.Id;
+        }
+        return sd.Type ?? string.Empty;
     }
 
     /// <summary>
@@ -2873,7 +3215,7 @@ public static class FshCompiler
         var elements = sd.Differential?.Element;
         if (elements == null || elements.Count == 0) return;
 
-        var rootType = sd.Type ?? string.Empty;
+        var rootType = GetElementPathPrefix(sd);
 
         var toRemove = elements
             .Where(ed => IsNoOpScaffoldElement(ed, elements, rootType))
@@ -2898,6 +3240,54 @@ public static class FshCompiler
                 elements.Insert(0, rootEd);
             }
         }
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="ed"/> is an empty leaf element: it has no
+    /// meaningful content (no constraints, flags, types, etc.) and no child elements in the
+    /// differential.  Such elements contribute nothing to the differential and are pruned.
+    /// This catches cases like <c>* version MS</c> when the parent profile already declares
+    /// <c>* version 0..1 MS</c> — after redundancy removal the element is completely empty.
+    /// </summary>
+    private static bool IsEmptyLeafElement(ElementDefinition ed, List<ElementDefinition> allElements)
+    {
+        if (ed.Path == null || ed.ElementId == null) return false;
+        // Only non-slice, non-root elements (path contains a dot).
+        if (!string.IsNullOrEmpty(ed.SliceName)) return false;
+        if (!ed.Path.Contains('.')) return false;
+        // Must have path == elementId (not a sub-element of a slice).
+        if (!string.Equals(ed.Path, ed.ElementId, StringComparison.Ordinal)) return false;
+
+        // If it has children, don't remove it (the scaffold check handles that case).
+        var hasChildren = allElements.Any(child =>
+            !ReferenceEquals(child, ed)
+            && child.Path != null
+            && child.Path.StartsWith(ed.Path + ".", StringComparison.Ordinal));
+        if (hasChildren) return false;
+
+        // Check for meaningful content (same set as IsNoOpScaffoldElement).
+        var hasMeaningfulContent =
+            !string.IsNullOrEmpty(ed.Short)
+            || !string.IsNullOrEmpty(ed.Definition)
+            || !string.IsNullOrEmpty(ed.Comment)
+            || !string.IsNullOrEmpty(ed.Requirements)
+            || ed.Slicing != null
+            || ed.Binding != null
+            || ed.Type?.Count > 0
+            || ed.Constraint?.Count > 0
+            || ed.Mapping?.Count > 0
+            || ed.Extension?.Count > 0
+            || ed.MinElement != null
+            || ed.MaxElement != null
+            || ed.MustSupportElement != null
+            || ed.IsModifierElement != null
+            || ed.IsSummaryElement != null
+            || ed.Fixed != null
+            || ed.Pattern != null
+            || ed.DefaultValue != null
+            || ed.Example?.Count > 0;
+
+        return !hasMeaningfulContent;
     }
 
     private static bool IsNoOpScaffoldElement(
@@ -2938,6 +3328,211 @@ public static class FshCompiler
 
         return !hasMeaningfulContent;
     }
+
+    /// <summary>
+    /// Known canonical positions of FHIR base resource elements (Resource + DomainResource)
+    /// used to ensure differential elements are sorted before extension slices.
+    /// </summary>
+    private static readonly Dictionary<string, int> _fhirBaseElementOrder =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["id"]               = 0,
+            ["meta"]             = 1,
+            ["implicitRules"]    = 2,
+            ["language"]         = 3,
+            ["text"]             = 4,
+            ["contained"]        = 5,
+            ["extension"]        = 6,
+            ["modifierExtension"]= 7,
+        };
+
+    /// <summary>
+    /// Sorts the differential elements of a profile into canonical FHIR path order.
+    /// Elements are grouped by their first-level child name relative to the SD root type
+    /// and ordered by canonical FHIR schema position (id, meta, … extension, then
+    /// resource-specific elements).  Within each group the original FSH source order is
+    /// preserved.  The root element is always kept at position 0.
+    /// </summary>
+    private static void SortDifferentialElementsByCanonicalOrder(
+        StructureDefinition sd, ModelInspector? inspector)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null || elements.Count <= 1) return;
+
+        var sdType = sd.Type ?? string.Empty;
+        var pathPrefix = GetElementPathPrefix(sd);
+
+        // Separate the root element so it is always at position 0 after sorting.
+        var roots = elements
+            .Where(e => string.Equals(e.Path, pathPrefix, StringComparison.Ordinal)
+                        && string.IsNullOrEmpty(e.SliceName))
+            .ToList();
+        var nonRoots = elements
+            .Where(e => !(string.Equals(e.Path, pathPrefix, StringComparison.Ordinal)
+                          && string.IsNullOrEmpty(e.SliceName)))
+            .ToList();
+
+        if (roots.Count == 0)
+        {
+            // Fallback: element with no dots in path and no sliceName is the root.
+            var shortest = elements
+                .Where(e => string.IsNullOrEmpty(e.SliceName)
+                            && !string.IsNullOrEmpty(e.Path)
+                            && !e.Path.Contains('.'))
+                .FirstOrDefault();
+            if (shortest != null)
+            {
+                roots = [shortest];
+                nonRoots = elements.Where(e => !ReferenceEquals(e, shortest)).ToList();
+            }
+        }
+
+        // Build canonical index: try ModelInspector first, fall back to the known base table.
+        var canonicalIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var classMap = inspector?.FindClassMapping(sdType);
+        if (classMap != null)
+        {
+            for (int i = 0; i < classMap.PropertyMappings.Count; i++)
+                canonicalIndex.TryAdd(classMap.PropertyMappings[i].Name, i);
+        }
+
+        // Always seed the base Resource/DomainResource entries from the known order table
+        // so that id/meta/extension are ordered correctly even when classMap is null
+        // or when sdType is a profile URL rather than a bare core FHIR type name.
+        foreach (var (name, pos) in _fhirBaseElementOrder)
+            canonicalIndex.TryAdd(name, pos);
+
+        if (canonicalIndex.Count > 0)
+        {
+            // Sort using a hierarchical tree traversal.  Each element is assigned to its
+            // deepest "ancestor" in the differential (either a named-slice parent or a path
+            // parent), then the tree is traversed pre-order: parent before children, with
+            // children sorted by the first-level canonical FHIR schema position and then by
+            // their original creation order.
+            //
+            // This ensures:
+            //  1. Named slice children appear immediately after their parent slice.
+            //  2. Path sub-elements (e.g. concept.display.extension) appear immediately
+            //     after their path parent (e.g. concept.display).
+            //  3. Top-level siblings are sorted by canonical FHIR schema position.
+
+            var indexed = nonRoots.Select((el, idx) => (el, idx)).ToList();
+            int n = indexed.Count;
+
+            // For each element, find its direct parent (deepest ancestor by match length).
+            var parentOf = new int[n];
+            var childrenOf = new Dictionary<int, List<int>>();
+            var rootElements = new List<int>();
+
+            for (int i = 0; i < n; i++) parentOf[i] = -1;
+
+            for (int i = 0; i < n; i++)
+            {
+                var (el, _) = indexed[i];
+                var elId = el.ElementId ?? el.Path ?? string.Empty;
+                var elPath = el.Path ?? string.Empty;
+                int bestParent = -1;
+                int bestLen = -1;
+
+                for (int j = 0; j < n; j++)
+                {
+                    if (j == i) continue;
+                    var (cand, _) = indexed[j];
+                    int matchLen = -1;
+
+                    // Named-slice parent: cand's slice-qualified id prefix appears in el's id.
+                    if (!string.IsNullOrEmpty(cand.SliceName) && !string.IsNullOrEmpty(cand.Path))
+                    {
+                        var sliceIdPrefix = cand.Path + ":" + cand.SliceName;
+                        if (elId.StartsWith(sliceIdPrefix + ".", StringComparison.Ordinal))
+                            matchLen = sliceIdPrefix.Length;
+                    }
+                    // Path parent: cand's path is a strict prefix of el's path (bare cand only).
+                    else if (string.IsNullOrEmpty(cand.SliceName)
+                             && !string.IsNullOrEmpty(cand.Path)
+                             && elPath.StartsWith(cand.Path + ".", StringComparison.Ordinal))
+                    {
+                        matchLen = cand.Path.Length;
+                    }
+
+                    if (matchLen > bestLen)
+                    {
+                        bestLen = matchLen;
+                        bestParent = j;
+                    }
+                }
+
+                parentOf[i] = bestParent;
+                if (bestParent >= 0)
+                {
+                    if (!childrenOf.TryGetValue(bestParent, out var kids))
+                        childrenOf[bestParent] = kids = new List<int>();
+                    kids.Add(i);
+                }
+                else
+                {
+                    rootElements.Add(i);
+                }
+            }
+
+            // Helper: canonical FHIR first-level position for an element.
+            int FirstLevelPos(ElementDefinition el)
+            {
+                var basePath = el.Path ?? string.Empty;
+                string childName;
+                if (!string.IsNullOrEmpty(sdType) && basePath.StartsWith(sdType + ".", StringComparison.Ordinal))
+                {
+                    var rest = basePath[(sdType.Length + 1)..];
+                    var dot = rest.IndexOf('.');
+                    childName = dot >= 0 ? rest[..dot] : rest;
+                }
+                else
+                {
+                    var dot = basePath.IndexOf('.');
+                    childName = dot >= 0 ? basePath[(dot + 1)..] : basePath;
+                    var innerDot = childName.IndexOf('.');
+                    if (innerDot >= 0) childName = childName[..innerDot];
+                }
+                return canonicalIndex.TryGetValue(childName, out var pos) ? pos : int.MaxValue;
+            }
+
+            // Sort root elements by canonical position, then by original index.
+            rootElements.Sort((a, b) =>
+            {
+                var pa = FirstLevelPos(indexed[a].el);
+                var pb = FirstLevelPos(indexed[b].el);
+                return pa != pb ? pa.CompareTo(pb) : indexed[a].idx.CompareTo(indexed[b].idx);
+            });
+
+            // Sort children of each parent by canonical position, then by original index.
+            foreach (var kids in childrenOf.Values)
+                kids.Sort((a, b) =>
+                {
+                    var pa = FirstLevelPos(indexed[a].el);
+                    var pb = FirstLevelPos(indexed[b].el);
+                    return pa != pb ? pa.CompareTo(pb) : indexed[a].idx.CompareTo(indexed[b].idx);
+                });
+
+            // Pre-order traversal (parent before children).
+            var result = new List<ElementDefinition>(n);
+            void Traverse(int nodeIdx)
+            {
+                result.Add(indexed[nodeIdx].el);
+                if (childrenOf.TryGetValue(nodeIdx, out var kids))
+                    foreach (var child in kids)
+                        Traverse(child);
+            }
+            foreach (var root in rootElements)
+                Traverse(root);
+
+            nonRoots = result;
+        }
+
+        elements.Clear();
+        foreach (var el in roots) elements.Add(el);
+        foreach (var el in nonRoots) elements.Add(el);
+    }
+
 
     /// <summary>
     /// When FSH rules target named choice-type path variants (e.g. <c>valueCodeableConcept</c>
@@ -3196,20 +3791,367 @@ public static class FshCompiler
         if (elements == null || elements.Count == 0) return;
         if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
 
+        var toRemove = new List<ElementDefinition>();
         foreach (var ed in elements)
         {
             if (!string.IsNullOrEmpty(ed.SliceName)) continue;
-            if (ed.MinElement == null && ed.MaxElement == null) continue;
+            if (ed.MinElement == null && ed.MaxElement == null && ed.MustSupportElement == null) continue;
 
             var baseEd = ResolveBaseElement(sd, ed, context, opts);
             if (baseEd == null) continue;
 
-            if (ed.MinElement != null && ed.Min == baseEd.Min)
-                ed.MinElement = null;
+            if (ed.MinElement != null)
+            {
+                var effectiveMin = baseEd.Min;
+                if (effectiveMin == null)
+                    effectiveMin = ResolveEffectiveMin(sd, ed, context, opts);
+                if (effectiveMin != null && ed.Min == effectiveMin)
+                    ed.MinElement = null;
+            }
 
-            if (ed.MaxElement != null && string.Equals(ed.Max, baseEd.Max, StringComparison.Ordinal))
-                ed.MaxElement = null;
+            // For max: compare against the effective inherited max.
+            // When the nearest matching base element has no max set (null), the effective max is
+            // inherited from a higher ancestor.  We walk further up the chain to find it so that
+            // we don't incorrectly emit e.g. `max="1"` when the core FHIR type already has it.
+            if (ed.MaxElement != null)
+            {
+                var effectiveMax = baseEd.Max;
+                if (effectiveMax == null)
+                    effectiveMax = ResolveEffectiveMax(sd, ed, context, opts);
+                if (string.Equals(ed.Max, effectiveMax, StringComparison.Ordinal))
+                    ed.MaxElement = null;
+            }
+
+            // Remove redundant mustSupport when it matches the base element.
+            if (ed.MustSupportElement != null && ed.MustSupport == baseEd.MustSupport)
+                ed.MustSupportElement = null;
+
+            // If all three fields are now null (they were the only content), this element
+            // contributes nothing to the differential.  Schedule it for removal when it is
+            // also a leaf node with no children and no other meaningful content.
+            if (ed.MinElement == null && ed.MaxElement == null && ed.MustSupportElement == null
+                && IsEmptyLeafElement(ed, elements))
+            {
+                toRemove.Add(ed);
+            }
         }
+
+        foreach (var ed in toRemove)
+            elements.Remove(ed);
+    }
+
+    /// <summary>
+    /// Removes type constraints from differential elements when they are identical to the
+    /// inherited type on the corresponding base profile element.  This prevents redundant
+    /// <c>only X</c> constraints from appearing in the differential when the parent already
+    /// declares the same type.
+    /// </summary>
+    private static void RemoveRedundantTypeConstraints(
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null || elements.Count == 0) return;
+        if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
+
+        foreach (var ed in elements)
+        {
+            if (ed.Type == null || ed.Type.Count == 0) continue;
+
+            List<ElementDefinition.TypeRefComponent>? baseType = null;
+
+            if (!string.IsNullOrEmpty(ed.SliceName))
+            {
+                // For a named slice, look up the same-named slice in the base SD so that
+                // `* extension[foo] only SomeExtensionProfile` is suppressed when the
+                // parent profile already defines the slice with the same type constraint.
+                baseType = ResolveBaseSliceType(sd, ed, context, opts);
+            }
+            else
+            {
+                var baseEd = ResolveBaseElement(sd, ed, context, opts);
+                if (baseEd?.Type != null && baseEd.Type.Count > 0)
+                    baseType = baseEd.Type;
+            }
+
+            if (baseType != null && AreTypeListsEquivalent(ed.Type, baseType))
+                ed.Type = null;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the type list for a named slice in the nearest base SD that defines
+    /// an element with the same path and slice name.
+    /// </summary>
+    private static List<ElementDefinition.TypeRefComponent>? ResolveBaseSliceType(
+        StructureDefinition sd,
+        ElementDefinition ed,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (string.IsNullOrEmpty(sd.BaseDefinition) || string.IsNullOrEmpty(ed.SliceName)) return null;
+
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) return null;
+
+            var basePath = RewritePathRoot(ed.Path, sd.Type, baseSd.Type);
+            var match = (baseSd.Snapshot?.Element ?? baseSd.Differential?.Element)
+                ?.FirstOrDefault(e =>
+                    e.Path == basePath
+                    && string.Equals(e.SliceName, ed.SliceName, StringComparison.Ordinal));
+
+            if (match?.Type != null && match.Type.Count > 0)
+                return match.Type;
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Removes slicing from differential elements when the base profile (or any ancestor)
+    /// already defines slicing on the same path.  Sushi does not re-emit slicing in a
+    /// child profile that inherits extension slicing from its parent.
+    /// </summary>
+    private static void RemoveRedundantSlicingAgainstBase(
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null || elements.Count == 0) return;
+        if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
+
+        foreach (var ed in elements)
+        {
+            if (ed.Slicing == null) continue;
+            // Don't remove slicing that was introduced by this profile itself (it won't
+            // appear in any base element).  Only remove when the base already has slicing.
+            if (!string.IsNullOrEmpty(ed.SliceName)) continue;
+
+            var baseSlicing = ResolveBaseSlicing(sd, ed, context, opts);
+            if (baseSlicing != null)
+                ed.Slicing = null;
+        }
+    }
+
+    /// <summary>
+    /// Looks up the slicing component for <paramref name="ed"/> in the DIRECT parent SD.
+    /// Returns a non-null value only when the direct parent's differential already defines
+    /// at least one named slice on the same path — meaning the slicing mechanism is already
+    /// established by the parent, so the child profile does not need to re-emit it.
+    /// When the parent has no named slices on this path (e.g., adding the first extension
+    /// slices to a profile of a core resource), returns <c>null</c> so the child keeps its slicing.
+    /// </summary>
+    private static ElementDefinition.SlicingComponent? ResolveBaseSlicing(
+        StructureDefinition sd,
+        ElementDefinition ed,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (string.IsNullOrEmpty(sd.BaseDefinition) || string.IsNullOrEmpty(ed.Path)) return null;
+
+        // Only check the DIRECT parent — do not walk the full ancestor chain.
+        var baseSd = ResolveStructureDefinition(sd.BaseDefinition, context, opts);
+        if (baseSd == null) return null;
+
+        var basePath = RewritePathRoot(ed.Path, sd.Type, baseSd.Type);
+
+        // Check whether the direct parent already has at least one named slice on this path
+        // in its differential.  When it does, the slicing discriminator is already established
+        // by the parent and does not need to be re-emitted by the child.
+        var parentDiff = baseSd.Differential?.Element;
+        if (parentDiff == null) return null;
+
+        var parentHasNamedSlice = parentDiff.Any(e =>
+            e.Path == basePath
+            && !string.IsNullOrEmpty(e.SliceName));
+
+        if (!parentHasNamedSlice) return null;
+
+        // Parent has named slices → slicing is inherited.  Return the bare slicing element
+        // (or a placeholder) so the caller knows to remove the duplicate slicing.
+        var slicingEl = parentDiff.FirstOrDefault(e =>
+            e.Path == basePath
+            && string.IsNullOrEmpty(e.SliceName)
+            && e.Slicing != null);
+
+        // Even if the parent has no bare slicing element itself (it inherited slicing from
+        // a grandparent and only has named slices), the fact that it has named slices means
+        // the slicing is established.  Return a synthetic placeholder.
+        return slicingEl?.Slicing
+            ?? new ElementDefinition.SlicingComponent
+            {
+                Rules = ElementDefinition.SlicingRules.Open
+            };
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the direct parent SD already has at least one named slice
+    /// on the extension path, OR when the SD is itself an Extension type (for which the
+    /// slicing on <c>Extension.extension</c> is always inherited from core and never re-emitted).
+    /// Used in <c>ApplyContainsRule</c> to decide whether to create a bare extension element.
+    /// </summary>
+    private static bool DirectParentHasNamedExtensionSlices(
+        string fshExtensionPath,
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (string.IsNullOrEmpty(sd.BaseDefinition)) return false;
+
+        // For Extension SDs (type="Extension"), the Extension.extension slicing is always
+        // inherited from the core Extension definition — never re-emit the slicing element.
+        if (string.Equals(sd.Type, "Extension", StringComparison.Ordinal)) return true;
+
+        var sdPathPrefix = GetElementPathPrefix(sd);
+        var fullFhirPath = string.IsNullOrEmpty(fshExtensionPath)
+            ? sdPathPrefix
+            : sdPathPrefix + "." + fshExtensionPath;
+
+        // When the extension path is on a nested data type element (e.g. item.code.extension
+        // where item.code has type Coding), the slicing discriminator is already defined by
+        // the data type itself — there's no need to emit a bare slicing element.
+        // Detect this by checking whether the parent element (the path before ".extension")
+        // is a known FHIR data type in the resolved ancestor chain.
+        var parentOfExtension = fullFhirPath.EndsWith(".extension", StringComparison.Ordinal)
+            ? fullFhirPath[..^".extension".Length]
+            : fullFhirPath.EndsWith(".modifierExtension", StringComparison.Ordinal)
+            ? fullFhirPath[..^".modifierExtension".Length]
+            : null;
+        if (parentOfExtension != null && IsDataTypeElement(parentOfExtension, sd, context, opts))
+            return true;
+
+        // Walk the full ancestor chain. If ANY ancestor has named extension slices on this
+        // path, the slicing is inherited and we don't need to re-emit the bare element.
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) break;
+
+            if (string.Equals(baseSd.Type, "Extension", StringComparison.Ordinal))
+                return true;
+
+            var basePath = RewritePathRoot(fullFhirPath, sd.Type ?? sdPathPrefix, baseSd.Type ?? GetElementPathPrefix(baseSd));
+            var parentDiff = baseSd.Differential?.Element;
+            if (parentDiff?.Any(e =>
+                e.Path == basePath
+                && !string.IsNullOrEmpty(e.SliceName)) == true)
+                return true;
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the FHIR element at <paramref name="fhirPath"/> (e.g.
+    /// <c>Questionnaire.item.code</c>) has a FHIR complex data type (not BackboneElement or
+    /// Resource) in the resolved ancestor chain.  Used to avoid emitting redundant bare
+    /// extension slicing elements for paths like <c>item.code.extension</c> where the data
+    /// type's own extension slicing is already defined by the FHIR spec.
+    /// </summary>
+    private static bool IsDataTypeElement(string fhirPath, StructureDefinition sd, CompilerContext context, CompilerOptions opts)
+    {
+        // Only relevant for paths with more than one segment (resource-level is never data type).
+        if (!fhirPath.Contains('.')) return false;
+
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var sdType = sd.Type ?? GetElementPathPrefix(sd);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) break;
+
+            var baseType = baseSd.Type ?? GetElementPathPrefix(baseSd);
+            var rewritten = RewritePathRoot(fhirPath, sdType, baseType);
+
+            var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
+                      ?? baseSd.Differential?.Element;
+            var match = source?.FirstOrDefault(e =>
+                string.Equals(e.Path, rewritten, StringComparison.Ordinal)
+                && string.IsNullOrEmpty(e.SliceName));
+
+            if (match?.Type?.Count > 0)
+            {
+                var typeName = match.Type[0].Code;
+                // Only COMPLEX data types (Coding, Identifier, CodeableConcept, etc.) are
+                // considered "data type elements" whose extension slicing is always inherited.
+                // Primitives (string, boolean, decimal, code, etc.) require an explicit bare
+                // extension element in the differential.
+                // Exclude: structural types (BackboneElement, Resource, DomainResource) and
+                // all FHIR primitive types that start with a lowercase letter (FHIR naming
+                // convention: all primitive type codes begin lowercase).
+                return !string.IsNullOrEmpty(typeName)
+                    && !string.Equals(typeName, "BackboneElement", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(typeName, "Resource", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(typeName, "DomainResource", StringComparison.OrdinalIgnoreCase)
+                    && char.IsUpper(typeName[0]);  // primitives start lowercase; complex types start uppercase
+            }
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return false;
+    }
+
+    private static bool AreTypeListsEquivalent(
+        List<ElementDefinition.TypeRefComponent> a,
+        List<ElementDefinition.TypeRefComponent> b)
+    {
+        if (a.Count != b.Count) return false;
+
+        // Build a stable key for each type ref for comparison.
+        static string TypeRefKey(ElementDefinition.TypeRefComponent t) =>
+            $"{t.Code}|{string.Join(",", (t.Profile ?? []).Order())}|{string.Join(",", (t.TargetProfile ?? []).Order())}";
+
+        // Sort by code to compare sets irrespective of order.
+        var aSorted = a.OrderBy(x => x.Code, StringComparer.Ordinal).ToList();
+        var bSorted = b.OrderBy(x => x.Code, StringComparer.Ordinal).ToList();
+
+        for (int i = 0; i < aSorted.Count; i++)
+        {
+            var ai = aSorted[i];
+            var bi = bSorted[i];
+
+            if (!string.Equals(ai.Code, bi.Code, StringComparison.Ordinal)) return false;
+
+            // When the compiled type has no profile/targetProfile constraints, treat it as
+            // equivalent to the base type when the base's profiles are all abstract "any"
+            // sentinels (e.g. Reference(Resource)).  This handles the common case where
+            // FSH writes `only Reference` (no target) and the base has Reference(Resource),
+            // which FHIR uses to indicate "Reference to any resource" — semantically identical.
+            var aHasProfiles = (ai.Profile?.Any() ?? false) || (ai.TargetProfile?.Any() ?? false);
+            if (!aHasProfiles)
+            {
+                // Accept the base as equivalent when it also has no profiles, or when its
+                // targetProfiles consist exclusively of the abstract FHIR Resource type.
+                var bProfiles = (bi.Profile ?? []).Concat(bi.TargetProfile ?? []).ToList();
+                var bIsUnconstrained = bProfiles.Count == 0
+                    || bProfiles.All(u => string.Equals(u,
+                        "http://hl7.org/fhir/StructureDefinition/Resource",
+                        StringComparison.Ordinal));
+                if (!bIsUnconstrained) return false;
+            }
+            else
+            {
+                if (TypeRefKey(ai) != TypeRefKey(bi)) return false;
+            }
+        }
+        return true;
     }
 
     private static ElementDefinition? ResolveBaseElement(
@@ -3232,6 +4174,74 @@ public static class FshCompiler
             var match = (baseSd.Snapshot?.Element ?? baseSd.Differential?.Element)
                 ?.FirstOrDefault(e => e.Path == basePath && string.IsNullOrEmpty(e.SliceName));
             if (match != null) return match;
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves the effective <c>max</c> value for an element by walking the ancestor chain.
+    /// This is used when the nearest parent element exists (for other reasons like constraints)
+    /// but has no explicit <c>max</c> set — in that case the effective max is inherited from a
+    /// higher ancestor (e.g. the core FHIR type's snapshot).
+    /// </summary>
+    private static string? ResolveEffectiveMax(
+        StructureDefinition sd,
+        ElementDefinition ed,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (string.IsNullOrEmpty(sd.BaseDefinition) || string.IsNullOrEmpty(ed.Path)) return null;
+
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) return null;
+
+            var basePath = RewritePathRoot(ed.Path, sd.Type, baseSd.Type);
+            var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
+                      ?? baseSd.Differential?.Element;
+            var match = source?.FirstOrDefault(e =>
+                e.Path == basePath && string.IsNullOrEmpty(e.SliceName) && e.MaxElement != null);
+            if (match != null) return match.Max;
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Walks the ancestor SD chain to find the effective inherited <c>min</c> for the element,
+    /// consulting snapshot then differential when no min is set on the direct parent element.
+    /// </summary>
+    private static int? ResolveEffectiveMin(
+        StructureDefinition sd,
+        ElementDefinition ed,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (string.IsNullOrEmpty(sd.BaseDefinition) || string.IsNullOrEmpty(ed.Path)) return null;
+
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) return null;
+
+            var basePath = RewritePathRoot(ed.Path, sd.Type, baseSd.Type);
+            var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
+                      ?? baseSd.Differential?.Element;
+            var match = source?.FirstOrDefault(e =>
+                e.Path == basePath && string.IsNullOrEmpty(e.SliceName) && e.MinElement != null);
+            if (match != null) return match.Min;
 
             currentBase = baseSd.BaseDefinition;
         }
@@ -3331,8 +4341,15 @@ public static class FshCompiler
     /// </summary>
     private static bool IsKnownFhirType(string typeName, ModelInspector? inspector, IResourceResolver? resolver = null)
     {
-        if (resolver != null && FindStructureDefinitionForType(typeName, resolver) != null)
-            return true;
+        // Only treat a resolver-found SD as a "known FHIR type" when it is a Specialization
+        // (base type definition), not a Constraint (profile).  Profiles like cqllibrary must
+        // be further resolved to their underlying FHIR resource type (e.g. Library).
+        if (resolver != null)
+        {
+            var sd = FindStructureDefinitionForType(typeName, resolver);
+            if (sd?.Derivation == StructureDefinition.TypeDerivationRule.Specialization)
+                return true;
+        }
         if (inspector == null) return false;
         return inspector.FindClassMapping(typeName) != null;
     }
@@ -4223,7 +5240,16 @@ public static class FshCompiler
             if (string.IsNullOrEmpty(mapRule.Path) || mapRule.Path == ".")
                 targetEd = sd.Differential.Element.First();
             else
-                targetEd = GetOrCreateElement(mapRule.Path, sd);
+            {
+                // Resolve extension entity names used in bracket notation to their actual
+                // local slice names in the differential.  For example, a mapping rule
+                // "* modifierExtension[RenderingCriticalExtension] -> ..." uses the FSH
+                // extension entity name, but the profile uses "named rendering-criticalExtension"
+                // as the local slice name.  Resolve before calling GetOrCreateElement so
+                // we target the correct existing slice rather than creating a duplicate.
+                var resolvedPath = ResolveEntityNamesToSliceNames(mapRule.Path, sd, context, opts);
+                targetEd = GetOrCreateElement(resolvedPath, sd);
+            }
 
             targetEd.Mapping ??= new List<ElementDefinition.MappingComponent>();
             targetEd.Mapping.Add(new ElementDefinition.MappingComponent
@@ -4235,6 +5261,110 @@ public static class FshCompiler
         }
 
         ReorderDifferentialByBasePath(sd, context, opts);
+    }
+
+    /// <summary>
+    /// Replaces bracket-notation extension entity names in a FSH rule path with the
+    /// actual local slice names used in the compiled StructureDefinition's differential.
+    /// For example, <c>modifierExtension[RenderingCriticalExtension]</c> resolves to
+    /// <c>modifierExtension[rendering-criticalExtension]</c> when the SD's differential
+    /// has a named slice <c>rendering-criticalExtension</c> whose type profile URL matches
+    /// the compiled URL of the <c>RenderingCriticalExtension</c> extension entity.
+    /// </summary>
+    private static string ResolveEntityNamesToSliceNames(
+        string fshPath,
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions? opts)
+    {
+        if (!fshPath.Contains('[')) return fshPath;
+
+        var pathPrefix = GetElementPathPrefix(sd);
+        var segments = fshPath.Split('.');
+        var result = new System.Text.StringBuilder();
+
+        foreach (var seg in segments)
+        {
+            if (result.Length > 0) result.Append('.');
+
+            var bracketStart = seg.IndexOf('[');
+            if (bracketStart < 0)
+            {
+                result.Append(seg);
+                continue;
+            }
+
+            var bracketEnd = seg.IndexOf(']', bracketStart);
+            if (bracketEnd < 0)
+            {
+                result.Append(seg);
+                continue;
+            }
+
+            var fieldName = seg[..bracketStart];
+            var bracketContent = seg[(bracketStart + 1)..bracketEnd];
+
+            // Skip if already a numeric index or a known slice name directly in the SD.
+            if (int.TryParse(bracketContent, out _))
+            {
+                result.Append(seg);
+                continue;
+            }
+
+            // Try to find an existing slice in the SD differential whose type profile
+            // URL corresponds to the compiled extension entity named bracketContent.
+            var existingSlice = FindSliceByExtensionEntityName(fieldName, bracketContent, pathPrefix, sd, context, opts);
+            if (existingSlice != null && !string.IsNullOrEmpty(existingSlice.SliceName))
+                result.Append($"{fieldName}[{existingSlice.SliceName}]");
+            else
+                result.Append(seg);
+        }
+
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// Searches the SD's differential for a named slice on <paramref name="fieldName"/>
+    /// whose type profile URL matches the compiled URL of the extension entity named
+    /// <paramref name="entityName"/>.  Used to resolve extension entity names to their
+    /// local FSH slice names in mapping rules.
+    /// </summary>
+    private static ElementDefinition? FindSliceByExtensionEntityName(
+        string fieldName,
+        string entityName,
+        string sdPathPrefix,
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions? opts)
+    {
+        // Build the expected FHIR path for the field (e.g. "CodeSystem.modifierExtension").
+        var fieldPath = string.IsNullOrEmpty(sdPathPrefix) ? fieldName : $"{sdPathPrefix}.{fieldName}";
+
+        // Resolve the entity name to a compiled extension URL.
+        string? entityUrl = null;
+        if (context.CompiledStructureDefinitions.TryGetValue(entityName, out var entitySd))
+            entityUrl = entitySd.Url;
+
+        // Look for a named slice on this field path whose type profile matches the entity URL.
+        foreach (var el in sd.Differential.Element)
+        {
+            if (!string.Equals(el.Path, fieldPath, StringComparison.Ordinal)) continue;
+            if (string.IsNullOrEmpty(el.SliceName)) continue;
+
+            // Direct name match (the local slice name equals the entity name).
+            if (string.Equals(el.SliceName, entityName, StringComparison.OrdinalIgnoreCase))
+                return el;
+
+            // Match by type profile URL.
+            if (entityUrl != null)
+            {
+                var profileUrl = el.Type?.FirstOrDefault()?.Profile?.FirstOrDefault();
+                if (profileUrl != null && string.Equals(profileUrl, entityUrl, StringComparison.OrdinalIgnoreCase))
+                    return el;
+            }
+        }
+
+        return null;
     }
 
     private static void ReorderDifferentialByBasePath(
