@@ -191,7 +191,20 @@ public static class FhirCaretValueWriter
         var dotIndex = FindFirstDotOutsideBrackets(compoundPath);
         if (dotIndex < 0)
         {
-            // No dot — has bracket notation only (e.g. "context[+]"), no leaf property.
+            // No dot — has bracket notation only (e.g. "context[+]").
+            // When the bracket contains an explicit integer (e.g. "alias[0]"), interpret as a
+            // direct indexed assignment on the target object itself.
+            var bracketStart = compoundPath.IndexOf('[');
+            if (bracketStart > 0)
+            {
+                var bracketEnd = compoundPath.IndexOf(']', bracketStart);
+                if (bracketEnd > bracketStart)
+                {
+                    var indexStr = compoundPath[(bracketStart + 1)..bracketEnd];
+                    if (int.TryParse(indexStr, out var idx))
+                        return TrySetIndexed(target, compoundPath[..bracketStart], idx, fshValue, inspector, aliasResolver);
+                }
+            }
             return false;
         }
 

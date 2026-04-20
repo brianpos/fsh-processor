@@ -3064,6 +3064,54 @@ public static class FshCompiler
         }
     }
 
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="ed"/> is an empty leaf element: it has no
+    /// meaningful content (no constraints, flags, types, etc.) and no child elements in the
+    /// differential.  Such elements contribute nothing to the differential and are pruned.
+    /// This catches cases like <c>* version MS</c> when the parent profile already declares
+    /// <c>* version 0..1 MS</c> — after redundancy removal the element is completely empty.
+    /// </summary>
+    private static bool IsEmptyLeafElement(ElementDefinition ed, List<ElementDefinition> allElements)
+    {
+        if (ed.Path == null || ed.ElementId == null) return false;
+        // Only non-slice, non-root elements (path contains a dot).
+        if (!string.IsNullOrEmpty(ed.SliceName)) return false;
+        if (!ed.Path.Contains('.')) return false;
+        // Must have path == elementId (not a sub-element of a slice).
+        if (!string.Equals(ed.Path, ed.ElementId, StringComparison.Ordinal)) return false;
+
+        // If it has children, don't remove it (the scaffold check handles that case).
+        var hasChildren = allElements.Any(child =>
+            !ReferenceEquals(child, ed)
+            && child.Path != null
+            && child.Path.StartsWith(ed.Path + ".", StringComparison.Ordinal));
+        if (hasChildren) return false;
+
+        // Check for meaningful content (same set as IsNoOpScaffoldElement).
+        var hasMeaningfulContent =
+            !string.IsNullOrEmpty(ed.Short)
+            || !string.IsNullOrEmpty(ed.Definition)
+            || !string.IsNullOrEmpty(ed.Comment)
+            || !string.IsNullOrEmpty(ed.Requirements)
+            || ed.Slicing != null
+            || ed.Binding != null
+            || ed.Type?.Count > 0
+            || ed.Constraint?.Count > 0
+            || ed.Mapping?.Count > 0
+            || ed.Extension?.Count > 0
+            || ed.MinElement != null
+            || ed.MaxElement != null
+            || ed.MustSupportElement != null
+            || ed.IsModifierElement != null
+            || ed.IsSummaryElement != null
+            || ed.Fixed != null
+            || ed.Pattern != null
+            || ed.DefaultValue != null
+            || ed.Example?.Count > 0;
+
+        return !hasMeaningfulContent;
+    }
+
     private static bool IsNoOpScaffoldElement(
         ElementDefinition ed,
         List<ElementDefinition> allElements,
@@ -3470,6 +3518,7 @@ public static class FshCompiler
         if (elements == null || elements.Count == 0) return;
         if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
 
+        var toRemove = new List<ElementDefinition>();
         foreach (var ed in elements)
         {
             if (!string.IsNullOrEmpty(ed.SliceName)) continue;
@@ -3481,13 +3530,35 @@ public static class FshCompiler
             if (ed.MinElement != null && ed.Min == baseEd.Min)
                 ed.MinElement = null;
 
-            if (ed.MaxElement != null && string.Equals(ed.Max, baseEd.Max, StringComparison.Ordinal))
-                ed.MaxElement = null;
+            // For max: compare against the effective inherited max.
+            // When the nearest matching base element has no max set (null), the effective max is
+            // inherited from a higher ancestor.  We walk further up the chain to find it so that
+            // we don't incorrectly emit e.g. `max="1"` when the core FHIR type already has it.
+            if (ed.MaxElement != null)
+            {
+                var effectiveMax = baseEd.Max;
+                if (effectiveMax == null)
+                    effectiveMax = ResolveEffectiveMax(sd, ed, context, opts);
+                if (string.Equals(ed.Max, effectiveMax, StringComparison.Ordinal))
+                    ed.MaxElement = null;
+            }
 
             // Remove redundant mustSupport when it matches the base element.
             if (ed.MustSupportElement != null && ed.MustSupport == baseEd.MustSupport)
                 ed.MustSupportElement = null;
+
+            // If all three fields are now null (they were the only content), this element
+            // contributes nothing to the differential.  Schedule it for removal when it is
+            // also a leaf node with no children and no other meaningful content.
+            if (ed.MinElement == null && ed.MaxElement == null && ed.MustSupportElement == null
+                && IsEmptyLeafElement(ed, elements))
+            {
+                toRemove.Add(ed);
+            }
         }
+
+        foreach (var ed in toRemove)
+            elements.Remove(ed);
     }
 
     /// <summary>
@@ -3716,6 +3787,41 @@ public static class FshCompiler
             var match = (baseSd.Snapshot?.Element ?? baseSd.Differential?.Element)
                 ?.FirstOrDefault(e => e.Path == basePath && string.IsNullOrEmpty(e.SliceName));
             if (match != null) return match;
+
+            currentBase = baseSd.BaseDefinition;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves the effective <c>max</c> value for an element by walking the ancestor chain.
+    /// This is used when the nearest parent element exists (for other reasons like constraints)
+    /// but has no explicit <c>max</c> set — in that case the effective max is inherited from a
+    /// higher ancestor (e.g. the core FHIR type's snapshot).
+    /// </summary>
+    private static string? ResolveEffectiveMax(
+        StructureDefinition sd,
+        ElementDefinition ed,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        if (string.IsNullOrEmpty(sd.BaseDefinition) || string.IsNullOrEmpty(ed.Path)) return null;
+
+        var currentBase = sd.BaseDefinition;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (!string.IsNullOrEmpty(currentBase) && visited.Add(currentBase))
+        {
+            var baseSd = ResolveStructureDefinition(currentBase, context, opts);
+            if (baseSd == null) return null;
+
+            var basePath = RewritePathRoot(ed.Path, sd.Type, baseSd.Type);
+            var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
+                      ?? baseSd.Differential?.Element;
+            var match = source?.FirstOrDefault(e =>
+                e.Path == basePath && string.IsNullOrEmpty(e.SliceName) && e.MaxElement != null);
+            if (match != null) return match.Max;
 
             currentBase = baseSd.BaseDefinition;
         }
