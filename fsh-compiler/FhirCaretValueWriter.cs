@@ -89,6 +89,11 @@ public static class FhirCaretValueWriter
             return true;
         }
 
+        // When overwriting a non-collection primitive, preserve any extensions that may have
+        // been set on the existing primitive instance (e.g. via `* path.extension[+]`).
+        if (TryUpdatePrimitiveValueInPlace(propMap, target, converted))
+            return true;
+
         propMap.SetValue(target, converted);
         return true;
     }
@@ -118,6 +123,11 @@ public static class FhirCaretValueWriter
 
         if (!propMap.IsCollection)
         {
+            // When overwriting a non-collection primitive, preserve any extensions that may have
+            // been set on the existing primitive instance (e.g. via `* path.extension[+]`).
+            if (TryUpdatePrimitiveValueInPlace(propMap, target, converted))
+                return true;
+
             propMap.SetValue(target, converted);
             return true;
         }
@@ -435,11 +445,37 @@ public static class FhirCaretValueWriter
                 return true;
             }
 
+            // When overwriting a non-collection primitive choice-type (e.g. valueDecimal),
+            // preserve any extensions that were set on the existing primitive instance.
+            if (TryUpdatePrimitiveValueInPlace(propMap, target, dataType))
+                return true;
+
             propMap.SetValue(target, dataType);
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// When overwriting a non-collection primitive FHIR property, if the existing value is
+    /// a <see cref="PrimitiveType"/> of the same type as <paramref name="newValue"/>, updates
+    /// the existing instance's <c>ObjectValue</c> in place so that any extensions already set
+    /// on the existing primitive (e.g. via <c>* path.extension[+]</c>) are preserved.
+    /// Returns <c>true</c> when the in-place update was performed; <c>false</c> when the
+    /// property is empty or the types do not match (caller should fall back to
+    /// <see cref="PropertyMapping.SetValue"/>).
+    /// </summary>
+    private static bool TryUpdatePrimitiveValueInPlace(PropertyMapping propMap, Base target, object newValue)
+    {
+        if (newValue is not PrimitiveType newPrimitive) return false;
+
+        var existing = propMap.GetValue(target);
+        if (existing is not PrimitiveType existingPrimitive) return false;
+        if (existing.GetType() != newValue.GetType()) return false;
+
+        existingPrimitive.ObjectValue = newPrimitive.ObjectValue;
+        return true;
     }
 
     private static object? ConvertValue(FshValue fshValue, Type targetType, ModelInspector inspector, Func<string, string>? aliasResolver = null)
