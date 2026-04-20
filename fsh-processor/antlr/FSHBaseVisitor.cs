@@ -19,7 +19,7 @@
 // Ambiguous reference in cref attribute
 #pragma warning disable 419
 
-namespace fsh_processor.antlr {
+namespace Hl7.FhirShorthand.Serialization.antlr {
 // Disable the warning for CLSCompliant
 #pragma warning disable 3021
 
@@ -949,4 +949,4 @@ public partial class FSHBaseVisitor<Result> : AbstractParseTreeVisitor<Result>, 
 	/// <return>The visitor result.</return>
 	public virtual Result VisitMostAlphaKeywords([NotNull] FSHParser.MostAlphaKeywordsContext context) { return VisitChildren(context); }
 }
-} // namespace fsh_processor.antlr
+} // namespace Hl7.FhirShorthand.Serialization.antlr

@@ -10,7 +10,7 @@
 //    our parser has no semantic validation.
 //  - SUSHI multi-file import not supported by single-file ParseDoc; those tests are inconclusive.
 
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;

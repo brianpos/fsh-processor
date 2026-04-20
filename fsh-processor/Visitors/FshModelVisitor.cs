@@ -1,10 +1,10 @@
 using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
-using fsh_processor.antlr;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.antlr;
+using Hl7.FhirShorthand.Serialization.Models;
 
-namespace fsh_processor.Visitors;
+namespace Hl7.FhirShorthand.Serialization.Visitors;
 
 /// <summary>
 /// Visitor implementation that builds the FSH object model from the ANTLR parse tree

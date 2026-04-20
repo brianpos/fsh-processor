@@ -7,12 +7,12 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/Compiler/">
-    <Project Path="fsh-compiler/fsh-compiler.csproj" />
-    <Project Path="fsh-compiler-R4/fsh-compiler-R4.csproj" />
-    <Project Path="fsh-compiler-R4B/fsh-compiler-R4B.csproj" />
-    <Project Path="fsh-compiler-R5/fsh-compiler-R5.csproj" />
-    <Project Path="fsh-compiler-tester-R4/fsh-compiler-tester-R4.csproj" />
+    <Project Path="fsh-compiler-R4/Hl7.FhirShorthand.Compiler.R4.csproj" />
+    <Project Path="fsh-compiler-R4B/Hl7.FhirShorthand.Compiler.R4B.csproj" />
+    <Project Path="fsh-compiler-R5/Hl7.FhirShorthand.Compiler.R5.csproj" />
+    <Project Path="fsh-compiler-tester-R4/Hl7.FhirShorthand.Compiler.Test.R4.csproj" />
+    <Project Path="fsh-compiler/Hl7.FhirShorthand.Compiler.csproj" />
   </Folder>
-  <Project Path="fsh-processor/fsh-processor.csproj" Id="b5aaf120-4bd0-463b-8830-928c5d310c03" />
-  <Project Path="fsh-tester/fsh-tester.csproj" Id="1ab78aba-81a5-4f71-aaed-318678747511" />
+  <Project Path="fsh-processor/Hl7.FhirShorthand.Serialization.csproj" Id="b5aaf120-4bd0-463b-8830-928c5d310c03" />
+  <Project Path="fsh-tester/Hl7.FhirShorthand.Serialization.Test.csproj" Id="1ab78aba-81a5-4f71-aaed-318678747511" />
 </Solution>

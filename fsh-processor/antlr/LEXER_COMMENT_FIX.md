@@ -183,7 +183,7 @@ No changes needed! The visitor's `GetLeadingHiddenTokens` and `GetTrailingHidden
 After modifying FSHLexer.g4:
 
 ```powershell
-java -jar c:\git\antlr-4.13.1.jar -Dlanguage=CSharp -visitor -package fsh_processor.antlr -o fsh-processor\antlr fsh-processor\antlr\FSHLexer.g4 fsh-processor\antlr\FSH.g4
+java -jar c:\git\antlr-4.13.1.jar -Dlanguage=CSharp -visitor -package Hl7.FhirShorthand.Serialization.antlr -o fsh-processor\antlr fsh-processor\antlr\FSHLexer.g4 fsh-processor\antlr\FSH.g4
 ```
 
 Then rebuild the project.

@@ -9,7 +9,7 @@
 //  - fsh-processor stores Strength with "()" wrapping; SUSHI strips them (normalized in SushiTestHelper).
 //  - Columns in SourcePosition are 0-based (ANTLR); SUSHI uses 1-based.
 
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;

@@ -8,7 +8,7 @@
 //  - ConceptCode.Value in VsComponentRule retains the "#" prefix (e.g. "#lion"), matching parser output.
 //  - VsCaretValueRule.CaretPath retains the "^" prefix.
 
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;

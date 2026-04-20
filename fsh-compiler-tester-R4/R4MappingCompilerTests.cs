@@ -1,7 +1,7 @@
 using Hl7.Fhir.Model;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Tests compiling FSH Mapping entities into StructureDefinition.mapping[] and
@@ -102,14 +102,14 @@ public class R4MappingCompilerTests
             Source: NoSuchProfile
             Target: ""http://example.org""
         ");
-        var doc = fsh_processor.FshParser.Parse(fsh);
-        Assert.IsInstanceOfType<fsh_processor.Models.ParseResult.Success>(doc);
-        var fshDoc = ((fsh_processor.Models.ParseResult.Success)doc).Document;
+        var doc = Hl7.FhirShorthand.Serialization.FshParser.Parse(fsh);
+        Assert.IsInstanceOfType<Hl7.FhirShorthand.Serialization.Models.ParseResult.Success>(doc);
+        var fshDoc = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc).Document;
 
-        var result = fsh_compiler_r4.R4FshCompiler.Compile(fshDoc);
-        Assert.IsInstanceOfType<fsh_compiler.CompileResult<List<FhirResource>>.SuccessResult>(result,
+        var result = Hl7.FhirShorthand.Compiler_r4.R4FshCompiler.Compile(fshDoc);
+        Assert.IsInstanceOfType<Hl7.FhirShorthand.Compiler.CompileResult<List<FhirResource>>.SuccessResult>(result,
             "Should succeed (no hard errors)");
-        var successResult = (fsh_compiler.CompileResult<List<FhirResource>>.SuccessResult)result;
+        var successResult = (Hl7.FhirShorthand.Compiler.CompileResult<List<FhirResource>>.SuccessResult)result;
         Assert.IsTrue(successResult.Warnings.Any(w =>
                 w.Message.Contains("NoSuchProfile") || w.Message.Contains("OrphanMapping")),
             "Should emit a warning about the unresolved source");

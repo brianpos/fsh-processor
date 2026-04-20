@@ -14,8 +14,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\fsh-processor\fsh-processor.csproj" />
-    <ProjectReference Include="..\fsh-compiler\fsh-compiler.csproj" />
+    <ProjectReference Include="..\fsh-processor\Hl7.FhirShorthand.Serialization.csproj" />
+    <ProjectReference Include="..\fsh-compiler\Hl7.FhirShorthand.Compiler.csproj" />
   </ItemGroup>
 
   <ItemGroup>

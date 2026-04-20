@@ -1,9 +1,9 @@
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Specification.Source;
 
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 /// <summary>
 /// Compilation context built from one or more <see cref="FshDoc"/> instances.

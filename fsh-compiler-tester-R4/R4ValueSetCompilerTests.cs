@@ -1,7 +1,7 @@
 using Hl7.Fhir.Model;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Tests compiling FSH ValueSet entities to FHIR R4 ValueSet resources.

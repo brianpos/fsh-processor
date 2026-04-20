@@ -2,7 +2,7 @@ using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Specification.Source;
 
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 public class AliasResolver : IAsyncResourceResolver, IResourceResolver
 {

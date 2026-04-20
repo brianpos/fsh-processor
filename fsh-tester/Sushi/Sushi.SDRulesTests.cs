@@ -12,7 +12,7 @@
 //  - fsh-processor stores Strength with "()" wrapping; SUSHI strips them (normalized in SushiTestHelper).
 //  - fsh-processor retains "#" prefix on code values in FixedValueRule.
 
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;
@@ -459,7 +459,7 @@ public class SDRulesTests
             * insert MyRuleSet
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertInsertRule(profile.Rules[0], "", "MyRuleSet");
     }
 
@@ -472,7 +472,7 @@ public class SDRulesTests
             * component insert MyRuleSet
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertInsertRule(profile.Rules[0], "component", "MyRuleSet");
     }
 
@@ -485,7 +485,7 @@ public class SDRulesTests
             * insert MyRuleSet(param1, param2)
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         var rule = (InsertRule)profile.Rules[0];
         Assert.AreEqual("MyRuleSet", rule.RuleSetReference);
         Assert.IsTrue(rule.IsParameterized);

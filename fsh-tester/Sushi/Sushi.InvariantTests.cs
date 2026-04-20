@@ -12,7 +12,7 @@
 //  - Columns in SourcePosition are 0-based (ANTLR); SUSHI uses 1-based.
 //    Line positions are also affected by leftAlign trimming applied by ParseDoc.
 
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;

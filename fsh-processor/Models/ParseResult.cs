@@ -1,4 +1,4 @@
-namespace fsh_processor.Models;
+namespace Hl7.FhirShorthand.Serialization.Models;
 
 /// <summary>
 /// Parse result - either a FshDoc or errors

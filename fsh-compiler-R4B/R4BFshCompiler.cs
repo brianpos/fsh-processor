@@ -1,9 +1,9 @@
-using fsh_compiler;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Compiler;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Model;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
-namespace fsh_compiler_r4b;
+namespace Hl7.FhirShorthand.Compiler_r4b;
 
 /// <summary>
 /// FSH compiler targeting FHIR R4B (version 4.3.0).

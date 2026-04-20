@@ -19,7 +19,7 @@
 // Ambiguous reference in cref attribute
 #pragma warning disable 419
 
-namespace fsh_processor.antlr {
+namespace Hl7.FhirShorthand.Serialization.antlr {
 // Disable the warning for CLSCompliant
 #pragma warning disable 3021
 
@@ -582,4 +582,4 @@ public interface IFSHVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitMostAlphaKeywords([NotNull] FSHParser.MostAlphaKeywordsContext context);
 }
-} // namespace fsh_processor.antlr
+} // namespace Hl7.FhirShorthand.Serialization.antlr

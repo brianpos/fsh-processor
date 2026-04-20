@@ -1,9 +1,9 @@
-using fsh_compiler;
-using fsh_processor;
+using Hl7.FhirShorthand.Compiler;
+using Hl7.FhirShorthand.Serialization;
 using Hl7.Fhir.Model;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Tests compiling FSH Profile entities to FHIR R4 StructureDefinitions.
@@ -743,19 +743,19 @@ public class R4ProfileCompilerTests
     [TestMethod]
     public void ShouldCompileMultipleDocsWithSharedAliases()
     {
-        var doc1 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+        var doc1 = Hl7.FhirShorthand.Serialization.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
             Alias: $Patient = http://hl7.org/fhir/StructureDefinition/Patient
         "));
-        var doc2 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+        var doc2 = Hl7.FhirShorthand.Serialization.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
             Profile: MyObservation
             Parent: Observation
             * subject only Reference($Patient)
         "));
 
-        var fshDoc1 = ((fsh_processor.Models.ParseResult.Success)doc1).Document;
-        var fshDoc2 = ((fsh_processor.Models.ParseResult.Success)doc2).Document;
+        var fshDoc1 = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc1).Document;
+        var fshDoc2 = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc2).Document;
 
-        var result = fsh_compiler_r4.R4FshCompiler.Compile(new[] { fshDoc1, fshDoc2 });
+        var result = Hl7.FhirShorthand.Compiler_r4.R4FshCompiler.Compile(new[] { fshDoc1, fshDoc2 });
         Assert.IsTrue(result.IsSuccess, "Multi-doc compilation should succeed");
         var resources = ((CompileResult<List<FhirResource>>.SuccessResult)result).Value;
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyObservation");
@@ -768,22 +768,22 @@ public class R4ProfileCompilerTests
     [TestMethod]
     public void ShouldCompileMultipleDocsWithSharedInvariant()
     {
-        var doc1 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+        var doc1 = Hl7.FhirShorthand.Serialization.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
             Invariant: obs-1
             Description: ""Must have value""
             Expression: ""value.exists()""
             Severity: #error
         "));
-        var doc2 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+        var doc2 = Hl7.FhirShorthand.Serialization.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
             Profile: MyObservation
             Parent: Observation
             * obeys obs-1
         "));
 
-        var fshDoc1 = ((fsh_processor.Models.ParseResult.Success)doc1).Document;
-        var fshDoc2 = ((fsh_processor.Models.ParseResult.Success)doc2).Document;
+        var fshDoc1 = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc1).Document;
+        var fshDoc2 = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc2).Document;
 
-        var result = fsh_compiler_r4.R4FshCompiler.Compile(new[] { fshDoc1, fshDoc2 });
+        var result = Hl7.FhirShorthand.Compiler_r4.R4FshCompiler.Compile(new[] { fshDoc1, fshDoc2 });
         Assert.IsTrue(result.IsSuccess);
         var resources = ((CompileResult<List<FhirResource>>.SuccessResult)result).Value;
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
@@ -902,10 +902,10 @@ public class R4ProfileCompilerTests
             * insert NonExistentRuleSet
         ");
         var doc = FshParser.Parse(fsh);
-        Assert.IsInstanceOfType<fsh_processor.Models.ParseResult.Success>(doc);
-        var fshDoc = ((fsh_processor.Models.ParseResult.Success)doc).Document;
+        Assert.IsInstanceOfType<Hl7.FhirShorthand.Serialization.Models.ParseResult.Success>(doc);
+        var fshDoc = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc).Document;
 
-        var result = fsh_compiler_r4.R4FshCompiler.Compile(fshDoc);
+        var result = Hl7.FhirShorthand.Compiler_r4.R4FshCompiler.Compile(fshDoc);
         Assert.IsTrue(result.IsSuccess, "Should succeed despite unresolved rule set");
         Assert.IsTrue(result.Warnings.Count > 0, "Should emit at least one warning");
         Assert.IsTrue(result.Warnings.Any(w => w.Message.Contains("NonExistentRuleSet")),
@@ -970,7 +970,7 @@ public class R4ProfileCompilerTests
             Parent: Patient
         ");
         var doc = FshParser.Parse(fsh);
-        var fshDoc = ((fsh_processor.Models.ParseResult.Success)doc).Document;
+        var fshDoc = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc).Document;
         var opts = new CompilerOptions
         {
             CanonicalBase = "http://example.org/fhir",

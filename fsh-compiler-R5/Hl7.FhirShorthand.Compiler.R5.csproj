@@ -2,18 +2,18 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>fsh_compiler_r4</RootNamespace>
+    <RootNamespace>Hl7.FhirShorthand.Compiler_r5</RootNamespace>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Hl7.Fhir.R4" Version="5.13.2" />
+    <PackageReference Include="Hl7.Fhir.R5" Version="5.13.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\fsh-compiler\fsh-compiler.csproj" />
+    <ProjectReference Include="..\fsh-compiler\Hl7.FhirShorthand.Compiler.csproj" />
   </ItemGroup>
 
 </Project>

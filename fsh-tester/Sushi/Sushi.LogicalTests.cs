@@ -7,7 +7,7 @@
 //  - Logical uses string? properties (not Metadata?) for Parent, Id, Title, Description.
 //  - Logical.Characteristics stores the raw characteristic codes as strings.
 
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;

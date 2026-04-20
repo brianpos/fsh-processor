@@ -19,7 +19,7 @@
 // Ambiguous reference in cref attribute
 #pragma warning disable 419
 
-namespace fsh_processor.antlr {
+namespace Hl7.FhirShorthand.Serialization.antlr {
 // Disable the warning for CLSCompliant
 #pragma warning disable 3021
 
@@ -7846,4 +7846,4 @@ public partial class FSHParser : Parser {
 
 
 }
-} // namespace fsh_processor.antlr
+} // namespace Hl7.FhirShorthand.Serialization.antlr

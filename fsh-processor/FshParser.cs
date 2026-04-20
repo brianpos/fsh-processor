@@ -1,9 +1,9 @@
 using Antlr4.Runtime;
-using fsh_processor.antlr;
-using fsh_processor.Models;
-using fsh_processor.Visitors;
+using Hl7.FhirShorthand.Serialization.antlr;
+using Hl7.FhirShorthand.Serialization.Models;
+using Hl7.FhirShorthand.Serialization.Visitors;
 
-namespace fsh_processor;
+namespace Hl7.FhirShorthand.Serialization;
 
 /// <summary>
 /// FSH Parser - Parses FHIR Shorthand (FSH) text into a structured object model.

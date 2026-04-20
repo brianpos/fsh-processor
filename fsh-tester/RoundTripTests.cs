@@ -1,5 +1,5 @@
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester;

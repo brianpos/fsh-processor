@@ -44,7 +44,7 @@ across all FHIR versions via transitive dependencies).
 
 ### Namespace
 
-`fsh_compiler`
+`Hl7.FhirShorthand.Compiler`
 
 ### Key Types
 

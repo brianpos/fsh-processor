@@ -1,4 +1,4 @@
-namespace fsh_processor.Models;
+namespace Hl7.FhirShorthand.Serialization.Models;
 
 /// <summary>
 /// Source position information for tracking element location in original text

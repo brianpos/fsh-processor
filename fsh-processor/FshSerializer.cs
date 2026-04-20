@@ -1,7 +1,7 @@
 using System.Text;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 
-namespace fsh_processor;
+namespace Hl7.FhirShorthand.Serialization;
 
 /// <summary>
 /// FSH Serializer - Serializes a <see cref="FshDoc"/> object model back into FSH text format.

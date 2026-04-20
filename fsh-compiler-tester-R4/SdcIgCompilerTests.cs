@@ -1,7 +1,7 @@
-using fsh_compiler;
-using fsh_compiler_r4;
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Compiler;
+using Hl7.FhirShorthand.Compiler_r4;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Hl7.Fhir.Specification.Snapshot;
@@ -13,7 +13,7 @@ using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Integration tests that compile the entire SDC (Structured Data Capture) Implementation Guide
@@ -107,9 +107,9 @@ public class SdcIgCompilerTests
                             var rules = e switch
                             {
                                 Profile pr => pr.Rules.AsEnumerable<FshRule>(),
-                                fsh_processor.Models.Extension ex => ex.Rules.AsEnumerable<FshRule>(),
+                                Hl7.FhirShorthand.Serialization.Models.Extension ex => ex.Rules.AsEnumerable<FshRule>(),
                                 Logical l => l.Rules.AsEnumerable<FshRule>(),
-                                fsh_processor.Models.Resource r => r.Rules.AsEnumerable<FshRule>(),
+                                Hl7.FhirShorthand.Serialization.Models.Resource r => r.Rules.AsEnumerable<FshRule>(),
                                 _ => Enumerable.Empty<FshRule>()
                             };
                             foreach (var rule in rules.OfType<ContainsRule>())
@@ -1616,19 +1616,19 @@ public class SdcIgCompilerTests
                         case Logical lEntity:
                             entitySource.TryAdd(lEntity.Name, fa.Name);
                             break;
-                        case fsh_processor.Models.Resource rEntity:
+                        case Hl7.FhirShorthand.Serialization.Models.Resource rEntity:
                             entitySource.TryAdd(rEntity.Name, fa.Name);
                             break;
-                        case fsh_processor.Models.Extension extEntity:
+                        case Hl7.FhirShorthand.Serialization.Models.Extension extEntity:
                             entitySource.TryAdd(extEntity.Name, fa.Name);
                             break;
-                        case fsh_processor.Models.CodeSystem csEntity:
+                        case Hl7.FhirShorthand.Serialization.Models.CodeSystem csEntity:
                             entitySource.TryAdd(csEntity.Name, fa.Name);
                             break;
-                        case fsh_processor.Models.ValueSet vsEntity:
+                        case Hl7.FhirShorthand.Serialization.Models.ValueSet vsEntity:
                             entitySource.TryAdd(vsEntity.Name, fa.Name);
                             break;
-                        case fsh_processor.Models.Mapping mEntity:
+                        case Hl7.FhirShorthand.Serialization.Models.Mapping mEntity:
                             entitySource.TryAdd(mEntity.Name, fa.Name);
                             if (!string.IsNullOrEmpty(mEntity.Source) && !mEntity.Source.StartsWith('$') &&
                                 !ModelInfo.ModelInspector.IsKnownResource(mEntity.Source))
@@ -1656,7 +1656,7 @@ public class SdcIgCompilerTests
                     {
                         foreach (var rule in instEntity.Rules.OfType<InstanceFixedValueRule>())
                         {
-                            if (rule.Value is fsh_processor.Models.Canonical can &&
+                            if (rule.Value is Hl7.FhirShorthand.Serialization.Models.Canonical can &&
                                 !string.IsNullOrEmpty(can.Url) &&
                                 !can.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
                                 !can.Url.StartsWith("urn:", StringComparison.OrdinalIgnoreCase) &&
@@ -1689,17 +1689,17 @@ public class SdcIgCompilerTests
                             }
                         }
                     }
-                    if (e is fsh_processor.Models.Extension ext)
+                    if (e is Hl7.FhirShorthand.Serialization.Models.Extension ext)
                     {
                         entitySource.TryAdd(ext.Name, fa.Name);
                     }
                     // Track CodeSystems and ValueSets so instances/profiles that reference
                     // them by name can resolve the source file.
-                    if (e is fsh_processor.Models.CodeSystem cs)
+                    if (e is Hl7.FhirShorthand.Serialization.Models.CodeSystem cs)
                     {
                         entitySource.TryAdd(cs.Name, fa.Name);
                     }
-                    if (e is fsh_processor.Models.ValueSet vs)
+                    if (e is Hl7.FhirShorthand.Serialization.Models.ValueSet vs)
                     {
                         entitySource.TryAdd(vs.Name, fa.Name);
                     }
@@ -1710,9 +1710,9 @@ public class SdcIgCompilerTests
                     var rules = e switch
                     {
                         Profile pr => pr.Rules.AsEnumerable<FshRule>(),
-                        fsh_processor.Models.Extension ex => ex.Rules.AsEnumerable<FshRule>(),
+                        Hl7.FhirShorthand.Serialization.Models.Extension ex => ex.Rules.AsEnumerable<FshRule>(),
                         Logical l => l.Rules.AsEnumerable<FshRule>(),
-                        fsh_processor.Models.Resource r => r.Rules.AsEnumerable<FshRule>(),
+                        Hl7.FhirShorthand.Serialization.Models.Resource r => r.Rules.AsEnumerable<FshRule>(),
                         _ => Enumerable.Empty<FshRule>()
                     };
                     foreach (var rule in rules.OfType<ContainsRule>())
@@ -1744,7 +1744,7 @@ public class SdcIgCompilerTests
                     // (e.g. `* AustralianStateCodes#ACT "Australian Capital Territory"`).
                     // These produce a VsComponentRule with IsConceptComponent=true and no
                     // FromSystem, so we extract the system name from ConceptCode.Value.
-                    if (e is fsh_processor.Models.ValueSet vsDefEntity)
+                    if (e is Hl7.FhirShorthand.Serialization.Models.ValueSet vsDefEntity)
                     {
                         foreach (var vsCompRule in vsDefEntity.Rules.OfType<VsComponentRule>())
                         {

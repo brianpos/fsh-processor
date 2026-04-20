@@ -1,6 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Antlr4.Runtime;
-using fsh_processor.antlr;
+using Hl7.FhirShorthand.Serialization.antlr;
 using System.IO;
 using System.Text;
 

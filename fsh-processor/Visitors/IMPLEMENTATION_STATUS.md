@@ -184,8 +184,8 @@ All FSH grammar elements are now fully implemented. The parser achieves 100% suc
 
 ### Basic Parsing
 ```csharp
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 
 string fshContent = File.ReadAllText("myfile.fsh");
 var result = FshParser.Parse(fshContent);

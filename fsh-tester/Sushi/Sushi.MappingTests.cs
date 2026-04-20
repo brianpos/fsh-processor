@@ -13,7 +13,7 @@
 //  - SUSHI discards MappingPathRule from the rules list; our parser includes it.
 //  - Columns in SourcePosition are 0-based (ANTLR); SUSHI uses 1-based.
 
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;

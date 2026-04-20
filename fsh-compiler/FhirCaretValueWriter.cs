@@ -1,12 +1,12 @@
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Utility;
 using System.Text.RegularExpressions;
-using FshCanonical = fsh_processor.Models.Canonical;
-using FshCode = fsh_processor.Models.Code;
+using FshCanonical = Hl7.FhirShorthand.Serialization.Models.Canonical;
+using FshCode = Hl7.FhirShorthand.Serialization.Models.Code;
 
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 /// <summary>
 /// Uses the Firely SDK's <see cref="ModelInspector"/> to dynamically set caret-value properties

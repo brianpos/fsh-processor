@@ -11,7 +11,7 @@
 //  - Columns in SourcePosition are 0-based (ANTLR); SUSHI uses 1-based.
 //  - SUSHI MappingRule: (comment → C# MappingMapRule.Language, language/FshCode → C# MappingMapRule.Code).
 
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;

@@ -1,7 +1,7 @@
 using Hl7.Fhir.Model;
 using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Tests compiling FSH CodeSystem entities to FHIR R4 CodeSystem resources.
@@ -157,11 +157,11 @@ public class R4CodeSystemCompilerTests
             CodeSystem: MyCS
             Id: my-cs
         ");
-        var doc = fsh_processor.FshParser.Parse(fsh);
-        var fshDoc = ((fsh_processor.Models.ParseResult.Success)doc).Document;
-        var opts = new fsh_compiler.CompilerOptions { CanonicalBase = "http://example.org/fhir" };
-        var result = fsh_compiler.FshCompiler.Compile(fshDoc, opts);
-        var cs = (FhirCodeSystem)((fsh_compiler.CompileResult<System.Collections.Generic.List<Hl7.Fhir.Model.Resource>>.SuccessResult)result).Value[0];
+        var doc = Hl7.FhirShorthand.Serialization.FshParser.Parse(fsh);
+        var fshDoc = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc).Document;
+        var opts = new Hl7.FhirShorthand.Compiler.CompilerOptions { CanonicalBase = "http://example.org/fhir" };
+        var result = Hl7.FhirShorthand.Compiler.FshCompiler.Compile(fshDoc, opts);
+        var cs = (FhirCodeSystem)((Hl7.FhirShorthand.Compiler.CompileResult<System.Collections.Generic.List<Hl7.Fhir.Model.Resource>>.SuccessResult)result).Value[0];
         Assert.AreEqual("http://example.org/fhir/CodeSystem/my-cs", cs.Url,
             "CodeSystem URL should use /CodeSystem/ segment");
     }
@@ -368,11 +368,11 @@ public class R4CodeSystemCompilerTests
             CodeSystem: JurisdictionCS
             * ^jurisdiction = $m49.htm#001 ""World""
         ");
-        var parseResult = fsh_processor.FshParser.Parse(fsh);
-        var fshDoc = ((fsh_processor.Models.ParseResult.Success)parseResult).Document;
-        var opts = new fsh_compiler.CompilerOptions { CanonicalBase = "http://example.org/fhir" };
-        var result = fsh_compiler_r4.R4FshCompiler.Compile(fshDoc, opts);
-        var cs = (FhirCodeSystem)((fsh_compiler.CompileResult<System.Collections.Generic.List<Hl7.Fhir.Model.Resource>>.SuccessResult)result).Value[0];
+        var parseResult = Hl7.FhirShorthand.Serialization.FshParser.Parse(fsh);
+        var fshDoc = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)parseResult).Document;
+        var opts = new Hl7.FhirShorthand.Compiler.CompilerOptions { CanonicalBase = "http://example.org/fhir" };
+        var result = Hl7.FhirShorthand.Compiler_r4.R4FshCompiler.Compile(fshDoc, opts);
+        var cs = (FhirCodeSystem)((Hl7.FhirShorthand.Compiler.CompileResult<System.Collections.Generic.List<Hl7.Fhir.Model.Resource>>.SuccessResult)result).Value[0];
 
         Assert.IsNotNull(cs.Jurisdiction, "jurisdiction should be set");
         Assert.AreEqual(1, cs.Jurisdiction.Count, "Should have one jurisdiction entry");

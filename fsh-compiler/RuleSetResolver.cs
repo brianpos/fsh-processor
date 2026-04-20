@@ -1,7 +1,7 @@
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 /// <summary>
 /// Resolves <see cref="InsertRule"/> references by looking up the named <see cref="RuleSet"/>

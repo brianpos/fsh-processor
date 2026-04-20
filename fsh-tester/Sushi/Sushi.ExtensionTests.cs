@@ -1,6 +1,6 @@
 // Ported from SUSHI test: FSHImporter.Extension.test.ts
 
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;

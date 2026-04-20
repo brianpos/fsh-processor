@@ -1,4 +1,4 @@
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Specification.Source;
@@ -8,9 +8,9 @@ using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
 using FhirExtension = Hl7.Fhir.Model.Extension;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
-using FshCode = fsh_processor.Models.Code;
+using FshCode = Hl7.FhirShorthand.Serialization.Models.Code;
 
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 /// <summary>
 /// Compiles a parsed FSH document (<see cref="FshDoc"/>) into a list of FHIR
@@ -75,7 +75,7 @@ public static class FshCompiler
         {
             foreach (var entity in doc.Entities)
             {
-                if (entity is fsh_processor.Models.CodeSystem cs)
+                if (entity is Hl7.FhirShorthand.Serialization.Models.CodeSystem cs)
                 {
                     var csUrl = ResolveUrl(cs.Id ?? cs.Name, opts, "CodeSystem");
                     if (csUrl is null) continue;
@@ -138,18 +138,18 @@ public static class FshCompiler
         RuleSet                                 => 0,
         Invariant                               => 0,
         // Tier 1 — CodeSystems (must register canonical URLs before ValueSets)
-        fsh_processor.Models.CodeSystem         => 1,
+        Hl7.FhirShorthand.Serialization.Models.CodeSystem         => 1,
         // Tier 2 — ValueSets (may reference CodeSystem URLs)
-        fsh_processor.Models.ValueSet           => 2,
+        Hl7.FhirShorthand.Serialization.Models.ValueSet           => 2,
         // Tier 3 — StructureDefinition producers (Profile, Extension, Logical, Resource)
         Profile                                 => 3,
-        fsh_processor.Models.Extension          => 3,
+        Hl7.FhirShorthand.Serialization.Models.Extension          => 3,
         Logical                                 => 3,
-        fsh_processor.Models.Resource           => 3,
+        Hl7.FhirShorthand.Serialization.Models.Resource           => 3,
         // Tier 4 — Instances (need compiled SDs for type resolution)
-        fsh_processor.Models.Instance           => 4,
+        Hl7.FhirShorthand.Serialization.Models.Instance           => 4,
         // Tier 5 — Mappings (annotate already-compiled SDs)
-        fsh_processor.Models.Mapping            => 5,
+        Hl7.FhirShorthand.Serialization.Models.Mapping            => 5,
         _                                       => 6
     };
 
@@ -160,11 +160,11 @@ public static class FshCompiler
     private static string? GetEntityDependency(FshEntity entity) => entity switch
     {
         Profile p                               => p.Parent?.Value,
-        fsh_processor.Models.Extension ext      => ext.Parent,
+        Hl7.FhirShorthand.Serialization.Models.Extension ext      => ext.Parent,
         Logical l                               => l.Parent,
-        fsh_processor.Models.Resource r         => r.Parent,
-        fsh_processor.Models.Instance inst      => inst.InstanceOf,
-        fsh_processor.Models.Mapping m          => m.Source,
+        Hl7.FhirShorthand.Serialization.Models.Resource r         => r.Parent,
+        Hl7.FhirShorthand.Serialization.Models.Instance inst      => inst.InstanceOf,
+        Hl7.FhirShorthand.Serialization.Models.Mapping m          => m.Source,
         _                                       => null
     };
 
@@ -275,7 +275,7 @@ public static class FshCompiler
             {
                 // Mappings annotate already-compiled StructureDefinitions rather than
                 // producing a new resource.
-                if (entity is fsh_processor.Models.Mapping mapping)
+                if (entity is Hl7.FhirShorthand.Serialization.Models.Mapping mapping)
                 {
                     if (mapping.Source is null ||
                         !sdByEntityName.TryGetValue(mapping.Source, out var targetSd))
@@ -297,12 +297,12 @@ public static class FshCompiler
                 FhirResource? resource = entity switch
                 {
                     Profile profile => BuildProfile(profile, context, opts),
-                    fsh_processor.Models.Extension ext => BuildExtension(ext, context, opts),
+                    Hl7.FhirShorthand.Serialization.Models.Extension ext => BuildExtension(ext, context, opts),
                     Logical logical => BuildLogical(logical, context, opts),
-                    fsh_processor.Models.Resource fshResource => BuildResource(fshResource, context, opts),
-                    fsh_processor.Models.ValueSet vs => BuildValueSet(vs, context, opts),
-                    fsh_processor.Models.CodeSystem cs => BuildCodeSystem(cs, context, opts),
-                    fsh_processor.Models.Instance inst => BuildInstance(inst, context, opts),
+                    Hl7.FhirShorthand.Serialization.Models.Resource fshResource => BuildResource(fshResource, context, opts),
+                    Hl7.FhirShorthand.Serialization.Models.ValueSet vs => BuildValueSet(vs, context, opts),
+                    Hl7.FhirShorthand.Serialization.Models.CodeSystem cs => BuildCodeSystem(cs, context, opts),
+                    Hl7.FhirShorthand.Serialization.Models.Instance inst => BuildInstance(inst, context, opts),
                     // Alias, RuleSet, and Invariant produce no FHIR resource
                     _ => null
                 };
@@ -548,11 +548,11 @@ public static class FshCompiler
     }
 
     /// <summary>
-    /// Converts a FSH <see cref="fsh_processor.Models.Extension"/> entity to a
+    /// Converts a FSH <see cref="Hl7.FhirShorthand.Serialization.Models.Extension"/> entity to a
     /// FHIR <see cref="StructureDefinition"/> of kind <c>complex-type</c>.
     /// </summary>
     public static StructureDefinition BuildExtension(
-        fsh_processor.Models.Extension ext, CompilerContext context, CompilerOptions? options = null)
+        Hl7.FhirShorthand.Serialization.Models.Extension ext, CompilerContext context, CompilerOptions? options = null)
     {
         var opts = options ?? new CompilerOptions();
         var sd = new StructureDefinition
@@ -930,11 +930,11 @@ public static class FshCompiler
     }
 
     /// <summary>
-    /// Converts a FSH <see cref="fsh_processor.Models.Resource"/> entity to a FHIR
+    /// Converts a FSH <see cref="Hl7.FhirShorthand.Serialization.Models.Resource"/> entity to a FHIR
     /// <see cref="StructureDefinition"/> of kind <c>resource</c>.
     /// </summary>
     public static StructureDefinition BuildResource(
-        fsh_processor.Models.Resource fshResource, CompilerContext context, CompilerOptions? options = null)
+        Hl7.FhirShorthand.Serialization.Models.Resource fshResource, CompilerContext context, CompilerOptions? options = null)
     {
         var opts = options ?? new CompilerOptions();
         var sd = new StructureDefinition
@@ -970,11 +970,11 @@ public static class FshCompiler
     // ─── ValueSet builder ────────────────────────────────────────────────────
 
     /// <summary>
-    /// Converts a FSH <see cref="fsh_processor.Models.ValueSet"/> entity to a FHIR
+    /// Converts a FSH <see cref="Hl7.FhirShorthand.Serialization.Models.ValueSet"/> entity to a FHIR
     /// <see cref="FhirValueSet"/> resource.
     /// </summary>
     public static FhirValueSet BuildValueSet(
-        fsh_processor.Models.ValueSet vs, CompilerContext context, CompilerOptions? options = null)
+        Hl7.FhirShorthand.Serialization.Models.ValueSet vs, CompilerContext context, CompilerOptions? options = null)
     {
         var opts = options ?? new CompilerOptions();
         var fvs = new FhirValueSet
@@ -1038,11 +1038,11 @@ public static class FshCompiler
     // ─── CodeSystem builder ──────────────────────────────────────────────────
 
     /// <summary>
-    /// Converts a FSH <see cref="fsh_processor.Models.CodeSystem"/> entity to a FHIR
+    /// Converts a FSH <see cref="Hl7.FhirShorthand.Serialization.Models.CodeSystem"/> entity to a FHIR
     /// <see cref="FhirCodeSystem"/> resource.
     /// </summary>
     public static FhirCodeSystem BuildCodeSystem(
-        fsh_processor.Models.CodeSystem cs, CompilerContext context, CompilerOptions? options = null)
+        Hl7.FhirShorthand.Serialization.Models.CodeSystem cs, CompilerContext context, CompilerOptions? options = null)
     {
         var opts = options ?? new CompilerOptions();
         var resolvedInspector = opts.Inspector ?? ModelInspector.ForAssembly(typeof(StructureDefinition).Assembly);
@@ -3359,7 +3359,7 @@ public static class FshCompiler
     // ─── Instance builder ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Converts a FSH <see cref="fsh_processor.Models.Instance"/> entity to a FHIR resource.
+    /// Converts a FSH <see cref="Hl7.FhirShorthand.Serialization.Models.Instance"/> entity to a FHIR resource.
     /// Requires a version-specific <see cref="CompilerOptions.Inspector"/> to resolve the
     /// <c>InstanceOf</c> type name to a CLR type; returns <c>null</c> when the type cannot
     /// be resolved or the inspector is not supplied.
@@ -3369,7 +3369,7 @@ public static class FshCompiler
     /// embedded as a contained resource rather than emitted as a standalone output.
     /// </param>
     public static FhirResource? BuildInstance(
-        fsh_processor.Models.Instance instance, CompilerContext context, CompilerOptions? options = null,
+        Hl7.FhirShorthand.Serialization.Models.Instance instance, CompilerContext context, CompilerOptions? options = null,
         bool forContained = false)
     {
         var opts = options ?? new CompilerOptions();
@@ -4040,7 +4040,7 @@ public static class FshCompiler
     // ─── Mapping compiler ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Applies a FSH <see cref="fsh_processor.Models.Mapping"/> entity to a target
+    /// Applies a FSH <see cref="Hl7.FhirShorthand.Serialization.Models.Mapping"/> entity to a target
     /// <see cref="StructureDefinition"/> by:
     /// <list type="bullet">
     ///   <item>Adding a <c>mapping</c> identity declaration to <c>sd.Mapping</c>.</item>
@@ -4051,7 +4051,7 @@ public static class FshCompiler
     /// </list>
     /// </summary>
     private static void ApplyMappingToSD(
-        fsh_processor.Models.Mapping mapping, StructureDefinition sd, CompilerContext context, CompilerOptions? opts = null)
+        Hl7.FhirShorthand.Serialization.Models.Mapping mapping, StructureDefinition sd, CompilerContext context, CompilerOptions? opts = null)
     {
         // Register the mapping identity on the StructureDefinition.
         var identity = mapping.Id ?? mapping.Name;
@@ -4138,7 +4138,7 @@ public static class FshCompiler
     // ─── Rule path-prefix helper (C-RL1) ────────────────────────────────────
 
     /// <summary>
-    /// Resolves a <see cref="fsh_processor.Models.Canonical"/> value whose URL is not yet absolute by
+    /// Resolves a <see cref="Hl7.FhirShorthand.Serialization.Models.Canonical"/> value whose URL is not yet absolute by
     /// looking up the referenced entity name in the compilation context and reading the
     /// explicit <c>* url = "..."</c> rule from the loaded instance.
     /// Returns the value unchanged when the URL is already absolute, when the entity is
@@ -4183,7 +4183,7 @@ public static class FshCompiler
             return value;
         }
 
-        if (value is not fsh_processor.Models.Canonical can) return value;
+        if (value is not Hl7.FhirShorthand.Serialization.Models.Canonical can) return value;
         if (IsAbsoluteUrl(can.Url)) return value;
 
         if (context.Instances.TryGetValue(can.Url, out var canonicalRefInst))
@@ -4191,7 +4191,7 @@ public static class FshCompiler
             // Use the explicit `* url = "..."` rule from the referenced instance.
             var urlValue = GetFixedStringValue(canonicalRefInst.Rules, "url");
             if (!string.IsNullOrEmpty(urlValue))
-                return new fsh_processor.Models.Canonical { Url = urlValue, Version = can.Version };
+                return new Hl7.FhirShorthand.Serialization.Models.Canonical { Url = urlValue, Version = can.Version };
         }
 
         // Resolve Canonical references to compiled StructureDefinitions (Profiles, Extensions, etc.)
@@ -4200,13 +4200,13 @@ public static class FshCompiler
         if (context.CompiledStructureDefinitions.TryGetValue(can.Url, out var refSd)
             && !string.IsNullOrEmpty(refSd.Url))
         {
-            return new fsh_processor.Models.Canonical { Url = refSd.Url, Version = can.Version };
+            return new Hl7.FhirShorthand.Serialization.Models.Canonical { Url = refSd.Url, Version = can.Version };
         }
 
         // Fall back to constructing a canonical URL from the CanonicalBase when available.
         var resolved = ResolveBaseDefinitionCanonical(can.Url, can.Url, context, opts);
         if (!string.IsNullOrEmpty(resolved) && resolved != can.Url)
-            return new fsh_processor.Models.Canonical { Url = resolved, Version = can.Version };
+            return new Hl7.FhirShorthand.Serialization.Models.Canonical { Url = resolved, Version = can.Version };
 
         return value;
     }

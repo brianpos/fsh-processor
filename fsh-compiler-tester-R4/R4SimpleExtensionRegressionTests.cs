@@ -1,11 +1,11 @@
-using fsh_compiler;
-using fsh_compiler_r4;
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Compiler;
+using Hl7.FhirShorthand.Compiler_r4;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Model;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Regression tests pinpointing the simple-Extension StructureDefinition generation
@@ -47,7 +47,7 @@ public class R4SimpleExtensionRegressionTests
         Assert.IsTrue(File.Exists(AnswerExpressionFshPath),
             $"Test data not found: {AnswerExpressionFshPath}");
 
-        var docs = new List<fsh_processor.Models.FshDoc>
+        var docs = new List<Hl7.FhirShorthand.Serialization.Models.FshDoc>
         {
             Parse(AliasesFshPath),
             Parse(AnswerExpressionFshPath)
@@ -73,7 +73,7 @@ public class R4SimpleExtensionRegressionTests
         return sd!;
     }
 
-    private static fsh_processor.Models.FshDoc Parse(string path)
+    private static Hl7.FhirShorthand.Serialization.Models.FshDoc Parse(string path)
     {
         var text = File.ReadAllText(path);
         var pr = FshParser.Parse(text);
@@ -204,7 +204,7 @@ public class R4SimpleExtensionRegressionTests
         Assert.IsTrue(File.Exists(EndpointExtensionFshPath),
             $"Test data not found: {EndpointExtensionFshPath}");
 
-        var docs = new List<fsh_processor.Models.FshDoc>
+        var docs = new List<Hl7.FhirShorthand.Serialization.Models.FshDoc>
         {
             Parse(AliasesFshPath),
             Parse(EndpointExtensionFshPath)
@@ -294,7 +294,7 @@ public class R4SimpleExtensionRegressionTests
         Assert.IsTrue(File.Exists(CalculatedExpressionFshPath),
             $"Test data not found: {CalculatedExpressionFshPath}");
 
-        var docs = new List<fsh_processor.Models.FshDoc>
+        var docs = new List<Hl7.FhirShorthand.Serialization.Models.FshDoc>
         {
             Parse(AliasesFshPath),
             Parse(CalculatedExpressionFshPath)

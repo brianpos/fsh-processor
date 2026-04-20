@@ -1,6 +1,6 @@
 using Hl7.Fhir.Model;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Tests compiling FSH Logical and Resource entities to FHIR R4 StructureDefinitions,

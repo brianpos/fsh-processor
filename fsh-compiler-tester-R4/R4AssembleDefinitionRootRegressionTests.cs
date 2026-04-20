@@ -1,11 +1,11 @@
-using fsh_compiler;
-using fsh_compiler_r4;
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Compiler;
+using Hl7.FhirShorthand.Compiler_r4;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Model;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Regression tests for the <c>AssembleDefinitionRoot</c> extension compilation

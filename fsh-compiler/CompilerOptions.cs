@@ -1,6 +1,6 @@
 using Hl7.Fhir.Introspection;
 
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 /// <summary>
 /// Options controlling the FSH compilation process.

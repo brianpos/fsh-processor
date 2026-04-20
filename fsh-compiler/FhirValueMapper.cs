@@ -1,16 +1,16 @@
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
 using FhirCode = Hl7.Fhir.Model.Code;
 using FhirCanonical = Hl7.Fhir.Model.Canonical;
 using FhirCodeableReference = Hl7.Fhir.Model.CodeableReference;
-using FshQuantity = fsh_processor.Models.Quantity;
-using FshCode = fsh_processor.Models.Code;
-using FshCanonical = fsh_processor.Models.Canonical;
-using FshRatio = fsh_processor.Models.Ratio;
-using FshCodeableReference = fsh_processor.Models.CodeableReference;
+using FshQuantity = Hl7.FhirShorthand.Serialization.Models.Quantity;
+using FshCode = Hl7.FhirShorthand.Serialization.Models.Code;
+using FshCanonical = Hl7.FhirShorthand.Serialization.Models.Canonical;
+using FshRatio = Hl7.FhirShorthand.Serialization.Models.Ratio;
+using FshCodeableReference = Hl7.FhirShorthand.Serialization.Models.CodeableReference;
 
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 /// <summary>
 /// Maps FSH <see cref="FshValue"/> instances to the corresponding Firely SDK <see cref="DataType"/>

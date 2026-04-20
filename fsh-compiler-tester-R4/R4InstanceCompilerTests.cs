@@ -1,11 +1,11 @@
-using fsh_compiler;
-using fsh_compiler_r4;
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Compiler;
+using Hl7.FhirShorthand.Compiler_r4;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Model;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Tests compiling FSH Instance entities to FHIR R4 resource instances.
@@ -204,7 +204,7 @@ public class R4InstanceCompilerTests
             Instance: ExamplePatient
             InstanceOf: http://hl7.org/fhir/StructureDefinition/Patient
         ");
-        var doc = fsh_processor.FshParser.Parse(fsh);
+        var doc = Hl7.FhirShorthand.Serialization.FshParser.Parse(fsh);
         var fshDoc = ((ParseResult.Success)doc).Document;
         var result = R4FshCompiler.Compile(fshDoc);
         var patient = ((CompileResult<List<FhirResource>>.SuccessResult)result).Value
