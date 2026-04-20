@@ -3231,95 +3231,128 @@ public static class FshCompiler
 
         if (canonicalIndex.Count > 0)
         {
-            // Pre-compute for each element: which named-slice element is its "slice group
-            // representative".  Slice children (path starts with "SlicePath.") should appear
-            // immediately after their parent slice, not after all sibling slices.
-            // Strategy: for each non-root element, find the deepest ancestor slice whose
-            // path is a prefix of this element's path.  Elements in the same slice group
-            // are then sorted by (first-level base position, group-representative original index,
-            // within-group original index).
+            // Sort using a hierarchical tree traversal.  Each element is assigned to its
+            // deepest "ancestor" in the differential (either a named-slice parent or a path
+            // parent), then the tree is traversed pre-order: parent before children, with
+            // children sorted by the first-level canonical FHIR schema position and then by
+            // their original creation order.
+            //
+            // This ensures:
+            //  1. Named slice children appear immediately after their parent slice.
+            //  2. Path sub-elements (e.g. concept.display.extension) appear immediately
+            //     after their path parent (e.g. concept.display).
+            //  3. Top-level siblings are sorted by canonical FHIR schema position.
 
             var indexed = nonRoots.Select((el, idx) => (el, idx)).ToList();
+            int n = indexed.Count;
 
-            // Build a dictionary from element to its slice-group representative original index.
-            // The representative is the named-slice element itself (for slices) or the
-            // nearest ancestor named slice (for slice sub-elements).
-            var groupRepIdx = new Dictionary<ElementDefinition, int>(ReferenceEqualityComparer.Instance);
+            // For each element, find its direct parent (deepest ancestor by match length).
+            var parentOf = new int[n];
+            var childrenOf = new Dictionary<int, List<int>>();
+            var rootElements = new List<int>();
 
-            // Index named slices by their path (e.g. "QuestionnaireResponse.extension:adheresTo").
-            // A named-slice path is: element.Path (which includes the ":sliceName" suffix is NOT in
-            // Path; sliceName is in SliceName). So we need to build the "qualified path".
-            var sliceQualifiedPath = new Dictionary<ElementDefinition, string>(ReferenceEqualityComparer.Instance);
-            foreach (var (el, idx) in indexed)
+            for (int i = 0; i < n; i++) parentOf[i] = -1;
+
+            for (int i = 0; i < n; i++)
             {
-                if (!string.IsNullOrEmpty(el.SliceName) && !string.IsNullOrEmpty(el.Path))
-                    sliceQualifiedPath[el] = el.Path + ":" + el.SliceName;
-            }
-
-            foreach (var (el, idx) in indexed)
-            {
-                // For every element (slice or non-slice), find the deepest named-slice
-                // ancestor whose qualified id prefix appears in the element's ElementId.
-                // This groups slice sub-elements AND nested named slices with their
-                // top-level parent slice, so they are emitted contiguously after it.
-                // E.g. "Extension.extension:conceptLabel.value[x].extension:code-xhtml"
-                // is grouped with conceptLabel.
+                var (el, _) = indexed[i];
                 var elId = el.ElementId ?? el.Path ?? string.Empty;
-                ElementDefinition? bestAncestor = null;
+                var elPath = el.Path ?? string.Empty;
+                int bestParent = -1;
                 int bestLen = -1;
-                foreach (var (candidate, candIdx) in indexed)
+
+                for (int j = 0; j < n; j++)
                 {
-                    if (string.IsNullOrEmpty(candidate.SliceName)) continue;
-                    if (ReferenceEquals(candidate, el)) continue; // don't match self
-                    // Build the qualified id prefix for this slice.
-                    var sliceIdPrefix = candidate.Path + ":" + candidate.SliceName;
-                    // The element's id must start with this prefix followed by "." to be a
-                    // descendant of this slice (not just a sibling slice with a similar name).
-                    if (elId.StartsWith(sliceIdPrefix + ".", StringComparison.Ordinal)
-                        && sliceIdPrefix.Length > bestLen)
+                    if (j == i) continue;
+                    var (cand, _) = indexed[j];
+                    int matchLen = -1;
+
+                    // Named-slice parent: cand's slice-qualified id prefix appears in el's id.
+                    if (!string.IsNullOrEmpty(cand.SliceName) && !string.IsNullOrEmpty(cand.Path))
                     {
-                        bestLen = sliceIdPrefix.Length;
-                        bestAncestor = candidate;
+                        var sliceIdPrefix = cand.Path + ":" + cand.SliceName;
+                        if (elId.StartsWith(sliceIdPrefix + ".", StringComparison.Ordinal))
+                            matchLen = sliceIdPrefix.Length;
+                    }
+                    // Path parent: cand's path is a strict prefix of el's path (bare cand only).
+                    else if (string.IsNullOrEmpty(cand.SliceName)
+                             && !string.IsNullOrEmpty(cand.Path)
+                             && elPath.StartsWith(cand.Path + ".", StringComparison.Ordinal))
+                    {
+                        matchLen = cand.Path.Length;
+                    }
+
+                    if (matchLen > bestLen)
+                    {
+                        bestLen = matchLen;
+                        bestParent = j;
                     }
                 }
 
-                if (bestAncestor != null)
-                    // This element is a descendant of bestAncestor; group with it.
-                    // Walk up to the top-level representative (handles multi-level nesting).
-                    groupRepIdx[el] = groupRepIdx.TryGetValue(bestAncestor, out var parentGrp) ? parentGrp : indexed.FindIndex(x => ReferenceEquals(x.el, bestAncestor));
-                else if (!string.IsNullOrEmpty(el.SliceName))
-                    // Top-level named slice: represents itself.
-                    groupRepIdx[el] = idx;
+                parentOf[i] = bestParent;
+                if (bestParent >= 0)
+                {
+                    if (!childrenOf.TryGetValue(bestParent, out var kids))
+                        childrenOf[bestParent] = kids = new List<int>();
+                    kids.Add(i);
+                }
                 else
-                    // Unsliced element with no slice ancestor: represents itself.
-                    groupRepIdx[el] = idx;
+                {
+                    rootElements.Add(i);
+                }
             }
 
-            nonRoots = indexed
-                .OrderBy(x =>
+            // Helper: canonical FHIR first-level position for an element.
+            int FirstLevelPos(ElementDefinition el)
+            {
+                var basePath = el.Path ?? string.Empty;
+                string childName;
+                if (!string.IsNullOrEmpty(sdType) && basePath.StartsWith(sdType + ".", StringComparison.Ordinal))
                 {
-                    // Primary sort: first-level child name in canonical FHIR schema order.
-                    var basePath = x.el.Path ?? string.Empty;
-                    string childName;
-                    if (!string.IsNullOrEmpty(sdType) && basePath.StartsWith(sdType + ".", StringComparison.Ordinal))
-                    {
-                        var rest = basePath[(sdType.Length + 1)..];
-                        var dot = rest.IndexOf('.');
-                        childName = dot >= 0 ? rest[..dot] : rest;
-                    }
-                    else
-                    {
-                        var dot = basePath.IndexOf('.');
-                        childName = dot >= 0 ? basePath[(dot + 1)..] : basePath;
-                        var innerDot = childName.IndexOf('.');
-                        if (innerDot >= 0) childName = childName[..innerDot];
-                    }
-                    return canonicalIndex.TryGetValue(childName, out var pos) ? pos : int.MaxValue;
-                })
-                .ThenBy(x => groupRepIdx.TryGetValue(x.el, out var grp) ? grp : x.idx)  // slice group
-                .ThenBy(x => x.idx)                                                        // within group
-                .Select(x => x.el)
-                .ToList();
+                    var rest = basePath[(sdType.Length + 1)..];
+                    var dot = rest.IndexOf('.');
+                    childName = dot >= 0 ? rest[..dot] : rest;
+                }
+                else
+                {
+                    var dot = basePath.IndexOf('.');
+                    childName = dot >= 0 ? basePath[(dot + 1)..] : basePath;
+                    var innerDot = childName.IndexOf('.');
+                    if (innerDot >= 0) childName = childName[..innerDot];
+                }
+                return canonicalIndex.TryGetValue(childName, out var pos) ? pos : int.MaxValue;
+            }
+
+            // Sort root elements by canonical position, then by original index.
+            rootElements.Sort((a, b) =>
+            {
+                var pa = FirstLevelPos(indexed[a].el);
+                var pb = FirstLevelPos(indexed[b].el);
+                return pa != pb ? pa.CompareTo(pb) : indexed[a].idx.CompareTo(indexed[b].idx);
+            });
+
+            // Sort children of each parent by canonical position, then by original index.
+            foreach (var kids in childrenOf.Values)
+                kids.Sort((a, b) =>
+                {
+                    var pa = FirstLevelPos(indexed[a].el);
+                    var pb = FirstLevelPos(indexed[b].el);
+                    return pa != pb ? pa.CompareTo(pb) : indexed[a].idx.CompareTo(indexed[b].idx);
+                });
+
+            // Pre-order traversal (parent before children).
+            var result = new List<ElementDefinition>(n);
+            void Traverse(int nodeIdx)
+            {
+                result.Add(indexed[nodeIdx].el);
+                if (childrenOf.TryGetValue(nodeIdx, out var kids))
+                    foreach (var child in kids)
+                        Traverse(child);
+            }
+            foreach (var root in rootElements)
+                Traverse(root);
+
+            nonRoots = result;
         }
 
         elements.Clear();
