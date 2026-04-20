@@ -531,6 +531,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
         if (children == null) return parameters;
 
         RuleSetParameter? currentParam = null;
+        FSHParser.RuleSetParamContext? currentParamContext = null;
         
         foreach (var child in children)
         {
@@ -541,6 +542,7 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
                 {
                     parameters.Add(currentParam);
                     currentParam = null;
+                    currentParamContext = null;
                 }
                 else
                 {
@@ -555,7 +557,36 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             }
             else if (child is FSHParser.RuleSetParamContext paramContext)
             {
-                currentParam = Visit(paramContext) as RuleSetParameter;
+                if (currentParam != null && currentParamContext != null)
+                {
+                    // Two consecutive ruleSetParam elements without a separating comma:
+                    // they form a single parameter value (e.g. "System#code" followed by
+                    // '"display"' — where the display is a STRING token not captured by
+                    // ruleSetParamText because STRING is not in ruleSetParamPart).
+                    // We use _tokenStream.GetText(Interval) rather than concatenating the
+                    // two visited values because it reads the raw characters from the token
+                    // stream — including any hidden-channel whitespace between the two parts
+                    // — which preserves the exact spacing as authored (e.g. a single space
+                    // between `System#code` and `"display"`).
+                    var combinedText = _tokenStream.GetText(
+                        new Antlr4.Runtime.Misc.Interval(
+                            currentParamContext.Start.TokenIndex,
+                            paramContext.Stop.TokenIndex));
+                    // Unescape FSH parameter escape sequences.
+                    combinedText = combinedText.Replace("\\)", ")").Replace("\\,", ",");
+                    currentParam = new RuleSetParameter
+                    {
+                        Position = currentParam.Position,
+                        Value = combinedText,
+                        IsBracketed = currentParam.IsBracketed
+                    };
+                    currentParamContext = null; // merged; don't extend further by yet another param
+                }
+                else
+                {
+                    currentParam = Visit(paramContext) as RuleSetParameter;
+                    currentParamContext = paramContext;
+                }
             }
         }
         

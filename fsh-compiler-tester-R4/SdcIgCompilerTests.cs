@@ -570,9 +570,9 @@ public class SdcIgCompilerTests
     /// </summary>
         private static readonly Dictionary<string, string[]> _fileDependencies = new(StringComparer.OrdinalIgnoreCase)
      {
-            ["adaptive-questionnaireresponse-sdc-example-phq9-start.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "RenderingCriticalExtension.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCValueSet.fsh"],
+            ["adaptive-questionnaireresponse-sdc-example-phq9-start.fsh"] = ["CodeSystemCSPHQ9.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "QuestionnaireAdaptiveExtension.fsh", "RenderingCriticalExtension.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCValueSet.fsh"],
             ["AustralianStates.fsh"] = ["AustralianStateCodes.fsh"],
-            ["adaptive-questionnaireresponse-sdc-example-phq9.fsh"] = ["ItemAnswerMedia.fsh", "ItemMedia.fsh", "RenderingCriticalExtension.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCValueSet.fsh"],
+            ["adaptive-questionnaireresponse-sdc-example-phq9.fsh"] = ["CodeSystemCSPHQ9.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "QuestionnaireAdaptiveExtension.fsh", "RenderingCriticalExtension.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCValueSet.fsh"],
             ["anc-quick-check.fsh"] = ["AssembleExpectation.fsh", "ChoiceColumnExtension.fsh", "CollapsibleExtension.fsh", "ColumnCountExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "Keyboard.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireItemCollapsible.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCOpenLabel.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireRender.fsh", "ShortTextExtension.fsh", "WidthExtension.fsh"],
             ["AssembleExpectation.fsh"] = ["QuestionnaireAssembleExpectation.fsh"],
             ["c-cda.fsh"] = ["SDCExample.fsh"],
@@ -616,7 +616,7 @@ public class SdcIgCompilerTests
             ["questionnaire-sdc-profile-example-item-weight.fsh"] = ["AnswerExpressionExtension.fsh", "AnswerOptionsToggleExpressionExtension.fsh", "AssembleDefinitionRoot.fsh", "AssembleExpectation.fsh", "CalculatedExpressionExtension.fsh", "CandidateExpressionExtension.fsh", "EnableWhenExpressionExtension.fsh", "EndpointExtension.fsh", "EntryMode.fsh", "InitialExpressionExtension.fsh", "Keyboard.fsh", "LaunchContextExtension.fsh", "LookupQuestionnaireExtension.fsh", "MaxQuantityExtension.fsh", "MinQuantityExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAnswerConstraint.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireEntryMode.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireBehave.fsh", "SDCQuestionnaireCommon.fsh", "UnitOpen.fsh", "UnitSupplementalSystem.fsh"],
             ["questionnaire-sdc-profile-example-loinc.fsh"] = ["AssembleExpectation.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
             ["questionnaire-sdc-profile-example-multi-subject.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "ObservationExtractCategory.fsh", "ObservationExtractEntry.fsh", "ObservationExtractExtension.fsh", "ObservationExtractRelationship.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireExtractObservation.fsh"],
-            ["questionnaire-sdc-profile-example-PHQ9.fsh"] = ["adaptive-questionnaireresponse-sdc-example-phq9.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "RenderingCriticalExtension.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCValueSet.fsh"],
+            ["questionnaire-sdc-profile-example-PHQ9.fsh"] = ["adaptive-questionnaireresponse-sdc-example-phq9.fsh", "CodeSystemCSPHQ9.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "QuestionnaireAdaptiveExtension.fsh", "RenderingCriticalExtension.fsh", "SDCQuestionnaireResponseAdapt.fsh", "SDCQuestionnaireResponseCommon.fsh", "SDCValueSet.fsh"],
             ["questionnaire-sdc-profile-example-PHQ9-search.fsh"] = ["AssembledFromExtension.fsh", "EndpointExtension.fsh", "QuestionnaireAdaptiveExtension.fsh", "SDCQuestionnaireAdaptSearch.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireSearch.fsh"],
             ["questionnaire-sdc-profile-example-render.fsh"] = ["AssembleExpectation.fsh", "ChoiceColumnExtension.fsh", "CollapsibleExtension.fsh", "ColumnCountExtension.fsh", "ItemAnswerMedia.fsh", "ItemMedia.fsh", "Keyboard.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireItemCollapsible.fsh", "QuestionnaireItemKeyboardType.fsh", "QuestionnairePerformerType.fsh", "RenderingCriticalExtension.fsh", "SDCBaseQuestionnaire.fsh", "SDCOpenLabel.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnaireRender.fsh", "ShortTextExtension.fsh", "WidthExtension.fsh"],
             ["questionnaire-sdc-profile-example-ussg-fht.fsh"] = ["AssembleExpectation.fsh", "IsSubjectExtension.fsh", "ObservationLinkPeriodExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SDCQuestionnairePopulateObservation.fsh"],
@@ -705,6 +705,17 @@ public class SdcIgCompilerTests
         FshDoc parsedFshAliases = GetFshDocument("aliases.fsh", out string _);
         FshDoc parsedFshShared = GetFshDocument("shared.fsh", out _);
         var outputDir = Path.Combine(AppContext.BaseDirectory, "TestOutput", "sdc-fhir-output");
+
+        if (parsedFsh.Entities.All(e => e is Mapping))
+        {
+            // this is a mapping only, so nothing to actually test in the compiled output
+            Console.WriteLine("Mapping definition only, nothing to compile. Will be verified in other tests that use these mappings.");
+            // scan over _fileDependencies to see of our filename is a dependency for other things and list them out
+            var deps = _fileDependencies.Where(kvp => kvp.Value.Contains(fshFileName));
+            Console.WriteLine($"  Tested by: {String.Join(", ", deps.Select(kvp => kvp.Key))}");
+            Assert.IsGreaterThan(0, deps.Count(), "Expected this mapping to be a dependency for at least one other file, but it was not found as a dependency anywhere.");
+            return;
+        }
 
         // Load any additional FSH files required to resolve cross-file references
         // (e.g. CodeSystem definitions needed for ValueSet system URL resolution).
@@ -1705,6 +1716,40 @@ public class SdcIgCompilerTests
                                         entityDeps.Add((instEntity.Name, systemName));
                                         entitySource.TryAdd(instEntity.Name, fa.Name);
                                     }
+                                }
+                            }
+                            // Scan rule paths for extension[EntityName] references.
+                            // e.g. `* extension[QuestionnaireAdaptiveExtension].valueBoolean = true`
+                            // requires the QuestionnaireAdaptiveExtension SD to resolve the URL.
+                            if (!string.IsNullOrEmpty(rule.Path))
+                            {
+                                var extRefs = new HashSet<string>(StringComparer.Ordinal);
+                                CollectExtensionNameRefsFromPath(rule.Path, extRefs);
+                                foreach (var extName in extRefs)
+                                {
+                                    entityDeps.Add((instEntity.Name, extName));
+                                    entitySource.TryAdd(instEntity.Name, fa.Name);
+                                }
+                            }
+                        }
+                        // Scan InstanceInsertRule parameters for local CodeSystem references.
+                        // e.g. `* insert itemCoding("H1/T1/Q1", "...", CodeSystemCSPHQ9#Not-at-all "Not at all")`
+                        // requires CodeSystemCSPHQ9 to resolve the system URL.
+                        foreach (var insertRule in instEntity.Rules.OfType<InstanceInsertRule>())
+                        {
+                            foreach (var param in insertRule.Parameters)
+                            {
+                                var hashIdx = param.IndexOf('#');
+                                if (hashIdx <= 0) continue;
+                                var systemName = param[..hashIdx];
+                                if (!systemName.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
+                                    !systemName.StartsWith("urn:", StringComparison.OrdinalIgnoreCase) &&
+                                    !systemName.StartsWith('$') &&
+                                    !systemName.Contains('"') &&
+                                    !systemName.Contains(' '))
+                                {
+                                    entityDeps.Add((instEntity.Name, systemName));
+                                    entitySource.TryAdd(instEntity.Name, fa.Name);
                                 }
                             }
                         }

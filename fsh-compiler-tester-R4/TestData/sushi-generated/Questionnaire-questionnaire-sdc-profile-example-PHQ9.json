@@ -72,7 +72,7 @@
                   },
                   {
                     "url": "value[x]",
-                    "valueDecimal": 0
+                    "valueDecimal": 0.0
                   },
                   {
                     "url": "value%5Bx%5D"
@@ -95,7 +95,7 @@
                   },
                   {
                     "url": "value[x]",
-                    "valueDecimal": 1
+                    "valueDecimal": 1.0
                   },
                   {
                     "url": "value%5Bx%5D"
@@ -118,7 +118,7 @@
                   },
                   {
                     "url": "value[x]",
-                    "valueDecimal": 2
+                    "valueDecimal": 2.0
                   },
                   {
                     "url": "value%5Bx%5D"
@@ -141,7 +141,7 @@
                   },
                   {
                     "url": "value[x]",
-                    "valueDecimal": 4
+                    "valueDecimal": 4.0
                   },
                   {
                     "url": "value%5Bx%5D"
