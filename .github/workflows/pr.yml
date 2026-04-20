@@ -1,0 +1,48 @@
+﻿name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore dependencies
+        run: dotnet restore fsh-processor.slnx
+
+      - name: Build
+        run: dotnet build fsh-processor.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test fsh-processor.slnx --no-build --configuration Release --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-test-results
+          path: ./TestResults/*.trx
+
+      - name: Pack Serialization (dry run)
+        run: dotnet pack fsh-processor/Hl7.FhirShorthand.Serialization.csproj --no-build --configuration Release --output ./nupkgs
+
+      - name: Pack Compiler (dry run)
+        run: dotnet pack fsh-compiler/Hl7.FhirShorthand.Compiler.csproj --no-build --configuration Release --output ./nupkgs
+
+      - name: Upload packages (dry run artefact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-nupkgs
+          path: ./nupkgs/*.nupkg

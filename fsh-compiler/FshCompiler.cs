@@ -69,8 +69,9 @@ public static class FshCompiler
             foreach (var kvp in opts.AliasOverrides)
                 context.Aliases[kvp.Key] = kvp.Value;
 
-        // Pre-scan: register CodeSystem name/id → canonical URL for system name resolution in
-        // ValueSet compose components (e.g. TemporaryCodes → .../CodeSystem/temp).
+        // Pre-scan: register CodeSystem/ValueSet name/id → canonical URL for system name and
+        // Canonical() resolution (e.g. TemporaryCodes → .../CodeSystem/temp,
+        // QuestionnaireBehaviorConditions → .../ValueSet/formBehaviorConditions).
         foreach (var doc in docList)
         {
             foreach (var entity in doc.Entities)
@@ -83,6 +84,15 @@ public static class FshCompiler
                         context.CodeSystemUrls.TryAdd(cs.Name, csUrl);
                     if (!string.IsNullOrEmpty(cs.Id))
                         context.CodeSystemUrls.TryAdd(cs.Id, csUrl);
+                }
+                else if (entity is Hl7.FhirShorthand.Serialization.Models.ValueSet vs)
+                {
+                    var vsUrl = ResolveUrl(vs.Id ?? vs.Name, opts, "ValueSet");
+                    if (vsUrl is null) continue;
+                    if (!string.IsNullOrEmpty(vs.Name))
+                        context.ValueSetUrls.TryAdd(vs.Name, vsUrl);
+                    if (!string.IsNullOrEmpty(vs.Id))
+                        context.ValueSetUrls.TryAdd(vs.Id, vsUrl);
                 }
             }
         }
@@ -408,7 +418,10 @@ public static class FshCompiler
                 typeValue = resolvedType;
         }
 
-        var kind = InferKindFromType(typeValue, opts.Inspector, opts.Resolver);
+        // C-PR3: Use the merged resolver (compiled SDs + external) so that profiles-of-profiles
+        // resolve the correct Kind (e.g. a profile of an in-IG profile that ultimately profiles
+        // a core resource type gets Kind=Resource, not Kind=ComplexType).
+        var kind = InferKindFromType(typeValue, opts.Inspector, mergedResolver);
 
         var sd = new StructureDefinition
         {
@@ -3585,6 +3598,10 @@ public static class FshCompiler
                 {
                     return sd.Url;
                 }
+                // Resolve bare CodeSystem entity names to their canonical URLs
+                // (e.g. KeyboardTypeCodes → http://hl7.org/fhir/uv/sdc/CodeSystem/keyboardType).
+                if (context.CodeSystemUrls.TryGetValue(name, out var csUrl))
+                    return csUrl;
                 // Try extension slice name lookup across all compiled profiles.
                 var sliceUrl = context.FindExtensionUrlBySliceName(name);
                 if (sliceUrl != null)
@@ -3614,12 +3631,27 @@ public static class FshCompiler
                     if (fixedRule.Value is StringValue emptyCheck && string.IsNullOrEmpty(emptyCheck.Value))
                         break;
                     var resolvedPath = ResolveSoftIndices(fixedRule.Path, softIndexState);
+                    // C-RT1: resourceType as type discriminator for abstract Resource-typed properties.
+                    // When the rule is `X.resourceType = "Patient"` and the property at path X is an
+                    // abstract Resource, create a concrete instance of the named type and set it.
+                    // This handles patterns like Bundle.entry.resource where the property type is
+                    // the abstract Resource base class and the FSH specifies the concrete type via
+                    // the resourceType field (e.g. `* resource.resourceType = "Patient"`).
+                    if (fixedRule.Value is StringValue rtSv &&
+                        resolvedPath.Contains('.') &&
+                        resolvedPath.EndsWith(".resourceType", StringComparison.Ordinal))
+                    {
+                        var resourceParentPath = resolvedPath[..^".resourceType".Length];
+                        if (TryCreateConcreteResourceAtPath(resource, resourceParentPath, rtSv.Value, inspector, ResolveExtensionAwareAlias))
+                            break;
+                    }
                     // When the value is a NameValue (cross-instance reference) and the leaf
                     // property accepts a Resource, build the referenced instance and embed it
                     // inline.  This covers both DomainResource.contained[] and any other
                     // Resource-typed leaf (e.g. Parameters.parameter[].resource).
                     if (fixedRule.Value is NameValue nameRef &&
-                        context.Instances.TryGetValue(nameRef.Value, out var refInstance))
+                        (context.Instances.TryGetValue(nameRef.Value, out var refInstance) ||
+                         TryFindInstanceByFhirId(context.Instances, nameRef.Value, out refInstance)))
                     {
                         var segments = SplitInstancePath(resolvedPath);
                         if (segments.Length > 0)
@@ -3968,7 +4000,17 @@ public static class FshCompiler
 
         // Determine the concrete instantiable type.
         var concreteType = propMap.ImplementingType;
-        if (concreteType is null || concreteType.IsAbstract) return null;
+        if (concreteType is null || concreteType.IsAbstract)
+        {
+            // For abstract types, return the existing value if present (e.g., a concrete Resource
+            // that was pre-created by TryCreateConcreteResourceAtPath via a resourceType rule).
+            if (!propMap.IsCollection)
+                return propMap.GetValue(parent) as Base;
+            // For abstract collection types, return the item at the requested index if present.
+            if (propMap.GetValue(parent) is System.Collections.IList existingList && existingList.Count > index)
+                return existingList[index] as Base;
+            return null;
+        }
 
         if (propMap.IsCollection)
         {
@@ -4303,6 +4345,15 @@ public static class FshCompiler
             return new Hl7.FhirShorthand.Serialization.Models.Canonical { Url = refSd.Url, Version = can.Version };
         }
 
+        // Resolve Canonical references to pre-scanned ValueSet entities by name or id
+        // (e.g. Canonical(QuestionnaireBehaviorConditions) → .../ValueSet/formBehaviorConditions).
+        if (context.ValueSetUrls.TryGetValue(can.Url, out var vsCanonicalUrl))
+            return new Hl7.FhirShorthand.Serialization.Models.Canonical { Url = vsCanonicalUrl, Version = can.Version };
+
+        // Resolve Canonical references to pre-scanned CodeSystem entities by name or id.
+        if (context.CodeSystemUrls.TryGetValue(can.Url, out var csCanonicalUrl))
+            return new Hl7.FhirShorthand.Serialization.Models.Canonical { Url = csCanonicalUrl, Version = can.Version };
+
         // Fall back to constructing a canonical URL from the CanonicalBase when available.
         var resolved = ResolveBaseDefinitionCanonical(can.Url, can.Url, context, opts);
         if (!string.IsNullOrEmpty(resolved) && resolved != can.Url)
@@ -4363,6 +4414,101 @@ public static class FshCompiler
              .FirstOrDefault(r => string.Equals(r.Path, path, StringComparison.Ordinal)
                                   && r.Value is StringValue)
              ?.Value is StringValue sv ? sv.Value : null;
+
+    /// <summary>
+    /// Tries to find an <see cref="Instance"/> in <paramref name="instances"/> whose computed
+    /// FHIR <c>id</c> matches <paramref name="fhirId"/>.
+    /// The FHIR id is either the explicit <c>* id = "…"</c> rule value or, when no such rule
+    /// exists, the FSH entity name (which the compiler uses as the default id).
+    /// This allows inline instances to be referenced by the id they will receive in the compiled
+    /// output rather than by their FSH entity name.
+    /// </summary>
+    private static bool TryFindInstanceByFhirId(
+        Dictionary<string, Hl7.FhirShorthand.Serialization.Models.Instance> instances,
+        string fhirId,
+        out Hl7.FhirShorthand.Serialization.Models.Instance? result)
+    {
+        foreach (var inst in instances.Values)
+        {
+            var id = GetFixedStringValue(inst.Rules, "id") ?? inst.Name;
+            if (string.Equals(id, fhirId, StringComparison.Ordinal))
+            {
+                result = inst;
+                return true;
+            }
+        }
+        result = null;
+        return false;
+    }
+
+    /// <summary>
+    /// When <paramref name="abstractPath"/> leads to an abstract <see cref="FhirResource"/>-typed
+    /// FHIR property (e.g. <c>Bundle.entry.resource</c>), creates a concrete instance of
+    /// <paramref name="resourceTypeName"/> and sets it at that path.
+    /// Returns <c>true</c> when a concrete resource was created; <c>false</c> otherwise.
+    /// </summary>
+    /// <remarks>
+    /// This handles FSH patterns like <c>* resource.resourceType = "Patient"</c> where the
+    /// <c>resource</c> property is typed as the abstract <c>Resource</c> base class and the
+    /// concrete type must be inferred from the <c>resourceType</c> discriminator rule.
+    /// </remarks>
+    private static bool TryCreateConcreteResourceAtPath(
+        Base root,
+        string abstractPath,
+        string resourceTypeName,
+        ModelInspector inspector,
+        Func<string, string>? aliasResolver)
+    {
+        var segments = SplitInstancePath(abstractPath);
+        if (segments.Length == 0) return false;
+
+        // Navigate to the parent of the abstract-typed property.
+        Base? parent = root;
+        for (int si = 0; si < segments.Length - 1 && parent != null; si++)
+        {
+            var (sn, sIdx, sni) = ParseInstanceSegment(segments[si]);
+            parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, aliasResolver);
+        }
+        if (parent == null) return false;
+
+        var (propName, propIdx, _) = ParseInstanceSegment(segments[^1]);
+        var parentClassMap = inspector.FindClassMapping(parent.GetType());
+        var propMap = parentClassMap?.FindMappedElementByName(propName);
+        if (propMap?.ImplementingType == null ||
+            !propMap.ImplementingType.IsAbstract ||
+            !typeof(FhirResource).IsAssignableFrom(propMap.ImplementingType))
+            return false;
+
+        // Find and instantiate the concrete resource type.
+        var concreteClassMap = inspector.FindClassMapping(resourceTypeName);
+        if (concreteClassMap?.NativeType == null || concreteClassMap.NativeType.IsAbstract)
+            return false;
+
+        if (Activator.CreateInstance(concreteClassMap.NativeType) is not FhirResource concreteResource)
+            return false;
+
+        if (propMap.IsCollection)
+        {
+            var list = propMap.GetValue(parent) as System.Collections.IList;
+            if (list is null)
+            {
+                var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+                list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                propMap.SetValue(parent, list);
+            }
+            while (list.Count <= propIdx)
+                list.Add(Activator.CreateInstance(concreteClassMap.NativeType)!);
+            list[propIdx] = concreteResource;
+        }
+        else
+        {
+            // Only set if not already populated.
+            if (propMap.GetValue(parent) == null)
+                propMap.SetValue(parent, concreteResource);
+        }
+
+        return true;
+    }
 
     /// <summary>
     /// Returns a shallow copy of <paramref name="rule"/> with <see cref="FshRule.Path"/>

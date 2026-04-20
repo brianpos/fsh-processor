@@ -411,7 +411,7 @@
               },
               "text": {
                 "status": "generated",
-                "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative with Details</b></p><p><b>id</b>: c6222017-94f6-4dbc-8958-fcdf9df3356a</p><p><b>meta</b>:</p><p><b>code</b>: Simvastatin 40 mg oral tablet <span style=\"background: LightGoldenRodYellow\">(Details : {SNOMED CT code \"320000009\" := \"320000009\", given as \"Simvastatin 40 mg oral tablet\"})</span></p><p><b>form</b>: Film-coated tablet <span style=\"background: LightGoldenRodYellow\">(Details : {SNOMED CT code \"385057009\" := \"385057009\", given as \"Film-coated tablet\"})</span></p></div>"
+                "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative with Details</b></p><p><b>id</b>: c6222017-94f6-4dbc-8958-fcdf9df3356a</p><p><b>meta</b>: </p><p><b>code</b>: Simvastatin 40 mg oral tablet <span style=\"background: LightGoldenRodYellow \">(Details : {SNOMED CT code \"320000009\" := \"320000009\", given as \"Simvastatin 40 mg oral tablet\"})</span></p><p><b>form</b>: Film-coated tablet <span style=\"background: LightGoldenRodYellow \">(Details : {SNOMED CT code \"385057009\" := \"385057009\", given as \"Film-coated tablet\"})</span></p></div>"
               },
               "code": {
                 "coding": [

@@ -6,10 +6,23 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageId>Hl7.FhirShorthand.Compiler</PackageId>
+    <Title>HL7 FHIR Shorthand Compiler Base</Title>
+    <Description>Version-agnostic HL7 FHIR Shorthand compiler core. Compiles a parsed FshDoc object model (from Hl7.FhirShorthand.Serialization) into FHIR resources. Pair with Hl7.FhirShorthand.Compiler.R4, .R4B, or .R5 for a specific FHIR version.</Description>
+    <PackageTags>FHIR;FSH;FHIRShorthand;HL7;compiler</PackageTags>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Hl7.Fhir.Conformance" Version="5.13.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\LICENSE.txt" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

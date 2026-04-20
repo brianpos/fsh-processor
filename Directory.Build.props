@@ -1,0 +1,42 @@
+﻿<Project>
+
+  <!--
+    Shared properties inherited by every project in the solution.
+    Package-specific properties (PackageId, Title, Description, PackageTags,
+    PackageLicenseFile, PackageReadmeFile, GeneratePackageOnBuild) stay in
+    each individual .csproj file.
+  -->
+
+  <PropertyGroup Label="Versioning">
+    <!--
+      Development fallback version used during local builds and CI.
+      The publish workflow overrides this via -p:Version=<tag> when releasing.
+      Convention:  v1.2.3          → stable release
+                   v1.2.3-alpha.1  → pre-release (alpha / beta / rc)
+    -->
+    <Version>1.0.0-alpha.1</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Authorship">
+    <Authors>Brian Postlethwaite and contributors</Authors>
+    <Product>Hl7.FhirShorthand</Product>
+    <Copyright>Copyright 2026+ Brian Postlethwaite and contributors. Contains materials (C) HL7 International</Copyright>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Repository">
+    <PackageProjectUrl>https://github.com/brianpos/fsh-processor</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/brianpos/fsh-processor</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReleaseNotes>See the full changelog at https://github.com/brianpos/fsh-processor/releases</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <!--
+    Symbols: only emit snupkg for projects that are actually published as NuGet packages.
+    Test projects do not set GeneratePackageOnBuild so they are unaffected.
+  -->
+  <PropertyGroup Condition="'$(GeneratePackageOnBuild)' == 'True'" Label="Symbols">
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+</Project>
