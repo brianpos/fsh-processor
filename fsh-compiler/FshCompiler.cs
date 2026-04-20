@@ -352,6 +352,12 @@ public static class FshCompiler
         // and replace bare ValueSet names with their compiled canonical URLs.
         FixUpValueSetBindings(resources.OfType<StructureDefinition>().ToList(), resources, context, opts);
 
+        // Sort differential elements into canonical FHIR order after all post-processing is done
+        // (mappings, type fixup, etc. may add or reorder elements).  Run this last so the
+        // snapshot generator sees elements in the expected order (root first, children in schema order).
+        foreach (var compiledSd in resources.OfType<StructureDefinition>())
+            SortDifferentialElementsByCanonicalOrder(compiledSd, opts.Inspector);
+
         return errors.Count > 0
             ? CompileResult<List<FhirResource>>.FromFailure(errors, context.Warnings)
             : CompileResult<List<FhirResource>>.FromSuccess(resources, context.Warnings);
@@ -471,7 +477,6 @@ public static class FshCompiler
         RemoveRedundantTypeConstraints(sd, context, opts);
         RemoveRedundantSlicingAgainstBase(sd, context, opts);
         RemoveNoOpScaffoldElements(sd);
-        SortDifferentialElementsByCanonicalOrder(sd, opts.Inspector);
         return sd;
     }
 
@@ -3029,10 +3034,11 @@ public static class FshCompiler
         };
 
     /// <summary>
-    /// Sorts the differential elements of a profile into canonical FHIR path order.
-    /// Base Resource / DomainResource elements (id, meta, text, contained, extension, etc.)
-    /// are ordered canonically before resource-specific elements, which retain their
-    /// relative FSH source order.  The root element is always kept at position 0.
+    /// Sorts the differential elements of a profile into canonical FHIR path order using the
+    /// base profile's snapshot (or ModelInspector when the snapshot is unavailable).
+    /// The sort walks the base profile chain via <see cref="StructureDefinitionWalker"/>-style
+    /// recursion through the ModelInspector to handle nested paths in core profiles.
+    /// The root element is always kept at position 0.
     /// Slices of the same parent retain their relative order within the parent group.
     /// </summary>
     private static void SortDifferentialElementsByCanonicalOrder(
@@ -3041,27 +3047,10 @@ public static class FshCompiler
         var elements = sd.Differential?.Element;
         if (elements == null || elements.Count <= 1) return;
 
-        // Build canonical index: try ModelInspector first, fall back to the known base table.
-        var canonicalIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var sdType = sd.Type ?? string.Empty;
-
-        var classMap = inspector?.FindClassMapping(sdType);
-        if (classMap != null)
-        {
-            for (int i = 0; i < classMap.PropertyMappings.Count; i++)
-                canonicalIndex.TryAdd(classMap.PropertyMappings[i].Name, i);
-        }
-
-        // Always seed the base Resource/DomainResource entries from the known order table
-        // so that "contained" and "extension" are correctly ordered even when the
-        // inspector doesn't find the class mapping.
-        foreach (var (name, pos) in _fhirBaseElementOrder)
-            canonicalIndex.TryAdd(name, pos);
-
         var pathPrefix = GetElementPathPrefix(sd);
 
-        // Separate the root element (if present) so it is always at position 0 after sorting.
-        // This avoids any ambiguity in the LINQ stable sort when comparing against pathPrefix.
+        // Separate the root element so it is always at position 0 after sorting.
         var roots = elements
             .Where(e => string.Equals(e.Path, pathPrefix, StringComparison.Ordinal)
                         && string.IsNullOrEmpty(e.SliceName))
@@ -3071,40 +3060,161 @@ public static class FshCompiler
                           && string.IsNullOrEmpty(e.SliceName)))
             .ToList();
 
-        // Only sort when there is something meaningful to order (avoids redundant work).
-        if (canonicalIndex.Count > 0)
+        if (roots.Count == 0)
         {
-            var indexed = nonRoots.Select((el, idx) => (el, idx)).ToList();
-            nonRoots = indexed
-                .OrderBy(x =>
-                {
-                    var basePath = x.el.Path ?? string.Empty;
-                    string childName;
-                    if (!string.IsNullOrEmpty(sdType) && basePath.StartsWith(sdType + ".", StringComparison.Ordinal))
-                    {
-                        var rest = basePath[(sdType.Length + 1)..];
-                        var dot = rest.IndexOf('.');
-                        childName = dot >= 0 ? rest[..dot] : rest;
-                    }
-                    else
-                    {
-                        childName = basePath;
-                    }
-
-                    return canonicalIndex.TryGetValue(childName, out var pos) ? pos : int.MaxValue;
-                })
-                .ThenBy(x => !string.IsNullOrEmpty(x.el.SliceName) ? 1 : 0)
-                .ThenBy(x => x.idx)
-                .Select(x => x.el)
-                .ToList();
+            // Fallback: find the element with no dots (shortest path), no sliceName.
+            var shortest = elements
+                .Where(e => string.IsNullOrEmpty(e.SliceName)
+                            && !string.IsNullOrEmpty(e.Path)
+                            && !e.Path.Contains('.'))
+                .FirstOrDefault();
+            if (shortest != null)
+            {
+                roots = [shortest];
+                nonRoots = elements.Where(e => !ReferenceEquals(e, shortest)).ToList();
+            }
         }
 
+        // Build a full path → canonical-index map by recursively walking the ModelInspector
+        // type hierarchy for the SD's core FHIR type (StructureDefinitionWalker approach).
+        // This handles nested paths like Questionnaire.item.extension correctly.
+        var canonicalPathIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        if (inspector != null && !string.IsNullOrEmpty(sdType))
+        {
+            BuildModelInspectorPathIndex(sdType, sdType, inspector, canonicalPathIndex,
+                                         ref _nextCanonicalPos, visited: new HashSet<string>(StringComparer.Ordinal));
+        }
+
+        // Fallback: always seed the base Resource/DomainResource entries (first-level sort key)
+        // so that canonical ordering works even when the inspector mapping is missing.
+        // Build a first-level canonical name → position lookup for the sort comparator.
+        var firstLevelIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, pos) in _fhirBaseElementOrder)
+            firstLevelIndex.TryAdd(name, pos);
+        var classMap = inspector?.FindClassMapping(sdType);
+        if (classMap != null)
+        {
+            for (int i = 0; i < classMap.PropertyMappings.Count; i++)
+                firstLevelIndex.TryAdd(classMap.PropertyMappings[i].Name, i);
+        }
+
+        if (canonicalPathIndex.Count == 0 && firstLevelIndex.Count == 0)
+        {
+            // Nothing to sort by – just ensure root is first.
+            elements.Clear();
+            foreach (var el in roots) elements.Add(el);
+            foreach (var el in nonRoots) elements.Add(el);
+            return;
+        }
+
+        static int GetCanonicalPos(
+            ElementDefinition el,
+            Dictionary<string, int> fullIndex,
+            Dictionary<string, int> firstLevel,
+            string typePrefix)
+        {
+            var path = el.Path ?? string.Empty;
+            // Strip the slice notation so "Questionnaire.extension:foo" looks up
+            // "Questionnaire.extension" in the snapshot index.
+            var basePath = path.Contains(':') ? path[..path.IndexOf(':')] : path;
+            // [x] in paths may be stored as %5Bx%5D in some contexts; try both.
+            if (fullIndex.TryGetValue(basePath, out var pos)) return pos;
+            var encoded = basePath.Replace("[", "%5B", StringComparison.Ordinal)
+                                  .Replace("]", "%5D", StringComparison.Ordinal);
+            if (fullIndex.TryGetValue(encoded, out pos)) return pos;
+
+            // Fallback to first-level (direct-child) canonical index.
+            var rest = !string.IsNullOrEmpty(typePrefix) && basePath.StartsWith(typePrefix + ".", StringComparison.Ordinal)
+                ? basePath[(typePrefix.Length + 1)..]
+                : basePath;
+            var dot = rest.IndexOf('.');
+            var childName = dot >= 0 ? rest[..dot] : rest;
+            return firstLevel.TryGetValue(childName, out pos) ? pos : int.MaxValue;
+        }
+
+        var indexed = nonRoots.Select((el, idx) => (el, idx)).ToList();
+        nonRoots = indexed
+            .OrderBy(x => GetCanonicalPos(x.el, canonicalPathIndex, firstLevelIndex, sdType))
+            .ThenBy(x => !string.IsNullOrEmpty(x.el.SliceName) ? 1 : 0)
+            .ThenBy(x => x.idx)
+            .Select(x => x.el)
+            .ToList();
+
         elements.Clear();
-        foreach (var el in roots)
-            elements.Add(el);
-        foreach (var el in nonRoots)
-            elements.Add(el);
+        foreach (var el in roots) elements.Add(el);
+        foreach (var el in nonRoots) elements.Add(el);
     }
+
+    // Counter used by BuildModelInspectorPathIndex (reset per SD to keep per-call ordering).
+    [ThreadStatic]
+    private static int _nextCanonicalPos;
+
+    /// <summary>
+    /// Recursively builds a full path → canonical-position index by walking the
+    /// <see cref="ModelInspector"/> type hierarchy for <paramref name="typeName"/>.
+    /// Nests into backbone element children so that paths like
+    /// <c>Questionnaire.item.extension</c> sort before <c>Questionnaire.item.answerOption</c>.
+    /// </summary>
+    private static void BuildModelInspectorPathIndex(
+        string currentPath,
+        string typeName,
+        ModelInspector inspector,
+        Dictionary<string, int> index,
+        ref int counter,
+        HashSet<string> visited,
+        int depth = 0)
+    {
+        if (depth > 6) return;
+        if (!visited.Add(typeName)) return;
+
+        var classMap = inspector.FindClassMapping(typeName);
+        if (classMap == null) return;
+
+        foreach (var prop in classMap.PropertyMappings)
+        {
+            var childPath = currentPath + "." + prop.Name;
+            if (!index.ContainsKey(childPath))
+                index[childPath] = counter++;
+
+            // Also index the %5Bx%5D encoded form for choice-type paths (e.g. value[x]).
+            if (prop.Name.Contains('['))
+            {
+                var encodedPath = childPath.Replace("[", "%5B", StringComparison.Ordinal)
+                                           .Replace("]", "%5D", StringComparison.Ordinal);
+                index.TryAdd(encodedPath, index[childPath]);
+            }
+
+            // Recurse into backbone element types to build nested path ordering.
+            if (depth < 5)
+            {
+                var propTypeMapping = prop.PropertyTypeMapping;
+                var propTypeName = propTypeMapping?.Name;
+                if (!string.IsNullOrEmpty(propTypeName)
+                    && !string.Equals(propTypeName, typeName, StringComparison.Ordinal)
+                    && (string.Equals(propTypeName, "BackboneElement", StringComparison.Ordinal)
+                        || string.Equals(propTypeName, "BackboneType", StringComparison.Ordinal)
+                        || (propTypeMapping?.NativeType != null
+                            && (propTypeMapping.NativeType.Name?.Contains("Backbone") == true
+                                || IsDescendantOfBackboneElement(propTypeMapping.NativeType)))))
+                {
+                    BuildModelInspectorPathIndex(childPath, propTypeName, inspector, index,
+                                                ref counter, new HashSet<string>(visited, StringComparer.Ordinal), depth + 1);
+                }
+            }
+        }
+    }
+
+    private static bool IsDescendantOfBackboneElement(Type t)
+    {
+        var current = t.BaseType;
+        while (current != null && current != typeof(object))
+        {
+            if (current.Name == "BackboneElement" || current.Name == "BackboneType") return true;
+            current = current.BaseType;
+        }
+        return false;
+    }
+
 
     /// <summary>
     /// When FSH rules target named choice-type path variants (e.g. <c>valueCodeableConcept</c>
