@@ -11,7 +11,7 @@ and to guide decisions about which tests to tackle next.
 > See the re-assessment in [`sushi-test-mapping.md`](./sushi-test-mapping.md#assessment-as-of-2026-04-23-porting-can-now-begin)
 > for the full rationale and suggested order.
 >
-> **Progress so far (569 / 1138 tests ported):**
+> **Progress so far (765 / 1138 tests ported):**
 > - `CodeSystemExporter.test.ts` — **59 / 59** ✅ fully ported → `Sushi/CodeSystemExporterTests.cs`
 > - `FHIRExporter.test.ts` — **25 / 25** ✅ fully ported → `Sushi/FHIRExporterTests.cs`
 > - `MappingExporter.test.ts` — **21 / 21** ✅ fully ported → `Sushi/MappingExporterTests.cs`
@@ -20,7 +20,7 @@ and to guide decisions about which tests to tackle next.
 > - `StructureDefinition.ProfileExporter.test.ts` — **24 / 24** ✅ fully ported → `Sushi/ProfileExporterTests.cs`
 > - `StructureDefinition.ResourceExporter.test.ts` — **28 / 28** ✅ fully ported → `Sushi/ResourceExporterTests.cs`
 > - `ValueSetExporter.test.ts` — **94 / 94** ✅ fully ported → `Sushi/ValueSetExporterTests.cs`
-> - `StructureDefinitionExporter.test.ts` — **187 / 376** partially ported → `Sushi/StructureDefinitionExporterTests.cs`
+> - `StructureDefinitionExporter.test.ts` — **376 / 376** ✅ fully ported → `Sushi/StructureDefinitionExporterTests.cs`
 > - `InstanceExporter.test.ts` — **36 / 370** partially ported → `Sushi/InstanceExporterTests.cs`
 > - `Package.test.ts` — **0 / 55** out of scope (SUSHI's `fishForFHIR`/`fishForMetadata` API has no C# equivalent)
 >
@@ -333,12 +333,12 @@ and to guide decisions about which tests to tackle next.
 | should log an error when assigning an invalid reference to a type based on a profile | Log an error when assigning an invalid reference to a type based on a profile | |
 | should assign a reference to a child type of the referenced type | Assign a reference to a child type of the referenced type | |
 | should log an error if an instance of a parent type is assigned | Log an error if an instance of a parent type is assigned | |
-| should apply an Assignment rule with a valid Canonical entity defined in FSH | Apply an Assignment rule with a valid Canonical entity defined in FSH | |
-| should apply an Assignment rule with Canonical of a FHIR entity | Apply an Assignment rule with Canonical of a FHIR entity | |
-| should apply an Assignment rule with Canonical of a Questionnaire instance | Apply an Assignment rule with Canonical of a Questionnaire instance | |
-| should apply an Assignment rule with Canonical of an inline instance | Apply an Assignment rule with Canonical of an inline instance | |
+| should apply an Assignment rule with a valid Canonical entity defined in FSH | Apply an Assignment rule with a valid Canonical entity defined in FSH |  ✅ |
+| should apply an Assignment rule with Canonical of a FHIR entity | Apply an Assignment rule with Canonical of a FHIR entity |  ✅ |
+| should apply an Assignment rule with Canonical of a Questionnaire instance | Apply an Assignment rule with Canonical of a Questionnaire instance |  ✅ |
+| should apply an Assignment rule with Canonical of an inline instance | Apply an Assignment rule with Canonical of an inline instance |  ✅ |
 | should apply an Assignment rule with Canonical of an instance that has its url assigned by a RuleSet | Apply an Assignment rule with Canonical of an instance that has its url assigned by a RuleSet | |
-| should not apply an Assignment rule with an invalid Canonical entity and log an error | Not apply an Assignment rule with an invalid Canonical entity and log an error | |
+| should not apply an Assignment rule with an invalid Canonical entity and log an error | Not apply an Assignment rule with an invalid Canonical entity and log an error |  ✅ |
 | should assign a Canonical that is one of the valid types | Assign a Canonical that is one of the valid types | |
 | should assign a Canonical that is one of the valid types (without checking the version) when the type is versioned | Assign a Canonical that is one of the valid types (without checking the version) when the type is versioned | |
 | should assign a Canonical that is a child of the valid types | Assign a Canonical that is a child of the valid types | |
@@ -577,13 +577,13 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should use the passed in fisher to fish metadata for instances | Use the passed in fisher to fish metadata for instances | |
+| should use the passed in fisher to fish metadata for instances | Use the passed in fisher to fish metadata for instances |  ✅ |
 
 #### `#fishForMetadatas`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should use the passed in fisher to fish metadatas for instances | Use the passed in fisher to fish metadatas for instances | |
+| should use the passed in fisher to fish metadatas for instances | Use the passed in fisher to fish metadatas for instances |  ✅ |
 
 ### `InstanceExporter R5`
 
@@ -940,7 +940,7 @@ and to guide decisions about which tests to tackle next.
 | should log a message when the structure definition has an invalid id | Log a message when the structure definition has an invalid id |  ✅ |
 | should not log a message when the structure definition overrides an invalid id with a Caret Rule | Not log a message when the structure definition overrides an invalid id with a Caret Rule |  ✅ |
 | should log a message when the structure definition overrides an invalid id with an invalid Caret Rule | Log a message when the structure definition overrides an invalid id with an invalid Caret Rule |  ✅ |
-| should log a message when the structure definition overrides an valid id with an invalid Caret Rule | Log a message when the structure definition overrides an valid id with an invalid Caret Rule | |
+| should log a message when the structure definition overrides an valid id with an invalid Caret Rule | Log a message when the structure definition overrides an valid id with an invalid Caret Rule |  ✅ |
 | should log a message when the structure definition has an invalid name | Log a message when the structure definition has an invalid name |  ✅ |
 | should not log a message when the structure definition overrides an invalid name with a Caret Rule | Not log a message when the structure definition overrides an invalid name with a Caret Rule |  ✅ |
 | should log a message when the structure definition overrides an invalid name with an invalid Caret Rule | Log a message when the structure definition overrides an invalid name with an invalid Caret Rule |  ✅ |
@@ -968,7 +968,7 @@ and to guide decisions about which tests to tackle next.
 | should throw ParentNotProvidedError when parent specifies an empty parent | Throw ParentNotProvidedError when parent specifies an empty parent |  ✅ |
 | should throw ParentNotDefinedError when parent is not found | Throw ParentNotDefinedError when parent is not found |  ✅ |
 | should throw ParentDeclaredAsNameError when the extension declares itself as the parent | Throw ParentDeclaredAsNameError when the extension declares itself as the parent |  ✅ |
-| should throw ParentDeclaredAsIdError when a extension sets the same value for parent and id | Throw ParentDeclaredAsIdError when a extension sets the same value for parent and id | |
+| should throw ParentDeclaredAsIdError when a extension sets the same value for parent and id | Throw ParentDeclaredAsIdError when a extension sets the same value for parent and id |  ✅ |
 | should throw ParentDeclaredAsNameError when the profile declares itself as the parent | Throw ParentDeclaredAsNameError when the profile declares itself as the parent |  ✅ |
 | should throw ParentDeclaredAsNameError and suggest resource URL when the profile declares itself as the parent and it is a FHIR resource | Throw ParentDeclaredAsNameError and suggest resource URL when the profile declares itself as the parent and it is a FHIR resource |  ✅ |
 | should throw ParentDeclaredAsIdError when a profile sets the same value for parent and id | Throw ParentDeclaredAsIdError when a profile sets the same value for parent and id |  ✅ |
@@ -1047,7 +1047,7 @@ and to guide decisions about which tests to tackle next.
 | should log an error when multiple logical models have the same id | Log an error when multiple logical models have the same id |  ✅ |
 | should log an error when a profile and a logical model have the same id | Log an error when a profile and a logical model have the same id |  ✅ |
 | should include added elements along with parent elements | Include added elements along with parent elements |  ✅ |
-| should include added elements for BackboneElement and children | Include added elements for BackboneElement and children | |
+| should include added elements for BackboneElement and children | Include added elements for BackboneElement and children |  ✅ |
 | should log an error when MustSupport is true in a logical model | Log an error when MustSupport is true in a logical model |  ✅ |
 
 #### `#Resource`
@@ -1066,7 +1066,7 @@ and to guide decisions about which tests to tackle next.
 | should log an error when multiple resources have the same id | Log an error when multiple resources have the same id |  ✅ |
 | should log an error when a resource and a logical model have the same id | Log an error when a resource and a logical model have the same id |  ✅ |
 | should include added elements along with parent root element | Include added elements along with parent root element |  ✅ |
-| should include added elements for BackboneElement and children | Include added elements for BackboneElement and children | |
+| should include added elements for BackboneElement and children | Include added elements for BackboneElement and children |  ✅ |
 | should log an error when MustSupport is true in a resource | Log an error when MustSupport is true in a resource |  ✅ |
 
 #### `#Invariant`
@@ -1146,10 +1146,10 @@ and to guide decisions about which tests to tackle next.
 | should apply a correct value set rule when the VS has a rule that sets its name and it is referenced by name | Apply a correct value set rule when the VS has a rule that sets its name and it is referenced by name |  ✅ |
 | should apply a correct value set rule when the VS specifies a version | Apply a correct value set rule when the VS specifies a version |  ✅ |
 | should use the url specified in a CaretValueRule when referencing a named value set | Use the url specified in a CaretValueRule when referencing a named value set |  ✅ |
-| should apply a value set rule on an element that has the #can-bind characteristic | Apply a value set rule on an element that has the #can-bind characteristic | |
-| should apply a value set rule on an element that has the #can-bind type characteristic extension | Apply a value set rule on an element that has the #can-bind type characteristic extension | |
-| should apply a value set rule on an element that has the #can-bind type characteristic extension using extension path syntax with url | Apply a value set rule on an element that has the #can-bind type characteristic extension using extension path syntax with url | |
-| should log a warning and apply a value set rule on an element that is missing the #can-bind characteristic and extension | Log a warning and apply a value set rule on an element that is missing the #can-bind characteristic and extension | |
+| should apply a value set rule on an element that has the #can-bind characteristic | Apply a value set rule on an element that has the #can-bind characteristic |  ✅ |
+| should apply a value set rule on an element that has the #can-bind type characteristic extension | Apply a value set rule on an element that has the #can-bind type characteristic extension |  ✅ |
+| should apply a value set rule on an element that has the #can-bind type characteristic extension using extension path syntax with url | Apply a value set rule on an element that has the #can-bind type characteristic extension using extension path syntax with url |  ✅ |
+| should log a warning and apply a value set rule on an element that is missing the #can-bind characteristic and extension | Log a warning and apply a value set rule on an element that is missing the #can-bind characteristic and extension |  ✅ |
 | should not apply a value set rule on an element that cannot support it | Not apply a value set rule on an element that cannot support it |  ✅ |
 | should not override a binding with a less strict binding | Not override a binding with a less strict binding |  ✅ |
 
@@ -1168,155 +1168,155 @@ and to guide decisions about which tests to tackle next.
 | should apply a correct OnlyRule on a non-reference FSHy choice | Apply a correct OnlyRule on a non-reference FSHy choice |  ✅ |
 | should apply a correct OnlyRule on a FSHy reference | Apply a correct OnlyRule on a FSHy reference |  ✅ |
 | should apply a correct OnlyRule on a FSHy canonical | Apply a correct OnlyRule on a FSHy canonical |  ✅ |
-| should apply a correct OnlyRule with a specific target constrained to FSHy definition | Apply a correct OnlyRule with a specific target constrained to FSHy definition | |
-| should apply a correct OnlyRule with a specific canonical target constrained to FSHy definition | Apply a correct OnlyRule with a specific canonical target constrained to FSHy definition | |
-| should apply correct OnlyRules on circular FSHy reference choices | Apply correct OnlyRules on circular FSHy reference choices | |
-| should apply correct OnlyRules on circular FSHy canonical choices | Apply correct OnlyRules on circular FSHy canonical choices | |
-| should safely apply correct OnlyRule with circular FSHy parent | Safely apply correct OnlyRule with circular FSHy parent | |
-| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension | |
-| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with url | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with url | |
-| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with alias | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with alias | |
-| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with id | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with id | |
-| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with name | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with name | |
-| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with url | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with url | |
-| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the logical target extension | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the logical target extension | |
-| should apply a correct OnlyRule on a reference to a FSHy logical type defined with the can-be-target characteristic | Apply a correct OnlyRule on a reference to a FSHy logical type defined with the can-be-target characteristic | |
-| should apply a correct OnlyRule on a reference to a FSHy logical type defined with the type characteristics extension | Apply a correct OnlyRule on a reference to a FSHy logical type defined with the type characteristics extension | |
-| should apply a correct OnlyRule on a reference to a FSHy logical type defined with the logical target extension | Apply a correct OnlyRule on a reference to a FSHy logical type defined with the logical target extension | |
-| should apply a correct OnlyRule on a self-referential FSHy logical type with the can-be-target characteristic | Apply a correct OnlyRule on a self-referential FSHy logical type with the can-be-target characteristic | |
-| should apply a correct OnlyRule on a self-referential FSHy logical type with the type characteristics extension | Apply a correct OnlyRule on a self-referential FSHy logical type with the type characteristics extension | |
-| should apply an OnlyRule on a reference to a FSHy logical type and log a warning if it is not specified as a reference target | Apply an OnlyRule on a reference to a FSHy logical type and log a warning if it is not specified as a reference target | |
-| should apply a correct OnlyRule on a reference to a defined logical type defined with the logical target extension | Apply a correct OnlyRule on a reference to a defined logical type defined with the logical target extension | |
-| should apply a correct OnlyRule on a reference to a defined logical type and log a warning if it is defined without the logical target extension | Apply a correct OnlyRule on a reference to a defined logical type and log a warning if it is defined without the logical target extension | |
-| should log a debug message when we detect a circular dependency in OnlyRules that might result in incomplete definitions | Log a debug message when we detect a circular dependency in OnlyRules that might result in incomplete definitions | |
-| should log a warning message when we detect a circular dependency that causes an incomplete parent | Log a warning message when we detect a circular dependency that causes an incomplete parent | |
+| should apply a correct OnlyRule with a specific target constrained to FSHy definition | Apply a correct OnlyRule with a specific target constrained to FSHy definition |  ✅ |
+| should apply a correct OnlyRule with a specific canonical target constrained to FSHy definition | Apply a correct OnlyRule with a specific canonical target constrained to FSHy definition |  ✅ |
+| should apply correct OnlyRules on circular FSHy reference choices | Apply correct OnlyRules on circular FSHy reference choices |  ✅ |
+| should apply correct OnlyRules on circular FSHy canonical choices | Apply correct OnlyRules on circular FSHy canonical choices |  ✅ |
+| should safely apply correct OnlyRule with circular FSHy parent | Safely apply correct OnlyRule with circular FSHy parent |  ✅ |
+| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension |  ✅ |
+| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with url | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with url |  ✅ |
+| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with alias | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with alias |  ✅ |
+| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with id | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with id |  ✅ |
+| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with name | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with name |  ✅ |
+| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with url | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the type characteristics extension defined using extension path syntax with url |  ✅ |
+| should apply a correct OnlyRule on a reference to a logical type defined as a reference target with the logical target extension | Apply a correct OnlyRule on a reference to a logical type defined as a reference target with the logical target extension |  ✅ |
+| should apply a correct OnlyRule on a reference to a FSHy logical type defined with the can-be-target characteristic | Apply a correct OnlyRule on a reference to a FSHy logical type defined with the can-be-target characteristic |  ✅ |
+| should apply a correct OnlyRule on a reference to a FSHy logical type defined with the type characteristics extension | Apply a correct OnlyRule on a reference to a FSHy logical type defined with the type characteristics extension |  ✅ |
+| should apply a correct OnlyRule on a reference to a FSHy logical type defined with the logical target extension | Apply a correct OnlyRule on a reference to a FSHy logical type defined with the logical target extension |  ✅ |
+| should apply a correct OnlyRule on a self-referential FSHy logical type with the can-be-target characteristic | Apply a correct OnlyRule on a self-referential FSHy logical type with the can-be-target characteristic |  ✅ |
+| should apply a correct OnlyRule on a self-referential FSHy logical type with the type characteristics extension | Apply a correct OnlyRule on a self-referential FSHy logical type with the type characteristics extension |  ✅ |
+| should apply an OnlyRule on a reference to a FSHy logical type and log a warning if it is not specified as a reference target | Apply an OnlyRule on a reference to a FSHy logical type and log a warning if it is not specified as a reference target |  ✅ |
+| should apply a correct OnlyRule on a reference to a defined logical type defined with the logical target extension | Apply a correct OnlyRule on a reference to a defined logical type defined with the logical target extension |  ✅ |
+| should apply a correct OnlyRule on a reference to a defined logical type and log a warning if it is defined without the logical target extension | Apply a correct OnlyRule on a reference to a defined logical type and log a warning if it is defined without the logical target extension |  ✅ |
+| should log a debug message when we detect a circular dependency in OnlyRules that might result in incomplete definitions | Log a debug message when we detect a circular dependency in OnlyRules that might result in incomplete definitions |  ✅ |
+| should log a warning message when we detect a circular dependency that causes an incomplete parent | Log a warning message when we detect a circular dependency that causes an incomplete parent |  ✅ |
 | should apply an OnlyRule to constrain an id element | Apply an OnlyRule to constrain an id element |  ✅ |
 | should apply an OnlyRule to constrain a url element | Apply an OnlyRule to constrain a url element |  ✅ |
 | should not apply an incorrect OnlyRule | Not apply an incorrect OnlyRule |  ✅ |
-| should log an error when a type constraint implicitly removes a choice created in the current StructureDefinition | Log an error when a type constraint implicitly removes a choice created in the current StructureDefinition | |
-| should not log an error when a type constraint implicitly removes a choice that has no rules applied in the current StructureDefinition | Not log an error when a type constraint implicitly removes a choice that has no rules applied in the current StructureDefinition | |
-| should not log an error when a type constraint is applied to a specific slice | Not log an error when a type constraint is applied to a specific slice | |
-| should not log an error when a type constraint is applied to a slice with a name that is the prefix of another slice | Not log an error when a type constraint is applied to a slice with a name that is the prefix of another slice | |
-| should log an error when extension is constrained with a modifier extension | Log an error when extension is constrained with a modifier extension | |
-| should log an error each time a modifier extension is used to constrain an extension element | Log an error each time a modifier extension is used to constrain an extension element | |
-| should not log an error when extension is constrained with a non-modifier extension | Not log an error when extension is constrained with a non-modifier extension | |
-| should log an error when modifierExtension is constrained with a non-modifier extension | Log an error when modifierExtension is constrained with a non-modifier extension | |
-| should not log an error when modifierExtension is constrained with a modifier extension | Not log an error when modifierExtension is constrained with a modifier extension | |
+| should log an error when a type constraint implicitly removes a choice created in the current StructureDefinition | Log an error when a type constraint implicitly removes a choice created in the current StructureDefinition |  ✅ |
+| should not log an error when a type constraint implicitly removes a choice that has no rules applied in the current StructureDefinition | Not log an error when a type constraint implicitly removes a choice that has no rules applied in the current StructureDefinition |  ✅ |
+| should not log an error when a type constraint is applied to a specific slice | Not log an error when a type constraint is applied to a specific slice |  ✅ |
+| should not log an error when a type constraint is applied to a slice with a name that is the prefix of another slice | Not log an error when a type constraint is applied to a slice with a name that is the prefix of another slice |  ✅ |
+| should log an error when extension is constrained with a modifier extension | Log an error when extension is constrained with a modifier extension |  ✅ |
+| should log an error each time a modifier extension is used to constrain an extension element | Log an error each time a modifier extension is used to constrain an extension element |  ✅ |
+| should not log an error when extension is constrained with a non-modifier extension | Not log an error when extension is constrained with a non-modifier extension |  ✅ |
+| should log an error when modifierExtension is constrained with a non-modifier extension | Log an error when modifierExtension is constrained with a non-modifier extension |  ✅ |
+| should not log an error when modifierExtension is constrained with a modifier extension | Not log an error when modifierExtension is constrained with a modifier extension |  ✅ |
 
 #### `#AssignedValueRule`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a correct AssignmentRule | Apply a correct AssignmentRule | |
-| should apply a correct AssignmentRule for Quantity w/ value 0 | Apply a correct AssignmentRule for Quantity w/ value 0 | |
-| should apply a Reference AssignmentRule and replace the Reference | Apply a Reference AssignmentRule and replace the Reference | |
-| should apply a Reference AssignmentRule when the instance type is a logical type with the can-be-target characteristic | Apply a Reference AssignmentRule when the instance type is a logical type with the can-be-target characteristic | |
-| should apply a Reference AssignmentRule and log a warning when the instance type is a logical type without the can-be-target characteristic | Apply a Reference AssignmentRule and log a warning when the instance type is a logical type without the can-be-target characteristic | |
-| should not apply a Reference AssignmentRule with invalid type and log an error | Not apply a Reference AssignmentRule with invalid type and log an error | |
-| should apply AssignmentRules to different types of a choice element | Apply AssignmentRules to different types of a choice element | |
-| should apply a Code AssignmentRule and replace the local complete code system name with its url | Apply a Code AssignmentRule and replace the local complete code system name with its url | |
-| should apply a Code AssignmentRule that uses a name set by a rule and replace the local complete code system name with its url | Apply a Code AssignmentRule that uses a name set by a rule and replace the local complete code system name with its url | |
-| should apply a Code AssignmentRule and replace the local incomplete code system name with its url when the code is not in the system | Apply a Code AssignmentRule and replace the local incomplete code system name with its url when the code is not in the system | |
-| should apply a Code AssignmentRule and replace the local complete instance of CodeSystem name with its url | Apply a Code AssignmentRule and replace the local complete instance of CodeSystem name with its url | |
-| should apply a Code AssignmentRule that uses a name set by a rule and replace the local complete instance of CodeSystem name with its url | Apply a Code AssignmentRule that uses a name set by a rule and replace the local complete instance of CodeSystem name with its url | |
-| should apply a Code AssignmentRule and replace the local incomplete instance of CodeSystem name with its url when the code is not in the system | Apply a Code AssignmentRule and replace the local incomplete instance of CodeSystem name with its url when the code is not in the system | |
-| should apply a Code AssignmentRule and replace the local complete code system name with its url when the code is added by a RuleSet | Apply a Code AssignmentRule and replace the local complete code system name with its url when the code is added by a RuleSet | |
-| should apply a Code AssignmentRule and replace the local complete instance of CodeSystem name with its url when the code is added by a RuleSet | Apply a Code AssignmentRule and replace the local complete instance of CodeSystem name with its url when the code is added by a RuleSet | |
-| should log an error when applying a Code AssignmentRule with a local complete code system name when the code does not exist | Log an error when applying a Code AssignmentRule with a local complete code system name when the code does not exist | |
-| should log an error when applying a Code AssignmentRule with a local complete instance of CodeSystem name when the code does not exist | Log an error when applying a Code AssignmentRule with a local complete instance of CodeSystem name when the code does not exist | |
-| should log an error when applying a Code AssignmentRule with a local complete code system url when the code does not exist | Log an error when applying a Code AssignmentRule with a local complete code system url when the code does not exist | |
-| should apply a Code AssignmentRule and replace the id of code system (from the core version fhir or dependency) with its url | Apply a Code AssignmentRule and replace the id of code system (from the core version fhir or dependency) with its url | |
-| should apply a Code AssignmentRule and replace the name of code system (from the core version fhir or dependency) with its url | Apply a Code AssignmentRule and replace the name of code system (from the core version fhir or dependency) with its url | |
-| should apply a Code AssignmentRule and keep the url of code system (from the core version fhir or dependency) as the system url | Apply a Code AssignmentRule and keep the url of code system (from the core version fhir or dependency) as the system url | |
-| should apply an AssignmentRule with a valid Canonical entity defined in FSH | Apply an AssignmentRule with a valid Canonical entity defined in FSH | |
-| should apply an Assignment rule with Canonical of a Questionnaire instance | Apply an Assignment rule with Canonical of a Questionnaire instance | |
-| should apply an Assignment rule with Canonical of an inline instance | Apply an Assignment rule with Canonical of an inline instance | |
-| should apply an AssignmentRule with Canonical of a FHIR entity | Apply an AssignmentRule with Canonical of a FHIR entity | |
-| should apply an AssignmentRule with Canonical of a FHIR entity with a given version | Apply an AssignmentRule with Canonical of a FHIR entity with a given version | |
-| should not apply an AssignmentRule with an invalid Canonical entity and log an error | Not apply an AssignmentRule with an invalid Canonical entity and log an error | |
-| should apply an instance AssignmentRule and replace the instance | Apply an instance AssignmentRule and replace the instance | |
-| should log a warning and apply an instance AssignmentRule and replace the instance when the instance is an example | Log a warning and apply an instance AssignmentRule and replace the instance when the instance is an example | |
-| should apply an instance AssignmentRule when the instance has a numeric id | Apply an instance AssignmentRule when the instance has a numeric id | |
-| should log a warning and apply an instance AssignmentRule when the instance has a numeric id | Log a warning and apply an instance AssignmentRule when the instance has a numeric id | |
-| should apply an instance AssignmentRule when the instance has an id that resembles a boolean | Apply an instance AssignmentRule when the instance has an id that resembles a boolean | |
-| should not apply an instance AssignmentRule when the instance cannot be found | Not apply an instance AssignmentRule when the instance cannot be found | |
+| should apply a correct AssignmentRule | Apply a correct AssignmentRule |  ✅ |
+| should apply a correct AssignmentRule for Quantity w/ value 0 | Apply a correct AssignmentRule for Quantity w/ value 0 |  ✅ |
+| should apply a Reference AssignmentRule and replace the Reference | Apply a Reference AssignmentRule and replace the Reference |  ✅ |
+| should apply a Reference AssignmentRule when the instance type is a logical type with the can-be-target characteristic | Apply a Reference AssignmentRule when the instance type is a logical type with the can-be-target characteristic |  ✅ |
+| should apply a Reference AssignmentRule and log a warning when the instance type is a logical type without the can-be-target characteristic | Apply a Reference AssignmentRule and log a warning when the instance type is a logical type without the can-be-target characteristic |  ✅ |
+| should not apply a Reference AssignmentRule with invalid type and log an error | Not apply a Reference AssignmentRule with invalid type and log an error |  ✅ |
+| should apply AssignmentRules to different types of a choice element | Apply AssignmentRules to different types of a choice element |  ✅ |
+| should apply a Code AssignmentRule and replace the local complete code system name with its url | Apply a Code AssignmentRule and replace the local complete code system name with its url |  ✅ |
+| should apply a Code AssignmentRule that uses a name set by a rule and replace the local complete code system name with its url | Apply a Code AssignmentRule that uses a name set by a rule and replace the local complete code system name with its url |  ✅ |
+| should apply a Code AssignmentRule and replace the local incomplete code system name with its url when the code is not in the system | Apply a Code AssignmentRule and replace the local incomplete code system name with its url when the code is not in the system |  ✅ |
+| should apply a Code AssignmentRule and replace the local complete instance of CodeSystem name with its url | Apply a Code AssignmentRule and replace the local complete instance of CodeSystem name with its url |  ✅ |
+| should apply a Code AssignmentRule that uses a name set by a rule and replace the local complete instance of CodeSystem name with its url | Apply a Code AssignmentRule that uses a name set by a rule and replace the local complete instance of CodeSystem name with its url |  ✅ |
+| should apply a Code AssignmentRule and replace the local incomplete instance of CodeSystem name with its url when the code is not in the system | Apply a Code AssignmentRule and replace the local incomplete instance of CodeSystem name with its url when the code is not in the system |  ✅ |
+| should apply a Code AssignmentRule and replace the local complete code system name with its url when the code is added by a RuleSet | Apply a Code AssignmentRule and replace the local complete code system name with its url when the code is added by a RuleSet |  ✅ |
+| should apply a Code AssignmentRule and replace the local complete instance of CodeSystem name with its url when the code is added by a RuleSet | Apply a Code AssignmentRule and replace the local complete instance of CodeSystem name with its url when the code is added by a RuleSet |  ✅ |
+| should log an error when applying a Code AssignmentRule with a local complete code system name when the code does not exist | Log an error when applying a Code AssignmentRule with a local complete code system name when the code does not exist |  ✅ |
+| should log an error when applying a Code AssignmentRule with a local complete instance of CodeSystem name when the code does not exist | Log an error when applying a Code AssignmentRule with a local complete instance of CodeSystem name when the code does not exist |  ✅ |
+| should log an error when applying a Code AssignmentRule with a local complete code system url when the code does not exist | Log an error when applying a Code AssignmentRule with a local complete code system url when the code does not exist |  ✅ |
+| should apply a Code AssignmentRule and replace the id of code system (from the core version fhir or dependency) with its url | Apply a Code AssignmentRule and replace the id of code system (from the core version fhir or dependency) with its url |  ✅ |
+| should apply a Code AssignmentRule and replace the name of code system (from the core version fhir or dependency) with its url | Apply a Code AssignmentRule and replace the name of code system (from the core version fhir or dependency) with its url |  ✅ |
+| should apply a Code AssignmentRule and keep the url of code system (from the core version fhir or dependency) as the system url | Apply a Code AssignmentRule and keep the url of code system (from the core version fhir or dependency) as the system url |  ✅ |
+| should apply an AssignmentRule with a valid Canonical entity defined in FSH | Apply an AssignmentRule with a valid Canonical entity defined in FSH |  ✅ |
+| should apply an Assignment rule with Canonical of a Questionnaire instance | Apply an Assignment rule with Canonical of a Questionnaire instance |  ✅ |
+| should apply an Assignment rule with Canonical of an inline instance | Apply an Assignment rule with Canonical of an inline instance |  ✅ |
+| should apply an AssignmentRule with Canonical of a FHIR entity | Apply an AssignmentRule with Canonical of a FHIR entity |  ✅ |
+| should apply an AssignmentRule with Canonical of a FHIR entity with a given version | Apply an AssignmentRule with Canonical of a FHIR entity with a given version |  ✅ |
+| should not apply an AssignmentRule with an invalid Canonical entity and log an error | Not apply an AssignmentRule with an invalid Canonical entity and log an error |  ✅ |
+| should apply an instance AssignmentRule and replace the instance | Apply an instance AssignmentRule and replace the instance |  ✅ |
+| should log a warning and apply an instance AssignmentRule and replace the instance when the instance is an example | Log a warning and apply an instance AssignmentRule and replace the instance when the instance is an example |  ✅ |
+| should apply an instance AssignmentRule when the instance has a numeric id | Apply an instance AssignmentRule when the instance has a numeric id |  ✅ |
+| should log a warning and apply an instance AssignmentRule when the instance has a numeric id | Log a warning and apply an instance AssignmentRule when the instance has a numeric id |  ✅ |
+| should apply an instance AssignmentRule when the instance has an id that resembles a boolean | Apply an instance AssignmentRule when the instance has an id that resembles a boolean |  ✅ |
+| should not apply an instance AssignmentRule when the instance cannot be found | Not apply an instance AssignmentRule when the instance cannot be found |  ✅ |
 | should use the url specified in a CaretValueRule when referencing a named code system | Use the url specified in a CaretValueRule when referencing a named code system |  ✅ |
-| should apply an AssignmentRule on the child of a choice element with constrained choices that share a type | Apply an AssignmentRule on the child of a choice element with constrained choices that share a type | |
-| should apply an AssignmentRule on the child of a choice element with constrained choices that share a profile | Apply an AssignmentRule on the child of a choice element with constrained choices that share a profile | |
-| should not apply an incorrect AssignmentRule | Not apply an incorrect AssignmentRule | |
-| should not apply an AssignmentRule when the value is refers to an Instance that is not found | Not apply an AssignmentRule when the value is refers to an Instance that is not found | |
-| should not apply an AssignmentRule when the value is numeric and refers to an Instance, but both types are wrong | Not apply an AssignmentRule when the value is numeric and refers to an Instance, but both types are wrong | |
-| should not apply an AssignmentRule when the value is boolean and refers to an Instance, but both types are wrong | Not apply an AssignmentRule when the value is boolean and refers to an Instance, but both types are wrong | |
-| should not apply an AssignmentRule when the value is numeric and refers to an Instance, but it conflicts with an existing value | Not apply an AssignmentRule when the value is numeric and refers to an Instance, but it conflicts with an existing value | |
-| should not apply a AssignmentRule to a parent element when it would conflict with a child element | Not apply a AssignmentRule to a parent element when it would conflict with a child element | |
-| should not apply a AssignmentRule to a complex typed element when it would conflict with a child element present in an array in the type | Not apply a AssignmentRule to a complex typed element when it would conflict with a child element present in an array in the type | |
-| should not apply a AssignmentRule to a slice when it would conflict with a child of the list element | Not apply a AssignmentRule to a slice when it would conflict with a child of the list element | |
-| should resolve soft indexing within Caret Paths on profiles | Resolve soft indexing within Caret Paths on profiles | |
-| should not change slice cardinality when an AssignmentRule is applied directly on the slice | Not change slice cardinality when an AssignmentRule is applied directly on the slice | |
-| should not apply a AssignmentRule to a slice when it would conflict with a child slice of the list element | Not apply a AssignmentRule to a slice when it would conflict with a child slice of the list element | |
+| should apply an AssignmentRule on the child of a choice element with constrained choices that share a type | Apply an AssignmentRule on the child of a choice element with constrained choices that share a type |  ✅ |
+| should apply an AssignmentRule on the child of a choice element with constrained choices that share a profile | Apply an AssignmentRule on the child of a choice element with constrained choices that share a profile |  ✅ |
+| should not apply an incorrect AssignmentRule | Not apply an incorrect AssignmentRule |  ✅ |
+| should not apply an AssignmentRule when the value is refers to an Instance that is not found | Not apply an AssignmentRule when the value is refers to an Instance that is not found |  ✅ |
+| should not apply an AssignmentRule when the value is numeric and refers to an Instance, but both types are wrong | Not apply an AssignmentRule when the value is numeric and refers to an Instance, but both types are wrong |  ✅ |
+| should not apply an AssignmentRule when the value is boolean and refers to an Instance, but both types are wrong | Not apply an AssignmentRule when the value is boolean and refers to an Instance, but both types are wrong |  ✅ |
+| should not apply an AssignmentRule when the value is numeric and refers to an Instance, but it conflicts with an existing value | Not apply an AssignmentRule when the value is numeric and refers to an Instance, but it conflicts with an existing value |  ✅ |
+| should not apply a AssignmentRule to a parent element when it would conflict with a child element | Not apply a AssignmentRule to a parent element when it would conflict with a child element |  ✅ |
+| should not apply a AssignmentRule to a complex typed element when it would conflict with a child element present in an array in the type | Not apply a AssignmentRule to a complex typed element when it would conflict with a child element present in an array in the type |  ✅ |
+| should not apply a AssignmentRule to a slice when it would conflict with a child of the list element | Not apply a AssignmentRule to a slice when it would conflict with a child of the list element |  ✅ |
+| should resolve soft indexing within Caret Paths on profiles | Resolve soft indexing within Caret Paths on profiles |  ✅ |
+| should not change slice cardinality when an AssignmentRule is applied directly on the slice | Not change slice cardinality when an AssignmentRule is applied directly on the slice |  ✅ |
+| should not apply a AssignmentRule to a slice when it would conflict with a child slice of the list element | Not apply a AssignmentRule to a slice when it would conflict with a child slice of the list element |  ✅ |
 
 #### `#ContainsRule`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
 | should apply a ContainsRule on an element with defined slicing | Apply a ContainsRule on an element with defined slicing |  ✅ |
-| should apply a ContainsRule on a slice | Apply a ContainsRule on a slice | |
+| should apply a ContainsRule on a slice | Apply a ContainsRule on a slice |  ✅ |
 | should apply a ContainsRule on an extension slice | Apply a ContainsRule on an extension slice |  ✅ |
-| should log a warning when an element has both a slice name and slicing | Log a warning when an element has both a slice name and slicing | |
+| should log a warning when an element has both a slice name and slicing | Log a warning when an element has both a slice name and slicing |  ✅ |
 | should apply a ContainsRule of a defined extension on an extension element | Apply a ContainsRule of a defined extension on an extension element |  ✅ |
-| should apply a ContainsRule of a defined extension on a modifierExtension element | Apply a ContainsRule of a defined extension on a modifierExtension element | |
-| should apply a ContainsRule of an aliased extension on an extension element | Apply a ContainsRule of an aliased extension on an extension element | |
-| should apply a ContainsRule of an existing aliased extension on an extension element | Apply a ContainsRule of an existing aliased extension on an extension element | |
-| should apply a ContainsRule of an inline extension to an extension element | Apply a ContainsRule of an inline extension to an extension element | |
-| should apply a ContainsRule of an inline extension with a name that resolves to a non-extension type | Apply a ContainsRule of an inline extension with a name that resolves to a non-extension type | |
-| should apply a ContainsRule of an extension with a versioned URL | Apply a ContainsRule of an extension with a versioned URL | |
-| should apply a ContainsRule of an extension with a versioned URL and log a warning if the version does not match | Apply a ContainsRule of an extension with a versioned URL and log a warning if the version does not match | |
-| should apply a ContainsRule of an extension with an overridden URL | Apply a ContainsRule of an extension with an overridden URL | |
-| should apply a ContainsRule of an extension with an overridden URL by URL | Apply a ContainsRule of an extension with an overridden URL by URL | |
-| should apply multiple ContainsRule on an element with defined slicing | Apply multiple ContainsRule on an element with defined slicing | |
-| should apply a containsRule on the child of a choice element with a common ancestor of Element | Apply a containsRule on the child of a choice element with a common ancestor of Element | |
+| should apply a ContainsRule of a defined extension on a modifierExtension element | Apply a ContainsRule of a defined extension on a modifierExtension element |  ✅ |
+| should apply a ContainsRule of an aliased extension on an extension element | Apply a ContainsRule of an aliased extension on an extension element |  ✅ |
+| should apply a ContainsRule of an existing aliased extension on an extension element | Apply a ContainsRule of an existing aliased extension on an extension element |  ✅ |
+| should apply a ContainsRule of an inline extension to an extension element | Apply a ContainsRule of an inline extension to an extension element |  ✅ |
+| should apply a ContainsRule of an inline extension with a name that resolves to a non-extension type | Apply a ContainsRule of an inline extension with a name that resolves to a non-extension type |  ✅ |
+| should apply a ContainsRule of an extension with a versioned URL | Apply a ContainsRule of an extension with a versioned URL |  ✅ |
+| should apply a ContainsRule of an extension with a versioned URL and log a warning if the version does not match | Apply a ContainsRule of an extension with a versioned URL and log a warning if the version does not match |  ✅ |
+| should apply a ContainsRule of an extension with an overridden URL | Apply a ContainsRule of an extension with an overridden URL |  ✅ |
+| should apply a ContainsRule of an extension with an overridden URL by URL | Apply a ContainsRule of an extension with an overridden URL by URL |  ✅ |
+| should apply multiple ContainsRule on an element with defined slicing | Apply multiple ContainsRule on an element with defined slicing |  ✅ |
+| should apply a containsRule on the child of a choice element with a common ancestor of Element | Apply a containsRule on the child of a choice element with a common ancestor of Element |  ✅ |
 | should report an error and not add the slice when a ContainsRule tries to add a slice that already exists | Report an error and not add the slice when a ContainsRule tries to add a slice that already exists |  ✅ |
-| should report an error and not add the extension when an extension ContainsRule tries to add a slice that already exists but has a different extension URL | Report an error and not add the extension when an extension ContainsRule tries to add a slice that already exists but has a different extension URL | |
-| should report a warning and not re-add the extension when an extension ContainsRule tries to add a slice that already exists with a matching extension URL | Report a warning and not re-add the extension when an extension ContainsRule tries to add a slice that already exists with a matching extension URL | |
-| should report an error and not add the slice when a ContainsRule tries to add a slice that was created on the parent | Report an error and not add the slice when a ContainsRule tries to add a slice that was created on the parent | |
+| should report an error and not add the extension when an extension ContainsRule tries to add a slice that already exists but has a different extension URL | Report an error and not add the extension when an extension ContainsRule tries to add a slice that already exists but has a different extension URL |  ✅ |
+| should report a warning and not re-add the extension when an extension ContainsRule tries to add a slice that already exists with a matching extension URL | Report a warning and not re-add the extension when an extension ContainsRule tries to add a slice that already exists with a matching extension URL |  ✅ |
+| should report an error and not add the slice when a ContainsRule tries to add a slice that was created on the parent | Report an error and not add the slice when a ContainsRule tries to add a slice that was created on the parent |  ✅ |
 | should not apply a ContainsRule on an element without defined slicing | Not apply a ContainsRule on an element without defined slicing |  ✅ |
-| should NOT report a warning if the extension slice name resolves to an external extension type and no explicit type was specified | NOT report a warning if the extension slice name resolves to an external extension type and no explicit type was specified | |
-| should NOT report a warning if the extension slice name resolves to a FSH extension and no explicit type was specified | NOT report a warning if the extension slice name resolves to a FSH extension and no explicit type was specified | |
-| should not report a warning if the extension slice name resolves to an extension type but explicit type was specified | Not report a warning if the extension slice name resolves to an extension type but explicit type was specified | |
-| should not report a warning if the extension slice name does not resolve to an extension type | Not report a warning if the extension slice name does not resolve to an extension type | |
-| should report an error if the author specifies a slice type on a non-extension | Report an error if the author specifies a slice type on a non-extension | |
-| should report an error for an extension ContainsRule with a type that resolves to a non-extension | Report an error for an extension ContainsRule with a type that resolves to a non-extension | |
-| should report an error for an extension ContainsRule with a non-modifier extension type on a modifierExtension path | Report an error for an extension ContainsRule with a non-modifier extension type on a modifierExtension path | |
-| should not report an error for an extension ContainsRule with a modifier extension type on a modifierExtension path | Not report an error for an extension ContainsRule with a modifier extension type on a modifierExtension path | |
-| should report an error for an extension ContainsRule with a modifier extension type on an extension path | Report an error for an extension ContainsRule with a modifier extension type on an extension path | |
-| should not report an error for an extension ContainsRule with a non-modifier extension type on an extension path | Not report an error for an extension ContainsRule with a non-modifier extension type on an extension path | |
-| should report an error for an extension ContainsRule with a type that does not resolve | Report an error for an extension ContainsRule with a type that does not resolve | |
-| should report an error for a ContainsRule on a single element | Report an error for a ContainsRule on a single element | |
-| should not report an error for an extension Contains rule with an extension that is missing a snapshot when checking if its a modifierExtension | Not report an error for an extension Contains rule with an extension that is missing a snapshot when checking if its a modifierExtension | |
+| should NOT report a warning if the extension slice name resolves to an external extension type and no explicit type was specified | NOT report a warning if the extension slice name resolves to an external extension type and no explicit type was specified |  ✅ |
+| should NOT report a warning if the extension slice name resolves to a FSH extension and no explicit type was specified | NOT report a warning if the extension slice name resolves to a FSH extension and no explicit type was specified |  ✅ |
+| should not report a warning if the extension slice name resolves to an extension type but explicit type was specified | Not report a warning if the extension slice name resolves to an extension type but explicit type was specified |  ✅ |
+| should not report a warning if the extension slice name does not resolve to an extension type | Not report a warning if the extension slice name does not resolve to an extension type |  ✅ |
+| should report an error if the author specifies a slice type on a non-extension | Report an error if the author specifies a slice type on a non-extension |  ✅ |
+| should report an error for an extension ContainsRule with a type that resolves to a non-extension | Report an error for an extension ContainsRule with a type that resolves to a non-extension |  ✅ |
+| should report an error for an extension ContainsRule with a non-modifier extension type on a modifierExtension path | Report an error for an extension ContainsRule with a non-modifier extension type on a modifierExtension path |  ✅ |
+| should not report an error for an extension ContainsRule with a modifier extension type on a modifierExtension path | Not report an error for an extension ContainsRule with a modifier extension type on a modifierExtension path |  ✅ |
+| should report an error for an extension ContainsRule with a modifier extension type on an extension path | Report an error for an extension ContainsRule with a modifier extension type on an extension path |  ✅ |
+| should not report an error for an extension ContainsRule with a non-modifier extension type on an extension path | Not report an error for an extension ContainsRule with a non-modifier extension type on an extension path |  ✅ |
+| should report an error for an extension ContainsRule with a type that does not resolve | Report an error for an extension ContainsRule with a type that does not resolve |  ✅ |
+| should report an error for a ContainsRule on a single element | Report an error for a ContainsRule on a single element |  ✅ |
+| should not report an error for an extension Contains rule with an extension that is missing a snapshot when checking if its a modifierExtension | Not report an error for an extension Contains rule with an extension that is missing a snapshot when checking if its a modifierExtension |  ✅ |
 
 #### `#CaretValueRule`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
 | should apply a CaretValueRule on an element with a path | Apply a CaretValueRule on an element with a path |  ✅ |
-| should not apply an invalid CaretValueRule on an element with a path | Not apply an invalid CaretValueRule on an element with a path | |
+| should not apply an invalid CaretValueRule on an element with a path | Not apply an invalid CaretValueRule on an element with a path |  ✅ |
 | should apply a CaretValueRule on the parent element | Apply a CaretValueRule on the parent element |  ✅ |
 | should apply a CaretValueRule on an element without a path | Apply a CaretValueRule on an element without a path |  ✅ |
-| should apply a CaretValueRule on the child of a primitive element without a path | Apply a CaretValueRule on the child of a primitive element without a path | |
-| should apply a CaretValueRule on an extension of a primitive element without a path | Apply a CaretValueRule on an extension of a primitive element without a path | |
-| should apply a CaretValueRule on an extension on ElementDefinition | Apply a CaretValueRule on an extension on ElementDefinition | |
-| should apply a CaretValueRule on an extension on ElementDefinition even when the extension references an allowed R5 resource in an R4 IG | Apply a CaretValueRule on an extension on ElementDefinition even when the extension references an allowed R5 resource in an R4 IG | |
-| should not apply an invalid CaretValueRule on an element without a path | Not apply an invalid CaretValueRule on an element without a path | |
+| should apply a CaretValueRule on the child of a primitive element without a path | Apply a CaretValueRule on the child of a primitive element without a path |  ✅ |
+| should apply a CaretValueRule on an extension of a primitive element without a path | Apply a CaretValueRule on an extension of a primitive element without a path |  ✅ |
+| should apply a CaretValueRule on an extension on ElementDefinition | Apply a CaretValueRule on an extension on ElementDefinition |  ✅ |
+| should apply a CaretValueRule on an extension on ElementDefinition even when the extension references an allowed R5 resource in an R4 IG | Apply a CaretValueRule on an extension on ElementDefinition even when the extension references an allowed R5 resource in an R4 IG |  ✅ |
+| should not apply an invalid CaretValueRule on an element without a path | Not apply an invalid CaretValueRule on an element without a path |  ✅ |
 | should apply a CaretValueRule on an extension element without a path | Apply a CaretValueRule on an extension element without a path |  ✅ |
 | should apply a Reference CaretValueRule on an SD and replace the Reference | Apply a Reference CaretValueRule on an SD and replace the Reference |  ✅ |
-| should apply a Reference CaretValueRule on an ED and replace the Reference | Apply a Reference CaretValueRule on an ED and replace the Reference | |
-| should apply a CodeSystem CaretValueRule on an SD and replace the CodeSystem | Apply a CodeSystem CaretValueRule on an SD and replace the CodeSystem | |
-| should apply a CodeSystem CaretValueRule on an ED and replace the Reference | Apply a CodeSystem CaretValueRule on an ED and replace the Reference | |
-| should identify existing extensions by URL when applying a CaretValueRule on a StructureDefintiion | Identify existing extensions by URL when applying a CaretValueRule on a StructureDefintiion | |
-| should apply CaretValueRules on the targetProfile of a type | Apply CaretValueRules on the targetProfile of a type | |
-| should apply CaretValueRules on the aggregation of a type and replace the parent values | Apply CaretValueRules on the aggregation of a type and replace the parent values | |
-| should apply CaretValueRules on elements within the aggregation of a type and replace the parent values | Apply CaretValueRules on elements within the aggregation of a type and replace the parent values | |
-| should apply CaretValueRules on elements within the aggregation of a type and replace the children of parent values when there is no parent value | Apply CaretValueRules on elements within the aggregation of a type and replace the children of parent values when there is no parent value | |
+| should apply a Reference CaretValueRule on an ED and replace the Reference | Apply a Reference CaretValueRule on an ED and replace the Reference |  ✅ |
+| should apply a CodeSystem CaretValueRule on an SD and replace the CodeSystem | Apply a CodeSystem CaretValueRule on an SD and replace the CodeSystem |  ✅ |
+| should apply a CodeSystem CaretValueRule on an ED and replace the Reference | Apply a CodeSystem CaretValueRule on an ED and replace the Reference |  ✅ |
+| should identify existing extensions by URL when applying a CaretValueRule on a StructureDefintiion | Identify existing extensions by URL when applying a CaretValueRule on a StructureDefintiion |  ✅ |
+| should apply CaretValueRules on the targetProfile of a type | Apply CaretValueRules on the targetProfile of a type |  ✅ |
+| should apply CaretValueRules on the aggregation of a type and replace the parent values | Apply CaretValueRules on the aggregation of a type and replace the parent values |  ✅ |
+| should apply CaretValueRules on elements within the aggregation of a type and replace the parent values | Apply CaretValueRules on elements within the aggregation of a type and replace the parent values |  ✅ |
+| should apply CaretValueRules on elements within the aggregation of a type and replace the children of parent values when there is no parent value | Apply CaretValueRules on elements within the aggregation of a type and replace the children of parent values when there is no parent value |  ✅ |
 | should output an error when a choice element has values assigned to more than one choice type | Output an error when a choice element has values assigned to more than one choice type |  ✅ |
 
 #### `#ObeysRule`
@@ -1325,83 +1325,83 @@ and to guide decisions about which tests to tackle next.
 |-----------|-------------|--------|
 | should apply an ObeysRule at the specified path | Apply an ObeysRule at the specified path |  ✅ |
 | should apply an ObeysRule at specified path (for Invariant with rules) | Apply an ObeysRule at specified path (for Invariant with rules) |  ✅ |
-| should apply an ObeysRule at specified path (for Invariant with rules overriding keywords) | Apply an ObeysRule at specified path (for Invariant with rules overriding keywords) | |
-| should apply an ObeysRule at specified path (for Invariant with soft-indexed rules) | Apply an ObeysRule at specified path (for Invariant with soft-indexed rules) | |
-| should apply an ObeysRule at specified path (for Invariant with insert rules) | Apply an ObeysRule at specified path (for Invariant with insert rules) | |
+| should apply an ObeysRule at specified path (for Invariant with rules overriding keywords) | Apply an ObeysRule at specified path (for Invariant with rules overriding keywords) |  ✅ |
+| should apply an ObeysRule at specified path (for Invariant with soft-indexed rules) | Apply an ObeysRule at specified path (for Invariant with soft-indexed rules) |  ✅ |
+| should apply an ObeysRule at specified path (for Invariant with insert rules) | Apply an ObeysRule at specified path (for Invariant with insert rules) |  ✅ |
 | should apply an ObeysRule at the path which does not have a constraint | Apply an ObeysRule at the path which does not have a constraint |  ✅ |
 | should apply an ObeysRule to the base element when no path specified | Apply an ObeysRule to the base element when no path specified |  ✅ |
 | should apply an ObeysRule to the base element when no path specified (for Invariant with rules) | Apply an ObeysRule to the base element when no path specified (for Invariant with rules) |  ✅ |
 | should not apply an ObeysRule on an invariant that does not exist | Not apply an ObeysRule on an invariant that does not exist |  ✅ |
 | should log an error when applying an ObeysRule on an invariant with an invalid id | Log an error when applying an ObeysRule on an invariant with an invalid id |  ✅ |
-| should log an error with correct tracking info when applying an ObeysRule with an invalid rule | Log an error with correct tracking info when applying an ObeysRule with an invalid rule | |
+| should log an error with correct tracking info when applying an ObeysRule with an invalid rule | Log an error with correct tracking info when applying an ObeysRule with an invalid rule |  ✅ |
 
 #### `#Extension preprocessing`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
 | should zero out Extension.value[x] when Extension.extension is used | Zero out Extension.value[x] when Extension.extension is used |  ✅ |
-| should not zero out Extension.value[x] if Extension.extension is zeroed out | Not zero out Extension.value[x] if Extension.extension is zeroed out | |
+| should not zero out Extension.value[x] if Extension.extension is zeroed out | Not zero out Extension.value[x] if Extension.extension is zeroed out |  ✅ |
 | should log an error if Extension.extension and Extension.value[x] are both used but apply both rules | Log an error if Extension.extension and Extension.value[x] are both used but apply both rules |  ✅ |
 | should zero out Extension.extension when Extension.value[x] is used | Zero out Extension.extension when Extension.value[x] is used |  ✅ |
-| should not zero out Extension.extension if Extension.value[x] is zeroed out | Not zero out Extension.extension if Extension.value[x] is zeroed out | |
-| should log an error if Extension.value[x] is changed after Extension.extension is used but apply both rules | Log an error if Extension.value[x] is changed after Extension.extension is used but apply both rules | |
-| should zero out value[x] on an extension defined inline that uses extension | Zero out value[x] on an extension defined inline that uses extension | |
-| should zero out extension on an extension defined inline that uses value[x] | Zero out extension on an extension defined inline that uses value[x] | |
-| should not zero out extension if value[x] is zeroed out on an extension defined inline | Not zero out extension if value[x] is zeroed out on an extension defined inline | |
-| should not zero out value[x] if extension is zeroed out on an extension defined inline | Not zero out value[x] if extension is zeroed out on an extension defined inline | |
-| should log an error if extension is used after value[x] on an extension defined inline and apply both rules | Log an error if extension is used after value[x] on an extension defined inline and apply both rules | |
-| should log an error if value[x] is used after extension on an extension defined inline and apply both rules | Log an error if value[x] is used after extension on an extension defined inline and apply both rules | |
-| should zero out value[x] if extension is used on an extension defined inline on a profile | Zero out value[x] if extension is used on an extension defined inline on a profile | |
-| should correctly allow both extension and value[x] on profiles | Correctly allow both extension and value[x] on profiles | |
-| should not add value[x] onto non-extension elements | Not add value[x] onto non-extension elements | |
-| should set value[x] on nested elements of a profile without zeroing extension | Set value[x] on nested elements of a profile without zeroing extension | |
-| should not set inferred 0..0 CardRules if they were set on the FSH definition | Not set inferred 0..0 CardRules if they were set on the FSH definition | |
+| should not zero out Extension.extension if Extension.value[x] is zeroed out | Not zero out Extension.extension if Extension.value[x] is zeroed out |  ✅ |
+| should log an error if Extension.value[x] is changed after Extension.extension is used but apply both rules | Log an error if Extension.value[x] is changed after Extension.extension is used but apply both rules |  ✅ |
+| should zero out value[x] on an extension defined inline that uses extension | Zero out value[x] on an extension defined inline that uses extension |  ✅ |
+| should zero out extension on an extension defined inline that uses value[x] | Zero out extension on an extension defined inline that uses value[x] |  ✅ |
+| should not zero out extension if value[x] is zeroed out on an extension defined inline | Not zero out extension if value[x] is zeroed out on an extension defined inline |  ✅ |
+| should not zero out value[x] if extension is zeroed out on an extension defined inline | Not zero out value[x] if extension is zeroed out on an extension defined inline |  ✅ |
+| should log an error if extension is used after value[x] on an extension defined inline and apply both rules | Log an error if extension is used after value[x] on an extension defined inline and apply both rules |  ✅ |
+| should log an error if value[x] is used after extension on an extension defined inline and apply both rules | Log an error if value[x] is used after extension on an extension defined inline and apply both rules |  ✅ |
+| should zero out value[x] if extension is used on an extension defined inline on a profile | Zero out value[x] if extension is used on an extension defined inline on a profile |  ✅ |
+| should correctly allow both extension and value[x] on profiles | Correctly allow both extension and value[x] on profiles |  ✅ |
+| should not add value[x] onto non-extension elements | Not add value[x] onto non-extension elements |  ✅ |
+| should set value[x] on nested elements of a profile without zeroing extension | Set value[x] on nested elements of a profile without zeroing extension |  ✅ |
+| should not set inferred 0..0 CardRules if they were set on the FSH definition | Not set inferred 0..0 CardRules if they were set on the FSH definition |  ✅ |
 
 #### `#RulesWithSlices`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a CardRule that makes the cardinality of the child of a slice narrower | Apply a CardRule that makes the cardinality of the child of a slice narrower | |
-| should apply a CardRule that would make the cardinality of a slice smaller than the root | Apply a CardRule that would make the cardinality of a slice smaller than the root | |
-| should apply a CardRule that would increase the minimum cardinality of a child of a slice | Apply a CardRule that would increase the minimum cardinality of a child of a slice | |
-| should apply a CardRule that would decrease the maximum cardinality of a child of a slice | Apply a CardRule that would decrease the maximum cardinality of a child of a slice | |
-| should apply a CardRule that would increase the minimum cardinality and decrease the maximum cardinality of a child of a slice | Apply a CardRule that would increase the minimum cardinality and decrease the maximum cardinality of a child of a slice | |
-| should not apply a CardRule that is incompatible with the existing cardinality of a child of a slice | Not apply a CardRule that is incompatible with the existing cardinality of a child of a slice | |
-| should not apply a CardRule that is incompatible with the existing cardinality on some of the children of slices | Not apply a CardRule that is incompatible with the existing cardinality on some of the children of slices | |
-| should apply a FlagRule on a sliced element that updates the flags on its slices | Apply a FlagRule on a sliced element that updates the flags on its slices | |
-| should apply a FlagRule on the child of a sliced element that updates the flags on the child of a slice | Apply a FlagRule on the child of a sliced element that updates the flags on the child of a slice | |
-| should apply BindingRules on a slice, then a sliced element, with different value sets | Apply BindingRules on a slice, then a sliced element, with different value sets | |
-| should apply BindingRules on a sliced element, then a slice, with different value sets | Apply BindingRules on a sliced element, then a slice, with different value sets | |
-| should apply BindingRules on a slice, then the sliced element, with the same value set | Apply BindingRules on a slice, then the sliced element, with the same value set | |
-| should not apply a BindingRule on a sliced element that would bind it to the same value set as the root, but more weakly | Not apply a BindingRule on a sliced element that would bind it to the same value set as the root, but more weakly | |
-| should apply BindingRules on the child of a slice, then the child of a sliced element, with different value sets | Apply BindingRules on the child of a slice, then the child of a sliced element, with different value sets | |
-| should apply BindingRules on the child of a sliced element, then the child of a slice, with different value sets | Apply BindingRules on the child of a sliced element, then the child of a slice, with different value sets | |
-| should apply BindingRules on the child of a slice, then the child of the sliced element, with the same value set | Apply BindingRules on the child of a slice, then the child of the sliced element, with the same value set | |
-| should not apply a BindingRule on the child of a sliced element that would bind it to the same value set as the child of the root, but more weakly | Not apply a BindingRule on the child of a sliced element that would bind it to the same value set as the child of the root, but more weakly | |
-| should apply an OnlyRule on a sliced element that updates the types on its slices | Apply an OnlyRule on a sliced element that updates the types on its slices | |
-| should apply an OnlyRule on a sliced element that includes more types than are allowed on its slices | Apply an OnlyRule on a sliced element that includes more types than are allowed on its slices | |
-| should apply an OnlyRule on a sliced element that removes types available on a slice | Apply an OnlyRule on a sliced element that removes types available on a slice | |
-| should apply an OnlyRule using a profile on a sliced element that matches the types available on its slices | Apply an OnlyRule using a profile on a sliced element that matches the types available on its slices | |
-| should apply an OnlyRule using multiple profiles on a sliced element where at least one of the profiles matches the types available on its slices | Apply an OnlyRule using multiple profiles on a sliced element where at least one of the profiles matches the types available on its slices | |
-| should not apply an OnlyRule on a sliced element that would invalidate any of its slices | Not apply an OnlyRule on a sliced element that would invalidate any of its slices | |
-| should apply an OnlyRule on a sliced element that would remove all types from a zeroed-out slice | Apply an OnlyRule on a sliced element that would remove all types from a zeroed-out slice | |
-| should apply an OnlyRule on a sliced element that constrains the types on its slices to subtypes | Apply an OnlyRule on a sliced element that constrains the types on its slices to subtypes | |
-| should log an error when a type constraint implicitly removes a choice on a sliced element | Log an error when a type constraint implicitly removes a choice on a sliced element | |
-| should log an error when a type constraint on the child of a slice implicitly removes a choice | Log an error when a type constraint on the child of a slice implicitly removes a choice | |
-| should apply an ObeysRule on a sliced element and not update the constraints on its slices | Apply an ObeysRule on a sliced element and not update the constraints on its slices | |
-| should apply an ObeysRule on the child of a sliced element and not update the child elements on its slices | Apply an ObeysRule on the child of a sliced element and not update the child elements on its slices | |
+| should apply a CardRule that makes the cardinality of the child of a slice narrower | Apply a CardRule that makes the cardinality of the child of a slice narrower |  ✅ |
+| should apply a CardRule that would make the cardinality of a slice smaller than the root | Apply a CardRule that would make the cardinality of a slice smaller than the root |  ✅ |
+| should apply a CardRule that would increase the minimum cardinality of a child of a slice | Apply a CardRule that would increase the minimum cardinality of a child of a slice |  ✅ |
+| should apply a CardRule that would decrease the maximum cardinality of a child of a slice | Apply a CardRule that would decrease the maximum cardinality of a child of a slice |  ✅ |
+| should apply a CardRule that would increase the minimum cardinality and decrease the maximum cardinality of a child of a slice | Apply a CardRule that would increase the minimum cardinality and decrease the maximum cardinality of a child of a slice |  ✅ |
+| should not apply a CardRule that is incompatible with the existing cardinality of a child of a slice | Not apply a CardRule that is incompatible with the existing cardinality of a child of a slice |  ✅ |
+| should not apply a CardRule that is incompatible with the existing cardinality on some of the children of slices | Not apply a CardRule that is incompatible with the existing cardinality on some of the children of slices |  ✅ |
+| should apply a FlagRule on a sliced element that updates the flags on its slices | Apply a FlagRule on a sliced element that updates the flags on its slices |  ✅ |
+| should apply a FlagRule on the child of a sliced element that updates the flags on the child of a slice | Apply a FlagRule on the child of a sliced element that updates the flags on the child of a slice |  ✅ |
+| should apply BindingRules on a slice, then a sliced element, with different value sets | Apply BindingRules on a slice, then a sliced element, with different value sets |  ✅ |
+| should apply BindingRules on a sliced element, then a slice, with different value sets | Apply BindingRules on a sliced element, then a slice, with different value sets |  ✅ |
+| should apply BindingRules on a slice, then the sliced element, with the same value set | Apply BindingRules on a slice, then the sliced element, with the same value set |  ✅ |
+| should not apply a BindingRule on a sliced element that would bind it to the same value set as the root, but more weakly | Not apply a BindingRule on a sliced element that would bind it to the same value set as the root, but more weakly |  ✅ |
+| should apply BindingRules on the child of a slice, then the child of a sliced element, with different value sets | Apply BindingRules on the child of a slice, then the child of a sliced element, with different value sets |  ✅ |
+| should apply BindingRules on the child of a sliced element, then the child of a slice, with different value sets | Apply BindingRules on the child of a sliced element, then the child of a slice, with different value sets |  ✅ |
+| should apply BindingRules on the child of a slice, then the child of the sliced element, with the same value set | Apply BindingRules on the child of a slice, then the child of the sliced element, with the same value set |  ✅ |
+| should not apply a BindingRule on the child of a sliced element that would bind it to the same value set as the child of the root, but more weakly | Not apply a BindingRule on the child of a sliced element that would bind it to the same value set as the child of the root, but more weakly |  ✅ |
+| should apply an OnlyRule on a sliced element that updates the types on its slices | Apply an OnlyRule on a sliced element that updates the types on its slices |  ✅ |
+| should apply an OnlyRule on a sliced element that includes more types than are allowed on its slices | Apply an OnlyRule on a sliced element that includes more types than are allowed on its slices |  ✅ |
+| should apply an OnlyRule on a sliced element that removes types available on a slice | Apply an OnlyRule on a sliced element that removes types available on a slice |  ✅ |
+| should apply an OnlyRule using a profile on a sliced element that matches the types available on its slices | Apply an OnlyRule using a profile on a sliced element that matches the types available on its slices |  ✅ |
+| should apply an OnlyRule using multiple profiles on a sliced element where at least one of the profiles matches the types available on its slices | Apply an OnlyRule using multiple profiles on a sliced element where at least one of the profiles matches the types available on its slices |  ✅ |
+| should not apply an OnlyRule on a sliced element that would invalidate any of its slices | Not apply an OnlyRule on a sliced element that would invalidate any of its slices |  ✅ |
+| should apply an OnlyRule on a sliced element that would remove all types from a zeroed-out slice | Apply an OnlyRule on a sliced element that would remove all types from a zeroed-out slice |  ✅ |
+| should apply an OnlyRule on a sliced element that constrains the types on its slices to subtypes | Apply an OnlyRule on a sliced element that constrains the types on its slices to subtypes |  ✅ |
+| should log an error when a type constraint implicitly removes a choice on a sliced element | Log an error when a type constraint implicitly removes a choice on a sliced element |  ✅ |
+| should log an error when a type constraint on the child of a slice implicitly removes a choice | Log an error when a type constraint on the child of a slice implicitly removes a choice |  ✅ |
+| should apply an ObeysRule on a sliced element and not update the constraints on its slices | Apply an ObeysRule on a sliced element and not update the constraints on its slices |  ✅ |
+| should apply an ObeysRule on the child of a sliced element and not update the child elements on its slices | Apply an ObeysRule on the child of a sliced element and not update the child elements on its slices |  ✅ |
 
 #### `#toJSON`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
 | should correctly generate a diff containing only changed elements | Correctly generate a diff containing only changed elements |  ✅ |
-| should correctly generate a diff containing only changed elements when elements are unfolded | Correctly generate a diff containing only changed elements when elements are unfolded | |
+| should correctly generate a diff containing only changed elements when elements are unfolded | Correctly generate a diff containing only changed elements when elements are unfolded |  ✅ |
 | should correctly generate a diff containing only changed elements when elements are sliced | Correctly generate a diff containing only changed elements when elements are sliced |  ✅ |
-| should not include inherited extension slices in a child differential when the child adds slicing on another element | Not include inherited extension slices in a child differential when the child adds slicing on another element | |
-| should include sliceName in a differential when an attribute of the slice is changed | Include sliceName in a differential when an attribute of the slice is changed | |
-| should include mustSupport in the differential of a new slice, even if the base element is also mustSupport | Include mustSupport in the differential of a new slice, even if the base element is also mustSupport | |
-| should include the children of primitive elements when serializing to JSON | Include the children of primitive elements when serializing to JSON | |
+| should not include inherited extension slices in a child differential when the child adds slicing on another element | Not include inherited extension slices in a child differential when the child adds slicing on another element |  ✅ |
+| should include sliceName in a differential when an attribute of the slice is changed | Include sliceName in a differential when an attribute of the slice is changed |  ✅ |
+| should include mustSupport in the differential of a new slice, even if the base element is also mustSupport | Include mustSupport in the differential of a new slice, even if the base element is also mustSupport |  ✅ |
+| should include the children of primitive elements when serializing to JSON | Include the children of primitive elements when serializing to JSON |  ✅ |
 
 #### `#insertRules`
 
@@ -1414,35 +1414,35 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should use the passed in fisher to fish metadata for instances | Use the passed in fisher to fish metadata for instances | |
+| should use the passed in fisher to fish metadata for instances | Use the passed in fisher to fish metadata for instances |  ✅ |
 
 #### `#fishForMetadatas`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should use the passed in fisher to fish metadatas for instances | Use the passed in fisher to fish metadatas for instances | |
+| should use the passed in fisher to fish metadatas for instances | Use the passed in fisher to fish metadatas for instances |  ✅ |
 
 ### `StructureDefinitionExporter R5`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a Reference AssignmentRule and replace the Reference on a CodeableReference | Apply a Reference AssignmentRule and replace the Reference on a CodeableReference | |
-| should apply a Reference AssignmentRule directly to a CodeableReference element | Apply a Reference AssignmentRule directly to a CodeableReference element | |
-| should apply a FshCode AssignmentRule directly to a CodeableReference element | Apply a FshCode AssignmentRule directly to a CodeableReference element | |
-| should not apply a Reference AssignmentRule with invalid type constraints on a parent CodeableReference | Not apply a Reference AssignmentRule with invalid type constraints on a parent CodeableReference | |
+| should apply a Reference AssignmentRule and replace the Reference on a CodeableReference | Apply a Reference AssignmentRule and replace the Reference on a CodeableReference |  ✅ |
+| should apply a Reference AssignmentRule directly to a CodeableReference element | Apply a Reference AssignmentRule directly to a CodeableReference element |  ✅ |
+| should apply a FshCode AssignmentRule directly to a CodeableReference element | Apply a FshCode AssignmentRule directly to a CodeableReference element |  ✅ |
+| should not apply a Reference AssignmentRule with invalid type constraints on a parent CodeableReference | Not apply a Reference AssignmentRule with invalid type constraints on a parent CodeableReference |  ✅ |
 
 #### `#AddElementRule`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should not log an error when path does not have [x] for multiple CodeableReference types in AddElementRule | Not log an error when path does not have [x] for multiple CodeableReference types in AddElementRule | |
+| should not log an error when path does not have [x] for multiple CodeableReference types in AddElementRule | Not log an error when path does not have [x] for multiple CodeableReference types in AddElementRule |  ✅ |
 
 #### `#OnlyRule`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a correct OnlyRule on a CodeableReference | Apply a correct OnlyRule on a CodeableReference | |
-| should apply a correct OnlyRule on a CodeableReference reference to Any | Apply a correct OnlyRule on a CodeableReference reference to Any | |
+| should apply a correct OnlyRule on a CodeableReference | Apply a correct OnlyRule on a CodeableReference |  ✅ |
+| should apply a correct OnlyRule on a CodeableReference reference to Any | Apply a correct OnlyRule on a CodeableReference reference to Any |  ✅ |
 
 ---
 
