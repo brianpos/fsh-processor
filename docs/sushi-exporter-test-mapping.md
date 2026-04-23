@@ -4,19 +4,28 @@ This document catalogues every test in the SUSHI `test/export/` suite.
 Its purpose is to track which tests have been ported to the C# `fsh-compiler` layer,
 and to guide decisions about which tests to tackle next.
 
-> **Status (2026-04-23):** Porting has been **approved to begin**. The Firely SDK
+> **Status (2026-04-23):** Porting is **in progress**. The Firely SDK
 > `IResourceResolver` (accepted via `CompilerOptions.Resolver`) and Firely SDK
 > `SnapshotGenerator` (wired up in `SdcIgCompilerTests.ShouldGenerateSnapshotsForStructureDefinitions`)
 > resolve the two hardest architectural blockers (FHIR package loading + snapshot generation).
 > See the re-assessment in [`sushi-test-mapping.md`](./sushi-test-mapping.md#assessment-as-of-2026-04-23-porting-can-now-begin)
 > for the full rationale and suggested order.
 >
-> - Two files remain out of scope (SUSHI's `Package`/`FHIRExporter` orchestration has no C# equivalent).
-> - The remaining ~1,058 tests are portable, with `loggerSpy` assertions translated to
->   `CompileResult<T>.Warnings` assertions.
+> **Progress so far (452 / 1138 tests ported):**
+> - `CodeSystemExporter.test.ts` — **59 / 59** ✅ fully ported → `Sushi/CodeSystemExporterTests.cs`
+> - `FHIRExporter.test.ts` — **25 / 25** ✅ fully ported → `Sushi/FHIRExporterTests.cs`
+> - `MappingExporter.test.ts` — **21 / 21** ✅ fully ported → `Sushi/MappingExporterTests.cs`
+> - `StructureDefinition.ExtensionExporter.test.ts` — **44 / 44** ✅ fully ported → `Sushi/ExtensionExporterTests.cs`
+> - `StructureDefinition.LogicalExporter.test.ts` — **42 / 42** ✅ fully ported → `Sushi/LogicalExporterTests.cs`
+> - `StructureDefinition.ProfileExporter.test.ts` — **24 / 24** ✅ fully ported → `Sushi/ProfileExporterTests.cs`
+> - `StructureDefinition.ResourceExporter.test.ts` — **28 / 28** ✅ fully ported → `Sushi/ResourceExporterTests.cs`
+> - `ValueSetExporter.test.ts` — **94 / 94** ✅ fully ported → `Sushi/ValueSetExporterTests.cs`
+> - `StructureDefinitionExporter.test.ts` — **79 / 376** partially ported → `Sushi/StructureDefinitionExporterTests.cs`
+> - `InstanceExporter.test.ts` — **36 / 370** partially ported → `Sushi/InstanceExporterTests.cs`
+> - `Package.test.ts` — **0 / 55** out of scope (SUSHI's `fishForFHIR`/`fishForMetadata` API has no C# equivalent)
 >
-> Fill in the **Ported** column below as each test is migrated to
-> `fsh-compiler-tester-R4/R4*CompilerTests.cs`.
+> Fill in the **Ported** column below (✅) as each test is migrated to
+> `fsh-compiler-tester-R4/Sushi/*.cs`.
 
 ---
 
@@ -45,70 +54,70 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should output empty results with empty input | Output empty results with empty input | |
-| should export a single code system | Export a single code system | |
-| should add source info for the exported code system to the package | Add source info for the exported code system to the package | |
-| should export a code system with additional metadata | Export a code system with additional metadata | |
-| should export a code system with status and version in FSHOnly mode | Export a code system with status and version in FSHOnly mode | |
-| should export each code system once, even if export is called more than once | Export each code system once, even if export is called more than once | |
-| should export a code system with a concept with only a code | Export a code system with a concept with only a code | |
-| should export a code system with a concept with a code, display, and definition | Export a code system with a concept with a code, display, and definition | |
-| should export a code system with hierarchical codes | Export a code system with hierarchical codes | |
-| should log an error when encountering a duplicate code | Log an error when encountering a duplicate code | |
-| should not log an error when encountering a duplicate code if the new code has no display or definition | Not log an error when encountering a duplicate code if the new code has no display or definition | |
-| should log an error when encountering a code with an incorrectly defined hierarchy | Log an error when encountering a code with an incorrectly defined hierarchy | |
-| should warn when title and/or description is an empty string | Warn when title and/or description is an empty string | |
-| should log a message when the code system has an invalid id | Log a message when the code system has an invalid id | |
-| should not log a message when the code system overrides an invalid id with a Caret Rule | Not log a message when the code system overrides an invalid id with a Caret Rule | |
-| should log a message when the code system overrides an invalid id with an invalid Caret Rule | Log a message when the code system overrides an invalid id with an invalid Caret Rule | |
-| should log a message when the code system overrides a valid id with an invalid Caret Rule | Log a message when the code system overrides a valid id with an invalid Caret Rule | |
-| should log a message when the code system has an invalid name | Log a message when the code system has an invalid name | |
-| should not log a message when the code system overrides an invalid name with a Caret Rule | Not log a message when the code system overrides an invalid name with a Caret Rule | |
-| should log a message when the code system overrides an invalid name with an invalid Caret Rule | Log a message when the code system overrides an invalid name with an invalid Caret Rule | |
-| should log a message when the code system overrides a valid name with an invalid Caret Rule | Log a message when the code system overrides a valid name with an invalid Caret Rule | |
-| should sanitize the id and log a message when a valid name is used to make an invalid id | Sanitize the id and log a message when a valid name is used to make an invalid id | |
-| should sanitize the id and log a message when a long valid name is used to make an invalid id | Sanitize the id and log a message when a long valid name is used to make an invalid id | |
-| should log an error when multiple code systems have the same id | Log an error when multiple code systems have the same id | |
-| should apply a CaretValueRule | Apply a CaretValueRule | |
-| should apply a CaretValueRule on a top-level concept | Apply a CaretValueRule on a top-level concept | |
-| should apply a CaretValueRule on a concept within a hierarchy | Apply a CaretValueRule on a concept within a hierarchy | |
-| should apply a CaretValueRule on a concept that assigns an Instance | Apply a CaretValueRule on a concept that assigns an Instance | |
-| should apply a CaretValueRule on a concept that assigns an Instance with a numeric id | Apply a CaretValueRule on a concept that assigns an Instance with a numeric id | |
-| should apply a CaretValueRule on a concept that assigns an Instance with an id that resembles a boolean | Apply a CaretValueRule on a concept that assigns an Instance with an id that resembles a boolean | |
-| should apply CaretValueRules that create a contained resource | Apply CaretValueRules that create a contained resource | |
-| should apply CaretValueRules that modify a contained resource | Apply CaretValueRules that modify a contained resource | |
-| should log a warning when applying a CaretValueRule that assigns an example Instance | Log a warning when applying a CaretValueRule that assigns an example Instance | |
-| should log a warning when applying a CaretValueRule that assigns an example Instance with a numeric id | Log a warning when applying a CaretValueRule that assigns an example Instance with a numeric id | |
-| should replace references when applying a CaretValueRule | Replace references when applying a CaretValueRule | |
-| should resolve soft indexing when applying top level Caret Value rules | Resolve soft indexing when applying top level Caret Value rules | |
-| should resolve soft indexing when applying CaretValue rules with paths | Resolve soft indexing when applying CaretValue rules with paths | |
-| should export a code system with extensions | Export a code system with extensions | |
-| should output an error when a choice element has values assigned to more than one choice type | Output an error when a choice element has values assigned to more than one choice type | |
-| should not override count when ^count is provided by user | Not override count when ^count is provided by user | |
-| should warn when ^count does not match number of concepts in #complete CodeSystem | Warn when ^count does not match number of concepts in #complete CodeSystem | |
-| should warn when ^count is set and concepts is null in #complete CodeSystem | Warn when ^count is set and concepts is null in #complete CodeSystem | |
-| should not set count when ^content is not #complete | Not set count when ^content is not #complete | |
-| should log a message when applying an invalid ConceptRule | Log a message when applying an invalid ConceptRule | |
-| should log a message when applying invalid CaretValueRule | Log a message when applying invalid CaretValueRule | |
-| should log a message when applying an invalid CaretValueRule | Log a message when applying an invalid CaretValueRule | |
-| should log a message when a CaretValueRule assigns an Instance, but the Instance is not found | Log a message when a CaretValueRule assigns an Instance, but the Instance is not found | |
-| should log a message when a CaretValueRule assigns a value that is numeric and refers to an Instance, but both types are wrong | Log a message when a CaretValueRule assigns a value that is numeric and refers to an Instance, but both types are wrong | |
-| should log a message when a CaretValueRule assigns a value that is boolean and refers to an Instance, but both types are wrong | Log a message when a CaretValueRule assigns a value that is boolean and refers to an Instance, but both types are wrong | |
+| should output empty results with empty input | Output empty results with empty input |  ✅ |
+| should export a single code system | Export a single code system |  ✅ |
+| should add source info for the exported code system to the package | Add source info for the exported code system to the package |  ✅ |
+| should export a code system with additional metadata | Export a code system with additional metadata |  ✅ |
+| should export a code system with status and version in FSHOnly mode | Export a code system with status and version in FSHOnly mode |  ✅ |
+| should export each code system once, even if export is called more than once | Export each code system once, even if export is called more than once |  ✅ |
+| should export a code system with a concept with only a code | Export a code system with a concept with only a code |  ✅ |
+| should export a code system with a concept with a code, display, and definition | Export a code system with a concept with a code, display, and definition |  ✅ |
+| should export a code system with hierarchical codes | Export a code system with hierarchical codes |  ✅ |
+| should log an error when encountering a duplicate code | Log an error when encountering a duplicate code |  ✅ |
+| should not log an error when encountering a duplicate code if the new code has no display or definition | Not log an error when encountering a duplicate code if the new code has no display or definition |  ✅ |
+| should log an error when encountering a code with an incorrectly defined hierarchy | Log an error when encountering a code with an incorrectly defined hierarchy |  ✅ |
+| should warn when title and/or description is an empty string | Warn when title and/or description is an empty string |  ✅ |
+| should log a message when the code system has an invalid id | Log a message when the code system has an invalid id |  ✅ |
+| should not log a message when the code system overrides an invalid id with a Caret Rule | Not log a message when the code system overrides an invalid id with a Caret Rule |  ✅ |
+| should log a message when the code system overrides an invalid id with an invalid Caret Rule | Log a message when the code system overrides an invalid id with an invalid Caret Rule |  ✅ |
+| should log a message when the code system overrides a valid id with an invalid Caret Rule | Log a message when the code system overrides a valid id with an invalid Caret Rule |  ✅ |
+| should log a message when the code system has an invalid name | Log a message when the code system has an invalid name |  ✅ |
+| should not log a message when the code system overrides an invalid name with a Caret Rule | Not log a message when the code system overrides an invalid name with a Caret Rule |  ✅ |
+| should log a message when the code system overrides an invalid name with an invalid Caret Rule | Log a message when the code system overrides an invalid name with an invalid Caret Rule |  ✅ |
+| should log a message when the code system overrides a valid name with an invalid Caret Rule | Log a message when the code system overrides a valid name with an invalid Caret Rule |  ✅ |
+| should sanitize the id and log a message when a valid name is used to make an invalid id | Sanitize the id and log a message when a valid name is used to make an invalid id |  ✅ |
+| should sanitize the id and log a message when a long valid name is used to make an invalid id | Sanitize the id and log a message when a long valid name is used to make an invalid id |  ✅ |
+| should log an error when multiple code systems have the same id | Log an error when multiple code systems have the same id |  ✅ |
+| should apply a CaretValueRule | Apply a CaretValueRule |  ✅ |
+| should apply a CaretValueRule on a top-level concept | Apply a CaretValueRule on a top-level concept |  ✅ |
+| should apply a CaretValueRule on a concept within a hierarchy | Apply a CaretValueRule on a concept within a hierarchy |  ✅ |
+| should apply a CaretValueRule on a concept that assigns an Instance | Apply a CaretValueRule on a concept that assigns an Instance |  ✅ |
+| should apply a CaretValueRule on a concept that assigns an Instance with a numeric id | Apply a CaretValueRule on a concept that assigns an Instance with a numeric id |  ✅ |
+| should apply a CaretValueRule on a concept that assigns an Instance with an id that resembles a boolean | Apply a CaretValueRule on a concept that assigns an Instance with an id that resembles a boolean |  ✅ |
+| should apply CaretValueRules that create a contained resource | Apply CaretValueRules that create a contained resource |  ✅ |
+| should apply CaretValueRules that modify a contained resource | Apply CaretValueRules that modify a contained resource |  ✅ |
+| should log a warning when applying a CaretValueRule that assigns an example Instance | Log a warning when applying a CaretValueRule that assigns an example Instance |  ✅ |
+| should log a warning when applying a CaretValueRule that assigns an example Instance with a numeric id | Log a warning when applying a CaretValueRule that assigns an example Instance with a numeric id |  ✅ |
+| should replace references when applying a CaretValueRule | Replace references when applying a CaretValueRule |  ✅ |
+| should resolve soft indexing when applying top level Caret Value rules | Resolve soft indexing when applying top level Caret Value rules |  ✅ |
+| should resolve soft indexing when applying CaretValue rules with paths | Resolve soft indexing when applying CaretValue rules with paths |  ✅ |
+| should export a code system with extensions | Export a code system with extensions |  ✅ |
+| should output an error when a choice element has values assigned to more than one choice type | Output an error when a choice element has values assigned to more than one choice type |  ✅ |
+| should not override count when ^count is provided by user | Not override count when ^count is provided by user |  ✅ |
+| should warn when ^count does not match number of concepts in #complete CodeSystem | Warn when ^count does not match number of concepts in #complete CodeSystem |  ✅ |
+| should warn when ^count is set and concepts is null in #complete CodeSystem | Warn when ^count is set and concepts is null in #complete CodeSystem |  ✅ |
+| should not set count when ^content is not #complete | Not set count when ^content is not #complete |  ✅ |
+| should log a message when applying an invalid ConceptRule | Log a message when applying an invalid ConceptRule |  ✅ |
+| should log a message when applying invalid CaretValueRule | Log a message when applying invalid CaretValueRule |  ✅ |
+| should log a message when applying an invalid CaretValueRule | Log a message when applying an invalid CaretValueRule |  ✅ |
+| should log a message when a CaretValueRule assigns an Instance, but the Instance is not found | Log a message when a CaretValueRule assigns an Instance, but the Instance is not found |  ✅ |
+| should log a message when a CaretValueRule assigns a value that is numeric and refers to an Instance, but both types are wrong | Log a message when a CaretValueRule assigns a value that is numeric and refers to an Instance, but both types are wrong |  ✅ |
+| should log a message when a CaretValueRule assigns a value that is boolean and refers to an Instance, but both types are wrong | Log a message when a CaretValueRule assigns a value that is boolean and refers to an Instance, but both types are wrong |  ✅ |
 
 #### `#insertRules`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply rules from an insert rule | Apply rules from an insert rule | |
-| should resolve soft indexing when inserting an insert rule | Resolve soft indexing when inserting an insert rule | |
-| should insert a rule set at a code path | Insert a rule set at a code path | |
-| should update count when applying concepts from an insert rule | Update count when applying concepts from an insert rule | |
-| should log an error and not apply rules from an invalid insert rule | Log an error and not apply rules from an invalid insert rule | |
-| should maintain concept order when adding concepts from an insert rule | Maintain concept order when adding concepts from an insert rule | |
-| should add nested concepts from an insert rule | Add nested concepts from an insert rule | |
-| should add nested concepts whose hierarchy is created by an insert rule | Add nested concepts whose hierarchy is created by an insert rule | |
-| should not add concepts from an insert rule that are duplicates of existing concepts | Not add concepts from an insert rule that are duplicates of existing concepts | |
-| should not add concepts from an insert rule that are duplicates of concepts added by a previous insert rule | Not add concepts from an insert rule that are duplicates of concepts added by a previous insert rule | |
+| should apply rules from an insert rule | Apply rules from an insert rule |  ✅ |
+| should resolve soft indexing when inserting an insert rule | Resolve soft indexing when inserting an insert rule |  ✅ |
+| should insert a rule set at a code path | Insert a rule set at a code path |  ✅ |
+| should update count when applying concepts from an insert rule | Update count when applying concepts from an insert rule |  ✅ |
+| should log an error and not apply rules from an invalid insert rule | Log an error and not apply rules from an invalid insert rule |  ✅ |
+| should maintain concept order when adding concepts from an insert rule | Maintain concept order when adding concepts from an insert rule |  ✅ |
+| should add nested concepts from an insert rule | Add nested concepts from an insert rule |  ✅ |
+| should add nested concepts whose hierarchy is created by an insert rule | Add nested concepts whose hierarchy is created by an insert rule |  ✅ |
+| should not add concepts from an insert rule that are duplicates of existing concepts | Not add concepts from an insert rule that are duplicates of existing concepts |  ✅ |
+| should not add concepts from an insert rule that are duplicates of concepts added by a previous insert rule | Not add concepts from an insert rule that are duplicates of concepts added by a previous insert rule |  ✅ |
 
 ---
 
@@ -120,36 +129,36 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should output empty results with empty input | Output empty results with empty input | |
+| should output empty results with empty input | Output empty results with empty input |  ✅ |
 
 #### `#containedResources`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should allow a profile to contain a defined FHIR resource | Allow a profile to contain a defined FHIR resource | |
-| should allow a profile to contain a FSH resource | Allow a profile to contain a FSH resource | |
-| should allow a profile to contain a FSH resource with a numeric id | Allow a profile to contain a FSH resource with a numeric id | |
-| should allow a profile to contain a FSH resource with an id that resembles a boolean | Allow a profile to contain a FSH resource with an id that resembles a boolean | |
-| should allow a profile to contain multiple FSH resources | Allow a profile to contain multiple FSH resources | |
-| should allow a profile to contain a resource and to apply caret rules within the contained resource | Allow a profile to contain a resource and to apply caret rules within the contained resource | |
-| should log an error when a deferred rule assigns something of the wrong type | Log an error when a deferred rule assigns something of the wrong type | |
-| should not get confused when there are contained resources of different types | Not get confused when there are contained resources of different types | |
-| should allow a profile to contain a profiled resource and to apply a caret rule within the contained resource | Allow a profile to contain a profiled resource and to apply a caret rule within the contained resource | |
-| should allow a profile to bind an element to a contained ValueSet using a relative reference | Allow a profile to bind an element to a contained ValueSet using a relative reference | |
-| should allow a profile to bind an element to a contained inline instance of ValueSet using a relative reference | Allow a profile to bind an element to a contained inline instance of ValueSet using a relative reference | |
-| should allow a profile to bind an element to a contained inline instance of ValueSet with name set by a rule, using a relative reference | Allow a profile to bind an element to a contained inline instance of ValueSet with name set by a rule, using a relative reference | |
-| should allow a profile to bind an element to a contained inline instance of ValueSet with url set by a rule, using a relative reference | Allow a profile to bind an element to a contained inline instance of ValueSet with url set by a rule, using a relative reference | |
-| should allow a profile to bind an element to a contained definitional instance of ValueSet using a relative reference | Allow a profile to bind an element to a contained definitional instance of ValueSet using a relative reference | |
-| should allow a profile to bind an element by name to a contained definitional instance of ValueSet with a name set by a rule using a relative reference | Allow a profile to bind an element by name to a contained definitional instance of ValueSet with a name set by a rule using a relative reference | |
-| should allow a profile to bind an element to a contained ValueSet using a relative reference when the rule includes a version | Allow a profile to bind an element to a contained ValueSet using a relative reference when the rule includes a version | |
-| should log an error when attempting to bind an element to an inline ValueSet instance that is not contained in the profile | Log an error when attempting to bind an element to an inline ValueSet instance that is not contained in the profile | |
-| should log an error when a profile tries to contain an instance that is not a resource | Log an error when a profile tries to contain an instance that is not a resource | |
-| should log an error when a profile tries to contain a resource that does not exist | Log an error when a profile tries to contain a resource that does not exist | |
-| should let a profile assign an Inline instance that is not a resource | Let a profile assign an Inline instance that is not a resource | |
-| should let a profile assign and modify an Inline instance that is not a resource | Let a profile assign and modify an Inline instance that is not a resource | |
-| should export a value set that includes a component from a contained FSH code system and add the valueset-system extension | Export a value set that includes a component from a contained FSH code system and add the valueset-system extension | |
-| should log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong | Log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong | |
-| should log a message and not change the URL when trying to assign an instance to a URL and the instance is not the correct type | Log a message and not change the URL when trying to assign an instance to a URL and the instance is not the correct type | |
+| should allow a profile to contain a defined FHIR resource | Allow a profile to contain a defined FHIR resource |  ✅ |
+| should allow a profile to contain a FSH resource | Allow a profile to contain a FSH resource |  ✅ |
+| should allow a profile to contain a FSH resource with a numeric id | Allow a profile to contain a FSH resource with a numeric id |  ✅ |
+| should allow a profile to contain a FSH resource with an id that resembles a boolean | Allow a profile to contain a FSH resource with an id that resembles a boolean |  ✅ |
+| should allow a profile to contain multiple FSH resources | Allow a profile to contain multiple FSH resources |  ✅ |
+| should allow a profile to contain a resource and to apply caret rules within the contained resource | Allow a profile to contain a resource and to apply caret rules within the contained resource |  ✅ |
+| should log an error when a deferred rule assigns something of the wrong type | Log an error when a deferred rule assigns something of the wrong type |  ✅ |
+| should not get confused when there are contained resources of different types | Not get confused when there are contained resources of different types |  ✅ |
+| should allow a profile to contain a profiled resource and to apply a caret rule within the contained resource | Allow a profile to contain a profiled resource and to apply a caret rule within the contained resource |  ✅ |
+| should allow a profile to bind an element to a contained ValueSet using a relative reference | Allow a profile to bind an element to a contained ValueSet using a relative reference |  ✅ |
+| should allow a profile to bind an element to a contained inline instance of ValueSet using a relative reference | Allow a profile to bind an element to a contained inline instance of ValueSet using a relative reference |  ✅ |
+| should allow a profile to bind an element to a contained inline instance of ValueSet with name set by a rule, using a relative reference | Allow a profile to bind an element to a contained inline instance of ValueSet with name set by a rule, using a relative reference |  ✅ |
+| should allow a profile to bind an element to a contained inline instance of ValueSet with url set by a rule, using a relative reference | Allow a profile to bind an element to a contained inline instance of ValueSet with url set by a rule, using a relative reference |  ✅ |
+| should allow a profile to bind an element to a contained definitional instance of ValueSet using a relative reference | Allow a profile to bind an element to a contained definitional instance of ValueSet using a relative reference |  ✅ |
+| should allow a profile to bind an element by name to a contained definitional instance of ValueSet with a name set by a rule using a relative reference | Allow a profile to bind an element by name to a contained definitional instance of ValueSet with a name set by a rule using a relative reference |  ✅ |
+| should allow a profile to bind an element to a contained ValueSet using a relative reference when the rule includes a version | Allow a profile to bind an element to a contained ValueSet using a relative reference when the rule includes a version |  ✅ |
+| should log an error when attempting to bind an element to an inline ValueSet instance that is not contained in the profile | Log an error when attempting to bind an element to an inline ValueSet instance that is not contained in the profile |  ✅ |
+| should log an error when a profile tries to contain an instance that is not a resource | Log an error when a profile tries to contain an instance that is not a resource |  ✅ |
+| should log an error when a profile tries to contain a resource that does not exist | Log an error when a profile tries to contain a resource that does not exist |  ✅ |
+| should let a profile assign an Inline instance that is not a resource | Let a profile assign an Inline instance that is not a resource |  ✅ |
+| should let a profile assign and modify an Inline instance that is not a resource | Let a profile assign and modify an Inline instance that is not a resource |  ✅ |
+| should export a value set that includes a component from a contained FSH code system and add the valueset-system extension | Export a value set that includes a component from a contained FSH code system and add the valueset-system extension |  ✅ |
+| should log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong | Log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong |  ✅ |
+| should log a message and not change the URL when trying to assign an instance to a URL and the instance is not the correct type | Log a message and not change the URL when trying to assign an instance to a URL and the instance is not the correct type |  ✅ |
 
 ---
 
@@ -161,26 +170,26 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should output empty results with empty input | Output empty results with empty input | |
-| should export a single instance | Export a single instance | |
-| should add source info for the exported instance to the package | Add source info for the exported instance to the package | |
-| should export multiple instances | Export multiple instances | |
-| should still export instance if one fails | Still export instance if one fails | |
-| should log a message with source information when the parent is not found | Log a message with source information when the parent is not found | |
-| should log a message with source information when the instanceOf is an abstract specialization | Log a message with source information when the instanceOf is an abstract specialization | |
+| should output empty results with empty input | Output empty results with empty input |  ✅ |
+| should export a single instance | Export a single instance |  ✅ |
+| should add source info for the exported instance to the package | Add source info for the exported instance to the package |  ✅ |
+| should export multiple instances | Export multiple instances |  ✅ |
+| should still export instance if one fails | Still export instance if one fails |  ✅ |
+| should log a message with source information when the parent is not found | Log a message with source information when the parent is not found |  ✅ |
+| should log a message with source information when the instanceOf is an abstract specialization | Log a message with source information when the instanceOf is an abstract specialization |  ✅ |
 | should log a message with source information when the instanceOf is a profile whose nearest specialization is abstract | Log a message with source information when the instanceOf is a profile whose nearest specialization is abstract | |
-| should warn when title and/or description is an empty string | Warn when title and/or description is an empty string | |
-| should export instances with InstanceOf FSHy profile | Export instances with InstanceOf FSHy profile | |
-| should assign values on an instance | Assign values on an instance | |
+| should warn when title and/or description is an empty string | Warn when title and/or description is an empty string |  ✅ |
+| should export instances with InstanceOf FSHy profile | Export instances with InstanceOf FSHy profile |  ✅ |
+| should assign values on an instance | Assign values on an instance |  ✅ |
 
 #### `#exportInstance`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should set resourceType to the base resource type we are making an instance of | Set resourceType to the base resource type we are making an instance of | |
-| should set resourceType to the base resource type for the profile we are making an instance of | Set resourceType to the base resource type for the profile we are making an instance of | |
-| should set meta.profile to the defining profile URL we are making an instance of | Set meta.profile to the defining profile URL we are making an instance of | |
-| should not set meta.profile when we are making an instance of a base resource | Not set meta.profile when we are making an instance of a base resource | |
+| should set resourceType to the base resource type we are making an instance of | Set resourceType to the base resource type we are making an instance of |  ✅ |
+| should set resourceType to the base resource type for the profile we are making an instance of | Set resourceType to the base resource type for the profile we are making an instance of |  ✅ |
+| should set meta.profile to the defining profile URL we are making an instance of | Set meta.profile to the defining profile URL we are making an instance of |  ✅ |
+| should not set meta.profile when we are making an instance of a base resource | Not set meta.profile when we are making an instance of a base resource |  ✅ |
 | should set meta.profile with the InstanceOf profile before checking for required elements | Set meta.profile with the InstanceOf profile before checking for required elements | |
 | should only set meta.profile with one profile when profile is set on the InstanceOf profile | Only set meta.profile with one profile when profile is set on the InstanceOf profile | |
 | should add the InstanceOf profile as the first meta.profile if it is not added by any rules | Add the InstanceOf profile as the first meta.profile if it is not added by any rules | |
@@ -192,7 +201,7 @@ and to guide decisions about which tests to tackle next.
 | should set meta.profile on no instances when setMetaProfile is never | Set meta.profile on no instances when setMetaProfile is never | |
 | should set meta.profile on inline instances when setMetaProfile is inline-only | Set meta.profile on inline instances when setMetaProfile is inline-only | |
 | should set meta.profile on non-inline instances when setMetaProfile is standalone-only | Set meta.profile on non-inline instances when setMetaProfile is standalone-only | |
-| should automatically set the URL property on definition instances | Automatically set the URL property on definition instances | |
+| should automatically set the URL property on definition instances | Automatically set the URL property on definition instances |  ✅ |
 | should not automatically set the URL property on definition instances if the URL is set explicitly | Not automatically set the URL property on definition instances if the URL is set explicitly | |
 | should not automatically set the URL property on definition instances if the profile does not support URL setting | Not automatically set the URL property on definition instances if the profile does not support URL setting | |
 | should set an extension on meta.profile when no rules set values on meta.profile | Set an extension on meta.profile when no rules set values on meta.profile | |
@@ -201,14 +210,14 @@ and to guide decisions about which tests to tackle next.
 | should set a non-InstanceOf url and an extension on meta.profile at the same non-zero index | Set a non-InstanceOf url and an extension on meta.profile at the same non-zero index | |
 | should set InstanceOf and non-InstanceOf urls in meta.profile alongside extensions | Set InstanceOf and non-InstanceOf urls in meta.profile alongside extensions | |
 | should keep meta.profile and child elements of meta.profile aligned when removing duplicates from meta.profile | Keep meta.profile and child elements of meta.profile aligned when removing duplicates from meta.profile | |
-| should set id to instance name by default | Set id to instance name by default | |
-| should overwrite id if it is set by a rule | Overwrite id if it is set by a rule | |
-| should log a message when the instance has an invalid id | Log a message when the instance has an invalid id | |
-| should sanitize the id and log a message when a valid name is used to make an invalid id | Sanitize the id and log a message when a valid name is used to make an invalid id | |
-| should log a message when a long valid name is used to make an invalid id | Log a message when a long valid name is used to make an invalid id | |
-| should log an error when multiple instances of the same type have the same id | Log an error when multiple instances of the same type have the same id | |
-| should not log an error when multiple instances of different types have the same id | Not log an error when multiple instances of different types have the same id | |
-| should not log an error when multiple inline instances of the same type have the same id | Not log an error when multiple inline instances of the same type have the same id | |
+| should set id to instance name by default | Set id to instance name by default |  ✅ |
+| should overwrite id if it is set by a rule | Overwrite id if it is set by a rule |  ✅ |
+| should log a message when the instance has an invalid id | Log a message when the instance has an invalid id |  ✅ |
+| should sanitize the id and log a message when a valid name is used to make an invalid id | Sanitize the id and log a message when a valid name is used to make an invalid id |  ✅ |
+| should log a message when a long valid name is used to make an invalid id | Log a message when a long valid name is used to make an invalid id |  ✅ |
+| should log an error when multiple instances of the same type have the same id | Log an error when multiple instances of the same type have the same id |  ✅ |
+| should not log an error when multiple instances of different types have the same id | Not log an error when multiple instances of different types have the same id |  ✅ |
+| should not log an error when multiple inline instances of the same type have the same id | Not log an error when multiple inline instances of the same type have the same id |  ✅ |
 | should not log an error when an inline instance and a non-inline instance of the same type have the same id | Not log an error when an inline instance and a non-inline instance of the same type have the same id | |
 | should set id on all instances when setId is always | Set id on all instances when setId is always | |
 | should set id on all instances when setId is not set | Set id on all instances when setId is not set | |
@@ -259,13 +268,13 @@ and to guide decisions about which tests to tackle next.
 | should only create optional slices that are defined even if sibling in array has more slices than other siblings | Only create optional slices that are defined even if sibling in array has more slices than other siblings | |
 | should do the above but with a required slice from the profile | Do the above but with a required slice from the profile | |
 | should output no warnings when assigning a value[x] choice type on an extension element | Output no warnings when assigning a value[x] choice type on an extension element | |
-| should output an error when a choice element has values assigned to more than one choice type | Output an error when a choice element has values assigned to more than one choice type | |
+| should output an error when a choice element has values assigned to more than one choice type | Output an error when a choice element has values assigned to more than one choice type |  ✅ |
 | should output an error when a choice element has values assigned to more than one choice type, some of which are a complex type | Output an error when a choice element has values assigned to more than one choice type, some of which are a complex type | |
 | should not output an error when a multiple-cardinality choice element has different types at different indices | Not output an error when a multiple-cardinality choice element has different types at different indices | |
 | should output an error when a choice element within another element has values assigned to more than one choice type | Output an error when a choice element within another element has values assigned to more than one choice type | |
 | should output an error when a choice element that is a descendant of a primitive has values assigned to more than one type | Output an error when a choice element that is a descendant of a primitive has values assigned to more than one type | |
 | should assign cardinality 1..n elements that are assigned by array pattern[x] from a parent on the SD | Assign cardinality 1..n elements that are assigned by array pattern[x] from a parent on the SD | |
-| should assign children of primitive values on an instance | Assign children of primitive values on an instance | |
+| should assign children of primitive values on an instance | Assign children of primitive values on an instance |  ✅ |
 | should assign primitive values and their children on an instance | Assign primitive values and their children on an instance | |
 | should assign children of primitive value arrays on an instance | Assign children of primitive value arrays on an instance | |
 | should assign extensions and values on out-of-order elements on a primitive array | Assign extensions and values on out-of-order elements on a primitive array | |
@@ -340,7 +349,7 @@ and to guide decisions about which tests to tackle next.
 | should assign a Canonical as a full url (not #id) when referring to a resource that is not directly on the contained array | Assign a Canonical as a full url (not #id) when referring to a resource that is not directly on the contained array | |
 | should log an error when an invalid canonical is assigned | Log an error when an invalid canonical is assigned | |
 | should log an error when an already exported invalid canonical is assigned | Log an error when an already exported invalid canonical is assigned | |
-| should assign a code to a top level element while replacing the local code system name with its url | Assign a code to a top level element while replacing the local code system name with its url | |
+| should assign a code to a top level element while replacing the local code system name with its url | Assign a code to a top level element while replacing the local code system name with its url |  ✅ |
 | should assign a code with a version to a top level element while replacing the local code system name with its url and use the specified version | Assign a code with a version to a top level element while replacing the local code system name with its url and use the specified version | |
 | should assign a code with a version to a top level element while replacing the code system name with its url when the correct version is found | Assign a code with a version to a top level element while replacing the code system name with its url when the correct version is found | |
 | should assign a code with a version while replacing the code system name with its url regardless of the specified version | Assign a code with a version while replacing the code system name with its url regardless of the specified version | |
@@ -534,8 +543,8 @@ and to guide decisions about which tests to tackle next.
 | should log a warning and assign an example instance within a definition instance | Log a warning and assign an example instance within a definition instance | |
 | should log a warning and assign an example instance with a numeric id within a definition instance | Log a warning and assign an example instance with a numeric id within a definition instance | |
 | should assign an inline instance with an id that resembles a boolean | Assign an inline instance with an id that resembles a boolean | |
-| should log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong | Log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong | |
-| should log a message when trying to assign a value that is boolean and refers to an Instance, but both types are wrong | Log a message when trying to assign a value that is boolean and refers to an Instance, but both types are wrong | |
+| should log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong | Log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong |  ✅ |
+| should log a message when trying to assign a value that is boolean and refers to an Instance, but both types are wrong | Log a message when trying to assign a value that is boolean and refers to an Instance, but both types are wrong |  ✅ |
 | should assign an instance that matches existing values | Assign an instance that matches existing values | |
 | should log an error when assigning an instance that would overwrite an existing value | Log an error when assigning an instance that would overwrite an existing value | |
 | should log an error when assigning an instance with a numeric id that would overwrite an existing value | Log an error when assigning an instance with a numeric id that would overwrite an existing value | |
@@ -547,9 +556,9 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should still apply valid rules if one fails | Still apply valid rules if one fails | |
-| should log a message when the path for a assigned value is not found | Log a message when the path for a assigned value is not found | |
-| should log a warning when exporting an instance of a custom resource | Log a warning when exporting an instance of a custom resource | |
+| should still apply valid rules if one fails | Still apply valid rules if one fails |  ✅ |
+| should log a message when the path for a assigned value is not found | Log a message when the path for a assigned value is not found |  ✅ |
+| should log a warning when exporting an instance of a custom resource | Log a warning when exporting an instance of a custom resource |  ✅ |
 | should log a warning when exporting multiple instances of custom resources | Log a warning when exporting multiple instances of custom resources | |
 | should NOT log a warning when exporting an instance of a logical model | NOT log a warning when exporting an instance of a logical model | |
 
@@ -557,11 +566,11 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply rules from an insert rule | Apply rules from an insert rule | |
-| should assign elements from a rule set with soft indexing used within a path | Assign elements from a rule set with soft indexing used within a path | |
-| should log an error and not apply rules from an invalid insert rule | Log an error and not apply rules from an invalid insert rule | |
-| should populate title and description when specified for instances with #definition | Populate title and description when specified for instances with #definition | |
-| should not populate title and description when specified for instances that aren't #definition | Not populate title and description when specified for instances that aren't #definition | |
+| should apply rules from an insert rule | Apply rules from an insert rule |  ✅ |
+| should assign elements from a rule set with soft indexing used within a path | Assign elements from a rule set with soft indexing used within a path |  ✅ |
+| should log an error and not apply rules from an invalid insert rule | Log an error and not apply rules from an invalid insert rule |  ✅ |
+| should populate title and description when specified for instances with #definition | Populate title and description when specified for instances with #definition |  ✅ |
+| should not populate title and description when specified for instances that aren't #definition | Not populate title and description when specified for instances that aren't #definition |  ✅ |
 | should not populate title and description for instances that don't have title or description (like Patient) | Not populate title and description for instances that don't have title or description (like Patient) | |
 
 #### `#fishForMetadata`
@@ -599,42 +608,42 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should log an error when the mapping source does not exist | Log an error when the mapping source does not exist | |
+| should log an error when the mapping source does not exist | Log an error when the mapping source does not exist |  ✅ |
 
 #### `#setMetadata`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should export no mappings with empty input | Export no mappings with empty input | |
-| should export the simplest possible mapping | Export the simplest possible mapping | |
-| should export a mapping when one does not yet exist | Export a mapping when one does not yet exist | |
-| should export a mapping whose source is based on a structure definition without any existing mappings | Export a mapping whose source is based on a structure definition without any existing mappings | |
-| should export a mapping with optional metadata | Export a mapping with optional metadata | |
-| should log an error and not apply a mapping with an invalid Id | Log an error and not apply a mapping with an invalid Id | |
-| should log an error when multiple mappings have the same source and the same id | Log an error when multiple mappings have the same source and the same id | |
-| should not log an error when multiple mappings have different sources and the same id | Not log an error when multiple mappings have different sources and the same id | |
-| should not log an error and not add metadata but add rules for a simple Mapping that is inherited from the parent | Not log an error and not add metadata but add rules for a simple Mapping that is inherited from the parent | |
-| should not log an error and not add metadata but add rules for a Mapping that is inherited from the parent with the same metadata | Not log an error and not add metadata but add rules for a Mapping that is inherited from the parent with the same metadata | |
-| should not log an error, should update metadata, and should add rules for a Mapping that is inherited from the parent and has additional metadata not on the parent | Not log an error, should update metadata, and should add rules for a Mapping that is inherited from the parent and has additional metadata not on the parent | |
-| should log an error and not add mapping or rules when a Mapping has the same identity as one on the parent but name or uri differs | Log an error and not add mapping or rules when a Mapping has the same identity as one on the parent but name or uri differs | |
+| should export no mappings with empty input | Export no mappings with empty input |  ✅ |
+| should export the simplest possible mapping | Export the simplest possible mapping |  ✅ |
+| should export a mapping when one does not yet exist | Export a mapping when one does not yet exist |  ✅ |
+| should export a mapping whose source is based on a structure definition without any existing mappings | Export a mapping whose source is based on a structure definition without any existing mappings |  ✅ |
+| should export a mapping with optional metadata | Export a mapping with optional metadata |  ✅ |
+| should log an error and not apply a mapping with an invalid Id | Log an error and not apply a mapping with an invalid Id |  ✅ |
+| should log an error when multiple mappings have the same source and the same id | Log an error when multiple mappings have the same source and the same id |  ✅ |
+| should not log an error when multiple mappings have different sources and the same id | Not log an error when multiple mappings have different sources and the same id |  ✅ |
+| should not log an error and not add metadata but add rules for a simple Mapping that is inherited from the parent | Not log an error and not add metadata but add rules for a simple Mapping that is inherited from the parent |  ✅ |
+| should not log an error and not add metadata but add rules for a Mapping that is inherited from the parent with the same metadata | Not log an error and not add metadata but add rules for a Mapping that is inherited from the parent with the same metadata |  ✅ |
+| should not log an error, should update metadata, and should add rules for a Mapping that is inherited from the parent and has additional metadata not on the parent | Not log an error, should update metadata, and should add rules for a Mapping that is inherited from the parent and has additional metadata not on the parent |  ✅ |
+| should log an error and not add mapping or rules when a Mapping has the same identity as one on the parent but name or uri differs | Log an error and not add mapping or rules when a Mapping has the same identity as one on the parent but name or uri differs |  ✅ |
 
 #### `#setMappingRules`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a valid mapping rule | Apply a valid mapping rule | |
-| should apply a valid mapping rule with no path | Apply a valid mapping rule with no path | |
-| should apply a valid mapping rule with a Logical source | Apply a valid mapping rule with a Logical source | |
-| should apply a valid mapping rule with a Resource source | Apply a valid mapping rule with a Resource source | |
-| should log an error and skip rules with paths that cannot be found | Log an error and skip rules with paths that cannot be found | |
-| should log an error and skip rules with invalid mappings | Log an error and skip rules with invalid mappings | |
+| should apply a valid mapping rule | Apply a valid mapping rule |  ✅ |
+| should apply a valid mapping rule with no path | Apply a valid mapping rule with no path |  ✅ |
+| should apply a valid mapping rule with a Logical source | Apply a valid mapping rule with a Logical source |  ✅ |
+| should apply a valid mapping rule with a Resource source | Apply a valid mapping rule with a Resource source |  ✅ |
+| should log an error and skip rules with paths that cannot be found | Log an error and skip rules with paths that cannot be found |  ✅ |
+| should log an error and skip rules with invalid mappings | Log an error and skip rules with invalid mappings |  ✅ |
 
 #### `#insertRules`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply rules from an insert rule | Apply rules from an insert rule | |
-| should log an error and not apply rules from an invalid insert rule | Log an error and not apply rules from an invalid insert rule | |
+| should apply rules from an insert rule | Apply rules from an insert rule |  ✅ |
+| should log an error and not apply rules from an invalid insert rule | Log an error and not apply rules from an invalid insert rule |  ✅ |
 
 ---
 
@@ -724,60 +733,60 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should output empty results with empty input | Output empty results with empty input | |
-| should export a single extension | Export a single extension | |
-| should add source info for the exported extension to the package | Add source info for the exported extension to the package | |
-| should export multiple extensions | Export multiple extensions | |
-| should still export extensions if one fails | Still export extensions if one fails | |
-| should log a message with source information when the parent is not found | Log a message with source information when the parent is not found | |
-| should log a message with source information when the parent is not an extension | Log a message with source information when the parent is not an extension | |
-| should export extensions with FSHy parents | Export extensions with FSHy parents | |
-| should export extensions with the same FSHy parents | Export extensions with the same FSHy parents | |
-| should export extensions with deep FSHy parents | Export extensions with deep FSHy parents | |
-| should export extensions with out-of-order FSHy parents | Export extensions with out-of-order FSHy parents | |
-| should not log an error when an inline extension is used | Not log an error when an inline extension is used | |
-| should export extensions with extension instance parents | Export extensions with extension instance parents | |
+| should output empty results with empty input | Output empty results with empty input |  ✅ |
+| should export a single extension | Export a single extension |  ✅ |
+| should add source info for the exported extension to the package | Add source info for the exported extension to the package |  ✅ |
+| should export multiple extensions | Export multiple extensions |  ✅ |
+| should still export extensions if one fails | Still export extensions if one fails |  ✅ |
+| should log a message with source information when the parent is not found | Log a message with source information when the parent is not found |  ✅ |
+| should log a message with source information when the parent is not an extension | Log a message with source information when the parent is not an extension |  ✅ |
+| should export extensions with FSHy parents | Export extensions with FSHy parents |  ✅ |
+| should export extensions with the same FSHy parents | Export extensions with the same FSHy parents |  ✅ |
+| should export extensions with deep FSHy parents | Export extensions with deep FSHy parents |  ✅ |
+| should export extensions with out-of-order FSHy parents | Export extensions with out-of-order FSHy parents |  ✅ |
+| should not log an error when an inline extension is used | Not log an error when an inline extension is used |  ✅ |
+| should export extensions with extension instance parents | Export extensions with extension instance parents |  ✅ |
 
 #### `#context`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should set extension context by a quoted string | Set extension context by a quoted string | |
-| should set extension context for an extension by url | Set extension context for an extension by url | |
-| should set extension context for an extension by name | Set extension context for an extension by name | |
-| should set extension context for an extension by id | Set extension context for an extension by id | |
-| should set extension context for a base resource root element by id/name | Set extension context for a base resource root element by id/name | |
-| should set extension context for a base resource root element by url | Set extension context for a base resource root element by url | |
-| should set extension context for a base resource by id with a FSH path | Set extension context for a base resource by id with a FSH path | |
-| should set extension context to itself by url | Set extension context to itself by url | |
-| should set extension context to itself by name | Set extension context to itself by name | |
-| should set extension context to itself by id | Set extension context to itself by id | |
-| should set extension context for a base resource by url with a FSH path | Set extension context for a base resource by url with a FSH path | |
-| should set extension context for a base resource (with no derivation) root element by id/name | Set extension context for a base resource (with no derivation) root element by id/name | |
-| should set extension context for a base resource (with no derivation) root element by url | Set extension context for a base resource (with no derivation) root element by url | |
-| should set extension context for a base resource (with no derivation) by id with a FSH path | Set extension context for a base resource (with no derivation) by id with a FSH path | |
-| should set extension context for a base resource (with no derivation) by url with a FSH path | Set extension context for a base resource (with no derivation) by url with a FSH path | |
-| should set extension context with type "extension" when the path is part of a complex extension by name | Set extension context with type "extension" when the path is part of a complex extension by name | |
-| should set extension context with type "extension" when the path is part of a complex extension by url | Set extension context with type "extension" when the path is part of a complex extension by url | |
-| should set extension context with type "extension" when the path is its own sub-extension by name | Set extension context with type "extension" when the path is its own sub-extension by name | |
-| should set extension context with type "extension" when the path is is its own sub-extension by url | Set extension context with type "extension" when the path is is its own sub-extension by url | |
-| should set extension context with type "extension" when the path is a deep part of a complex extension by name | Set extension context with type "extension" when the path is a deep part of a complex extension by name | |
-| should set extension context with type "element" when the path is a deep part of a complex extension, but contains non-extension elements | Set extension context with type "element" when the path is a deep part of a complex extension, but contains non-extension elements | |
-| should set extension context when an alias is used for a resource URL | Set extension context when an alias is used for a resource URL | |
-| should log an error when no extension or resource can be found with the provided value | Log an error when no extension or resource can be found with the provided value | |
+| should set extension context by a quoted string | Set extension context by a quoted string |  ✅ |
+| should set extension context for an extension by url | Set extension context for an extension by url |  ✅ |
+| should set extension context for an extension by name | Set extension context for an extension by name |  ✅ |
+| should set extension context for an extension by id | Set extension context for an extension by id |  ✅ |
+| should set extension context for a base resource root element by id/name | Set extension context for a base resource root element by id/name |  ✅ |
+| should set extension context for a base resource root element by url | Set extension context for a base resource root element by url |  ✅ |
+| should set extension context for a base resource by id with a FSH path | Set extension context for a base resource by id with a FSH path |  ✅ |
+| should set extension context to itself by url | Set extension context to itself by url |  ✅ |
+| should set extension context to itself by name | Set extension context to itself by name |  ✅ |
+| should set extension context to itself by id | Set extension context to itself by id |  ✅ |
+| should set extension context for a base resource by url with a FSH path | Set extension context for a base resource by url with a FSH path |  ✅ |
+| should set extension context for a base resource (with no derivation) root element by id/name | Set extension context for a base resource (with no derivation) root element by id/name |  ✅ |
+| should set extension context for a base resource (with no derivation) root element by url | Set extension context for a base resource (with no derivation) root element by url |  ✅ |
+| should set extension context for a base resource (with no derivation) by id with a FSH path | Set extension context for a base resource (with no derivation) by id with a FSH path |  ✅ |
+| should set extension context for a base resource (with no derivation) by url with a FSH path | Set extension context for a base resource (with no derivation) by url with a FSH path |  ✅ |
+| should set extension context with type "extension" when the path is part of a complex extension by name | Set extension context with type "extension" when the path is part of a complex extension by name |  ✅ |
+| should set extension context with type "extension" when the path is part of a complex extension by url | Set extension context with type "extension" when the path is part of a complex extension by url |  ✅ |
+| should set extension context with type "extension" when the path is its own sub-extension by name | Set extension context with type "extension" when the path is its own sub-extension by name |  ✅ |
+| should set extension context with type "extension" when the path is is its own sub-extension by url | Set extension context with type "extension" when the path is is its own sub-extension by url |  ✅ |
+| should set extension context with type "extension" when the path is a deep part of a complex extension by name | Set extension context with type "extension" when the path is a deep part of a complex extension by name |  ✅ |
+| should set extension context with type "element" when the path is a deep part of a complex extension, but contains non-extension elements | Set extension context with type "element" when the path is a deep part of a complex extension, but contains non-extension elements |  ✅ |
+| should set extension context when an alias is used for a resource URL | Set extension context when an alias is used for a resource URL |  ✅ |
+| should log an error when no extension or resource can be found with the provided value | Log an error when no extension or resource can be found with the provided value |  ✅ |
 
 #### `ExtensionExporter > #context > #withCustomResource`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should set extension context for a custom resource root element by id | Set extension context for a custom resource root element by id | |
-| should set extension context for a custom resource root element by name | Set extension context for a custom resource root element by name | |
-| should set extension context for a custom resource root element by url | Set extension context for a custom resource root element by url | |
-| should set extension context for a custom resource by id with a FSH path | Set extension context for a custom resource by id with a FSH path | |
-| should set extension context for a custom resource by name with a FSH path | Set extension context for a custom resource by name with a FSH path | |
-| should set extension context for a custom resource by url with a FSH path | Set extension context for a custom resource by url with a FSH path | |
-| should set extension context for a custom resource by url when the url contains a # character | Set extension context for a custom resource by url when the url contains a # character | |
-| should log an error when a custom resource element is specified with an invalid FSH path | Log an error when a custom resource element is specified with an invalid FSH path | |
+| should set extension context for a custom resource root element by id | Set extension context for a custom resource root element by id |  ✅ |
+| should set extension context for a custom resource root element by name | Set extension context for a custom resource root element by name |  ✅ |
+| should set extension context for a custom resource root element by url | Set extension context for a custom resource root element by url |  ✅ |
+| should set extension context for a custom resource by id with a FSH path | Set extension context for a custom resource by id with a FSH path |  ✅ |
+| should set extension context for a custom resource by name with a FSH path | Set extension context for a custom resource by name with a FSH path |  ✅ |
+| should set extension context for a custom resource by url with a FSH path | Set extension context for a custom resource by url with a FSH path |  ✅ |
+| should set extension context for a custom resource by url when the url contains a # character | Set extension context for a custom resource by url when the url contains a # character |  ✅ |
+| should log an error when a custom resource element is specified with an invalid FSH path | Log an error when a custom resource element is specified with an invalid FSH path |  ✅ |
 
 ---
 
@@ -789,53 +798,53 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should output empty results with empty input | Output empty results with empty input | |
-| should export a single logical model | Export a single logical model | |
-| should add source info for the exported logical model to the package | Add source info for the exported logical model to the package | |
-| should export multiple logical models | Export multiple logical models | |
-| should still export logical models if one fails | Still export logical models if one fails | |
-| should export a single logical model with Base parent when parent not defined | Export a single logical model with Base parent when parent not defined | |
-| should export a single logical model with Base parent by id | Export a single logical model with Base parent by id | |
-| should export a single logical model with Base parent by url | Export a single logical model with Base parent by url | |
-| should export a single logical model with Element parent by id | Export a single logical model with Element parent by id | |
-| should export a single logical model with Element parent by url | Export a single logical model with Element parent by url | |
-| should export a single logical model with another logical model parent by id | Export a single logical model with another logical model parent by id | |
-| should export a single logical model with another logical model parent by url | Export a single logical model with another logical model parent by url | |
-| should export a single logical model with a complex-type parent by id | Export a single logical model with a complex-type parent by id | |
-| should export a single logical model with a complex-type parent by url | Export a single logical model with a complex-type parent by url | |
-| should export a single logical model with a resource parent by id | Export a single logical model with a resource parent by id | |
-| should export a single logical model with a resource parent by url | Export a single logical model with a resource parent by url | |
-| should log an error with source information when the parent is invalid | Log an error with source information when the parent is invalid | |
-| should log an error with source information when the parent is not found | Log an error with source information when the parent is not found | |
-| should export logical models with FSHy parents | Export logical models with FSHy parents | |
-| should export logical models with the same FSHy parents | Export logical models with the same FSHy parents | |
-| should export logical models with deep FSHy parents | Export logical models with deep FSHy parents | |
-| should export logical models with out-of-order FSHy parents | Export logical models with out-of-order FSHy parents | |
-| should include added element having logical model as datatype when parent is Base without regard to definition order - order Foo then Bar | Include added element having logical model as datatype when parent is Base without regard to definition order - order Foo then Bar | |
-| should include added element having logical model as datatype when parent is Base without regard to definition order - order Bar then Foo | Include added element having logical model as datatype when parent is Base without regard to definition order - order Bar then Foo | |
-| should include added element having logical model as datatype when parent is Element | Include added element having logical model as datatype when parent is Element | |
-| should include added element having logical model as datatype when parent is another logical model | Include added element having logical model as datatype when parent is another logical model | |
-| should not re-add elements that are defined on the parent logical model | Not re-add elements that are defined on the parent logical model | |
-| should not re-add elements that are defined on the parent logical model even when the parent type is overwritten with a caret value rule | Not re-add elements that are defined on the parent logical model even when the parent type is overwritten with a caret value rule | |
-| should have correct base and types for each nested logical model | Have correct base and types for each nested logical model | |
-| should log an error when an inline extension is used | Log an error when an inline extension is used | |
-| should allow constraints on newly added elements and sub-elements | Allow constraints on newly added elements and sub-elements | |
-| should allow constraints on root elements | Allow constraints on root elements | |
-| should allow constraints on inherited elements | Allow constraints on inherited elements | |
-| should add new elements after inherited elements | Add new elements after inherited elements | |
-| should log an error when slicing an inherited element | Log an error when slicing an inherited element | |
-| should export a logical model with characteristics and warn that they are not verified | Export a logical model with characteristics and warn that they are not verified | |
-| should create Logical root element with short equal to title if short not available AND definition equal to description if definition not available | Create Logical root element with short equal to title if short not available AND definition equal to description if definition not available | |
-| should create Logical root element with short equal to name if short and title not available AND definition equal to name if description and definition not available | Create Logical root element with short equal to name if short and title not available AND definition equal to name if description and definition not available | |
-| should create Logical root element with short equal to title if short not available AND definition equal to short if description and definition not available | Create Logical root element with short equal to title if short not available AND definition equal to short if description and definition not available | |
-| should create Logical root element with short equal short caret rule AND definition equal to definition caret rule | Create Logical root element with short equal short caret rule AND definition equal to definition caret rule | |
+| should output empty results with empty input | Output empty results with empty input |  ✅ |
+| should export a single logical model | Export a single logical model |  ✅ |
+| should add source info for the exported logical model to the package | Add source info for the exported logical model to the package |  ✅ |
+| should export multiple logical models | Export multiple logical models |  ✅ |
+| should still export logical models if one fails | Still export logical models if one fails |  ✅ |
+| should export a single logical model with Base parent when parent not defined | Export a single logical model with Base parent when parent not defined |  ✅ |
+| should export a single logical model with Base parent by id | Export a single logical model with Base parent by id |  ✅ |
+| should export a single logical model with Base parent by url | Export a single logical model with Base parent by url |  ✅ |
+| should export a single logical model with Element parent by id | Export a single logical model with Element parent by id |  ✅ |
+| should export a single logical model with Element parent by url | Export a single logical model with Element parent by url |  ✅ |
+| should export a single logical model with another logical model parent by id | Export a single logical model with another logical model parent by id |  ✅ |
+| should export a single logical model with another logical model parent by url | Export a single logical model with another logical model parent by url |  ✅ |
+| should export a single logical model with a complex-type parent by id | Export a single logical model with a complex-type parent by id |  ✅ |
+| should export a single logical model with a complex-type parent by url | Export a single logical model with a complex-type parent by url |  ✅ |
+| should export a single logical model with a resource parent by id | Export a single logical model with a resource parent by id |  ✅ |
+| should export a single logical model with a resource parent by url | Export a single logical model with a resource parent by url |  ✅ |
+| should log an error with source information when the parent is invalid | Log an error with source information when the parent is invalid |  ✅ |
+| should log an error with source information when the parent is not found | Log an error with source information when the parent is not found |  ✅ |
+| should export logical models with FSHy parents | Export logical models with FSHy parents |  ✅ |
+| should export logical models with the same FSHy parents | Export logical models with the same FSHy parents |  ✅ |
+| should export logical models with deep FSHy parents | Export logical models with deep FSHy parents |  ✅ |
+| should export logical models with out-of-order FSHy parents | Export logical models with out-of-order FSHy parents |  ✅ |
+| should include added element having logical model as datatype when parent is Base without regard to definition order - order Foo then Bar | Include added element having logical model as datatype when parent is Base without regard to definition order - order Foo then Bar |  ✅ |
+| should include added element having logical model as datatype when parent is Base without regard to definition order - order Bar then Foo | Include added element having logical model as datatype when parent is Base without regard to definition order - order Bar then Foo |  ✅ |
+| should include added element having logical model as datatype when parent is Element | Include added element having logical model as datatype when parent is Element |  ✅ |
+| should include added element having logical model as datatype when parent is another logical model | Include added element having logical model as datatype when parent is another logical model |  ✅ |
+| should not re-add elements that are defined on the parent logical model | Not re-add elements that are defined on the parent logical model |  ✅ |
+| should not re-add elements that are defined on the parent logical model even when the parent type is overwritten with a caret value rule | Not re-add elements that are defined on the parent logical model even when the parent type is overwritten with a caret value rule |  ✅ |
+| should have correct base and types for each nested logical model | Have correct base and types for each nested logical model |  ✅ |
+| should log an error when an inline extension is used | Log an error when an inline extension is used |  ✅ |
+| should allow constraints on newly added elements and sub-elements | Allow constraints on newly added elements and sub-elements |  ✅ |
+| should allow constraints on root elements | Allow constraints on root elements |  ✅ |
+| should allow constraints on inherited elements | Allow constraints on inherited elements |  ✅ |
+| should add new elements after inherited elements | Add new elements after inherited elements |  ✅ |
+| should log an error when slicing an inherited element | Log an error when slicing an inherited element |  ✅ |
+| should export a logical model with characteristics and warn that they are not verified | Export a logical model with characteristics and warn that they are not verified |  ✅ |
+| should create Logical root element with short equal to title if short not available AND definition equal to description if definition not available | Create Logical root element with short equal to title if short not available AND definition equal to description if definition not available |  ✅ |
+| should create Logical root element with short equal to name if short and title not available AND definition equal to name if description and definition not available | Create Logical root element with short equal to name if short and title not available AND definition equal to name if description and definition not available |  ✅ |
+| should create Logical root element with short equal to title if short not available AND definition equal to short if description and definition not available | Create Logical root element with short equal to title if short not available AND definition equal to short if description and definition not available |  ✅ |
+| should create Logical root element with short equal short caret rule AND definition equal to definition caret rule | Create Logical root element with short equal short caret rule AND definition equal to definition caret rule |  ✅ |
 
 #### `#with-type-characteristics-codes`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should export a logical model with characteristics | Export a logical model with characteristics | |
-| should export a logical model with characteristics and warn when a characteristic is not found in the code system | Export a logical model with characteristics and warn when a characteristic is not found in the code system | |
+| should export a logical model with characteristics | Export a logical model with characteristics |  ✅ |
+| should export a logical model with characteristics and warn when a characteristic is not found in the code system | Export a logical model with characteristics and warn when a characteristic is not found in the code system |  ✅ |
 
 ---
 
@@ -847,30 +856,30 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should output empty results with empty input | Output empty results with empty input | |
-| should export a single profile | Export a single profile | |
-| should add source info for the exported profile to the package | Add source info for the exported profile to the package | |
-| should export multiple profiles | Export multiple profiles | |
-| should still export profiles if one fails | Still export profiles if one fails | |
-| should log a error with source information when the parent is not found | Log a error with source information when the parent is not found | |
-| should log a error with source information when the parent is not provided | Log a error with source information when the parent is not provided | |
-| should export profiles with FSHy parents | Export profiles with FSHy parents | |
-| should export profiles with the same FSHy parents | Export profiles with the same FSHy parents | |
-| should export profiles with deep FSHy parents | Export profiles with deep FSHy parents | |
-| should export profiles with out-of-order FSHy parents | Export profiles with out-of-order FSHy parents | |
-| should export a profile with an abstract profile parent | Export a profile with an abstract profile parent | |
-| should export a profile with a logical parent | Export a profile with a logical parent | |
-| should export profiles with deep logical parents | Export profiles with deep logical parents | |
-| should export profiles with profile instance parents | Export profiles with profile instance parents | |
-| should defer adding an instance to a profile as a contained resource | Defer adding an instance to a profile as a contained resource | |
-| should defer adding an instance with a numeric id to a profile as a contained resource | Defer adding an instance with a numeric id to a profile as a contained resource | |
-| should defer adding an instance with an id that resembles a boolean to a profile as a contained resource | Defer adding an instance with an id that resembles a boolean to a profile as a contained resource | |
-| should defer adding a binding to an inline ValueSet resource | Defer adding a binding to an inline ValueSet resource | |
-| should allow a contained resource with a resourceType to be built from several caret rules | Allow a contained resource with a resourceType to be built from several caret rules | |
-| should defer applying a caret rule that would be applied within a contained instance | Defer applying a caret rule that would be applied within a contained instance | |
-| should NOT export a profile of an R5 resource in an R4 project | NOT export a profile of an R5 resource in an R4 project | |
-| should throw a MismatchedBindingTypeError when a code property is bound to a code system | Throw a MismatchedBindingTypeError when a code property is bound to a code system | |
-| should log an error when an inline extension is used | Log an error when an inline extension is used | |
+| should output empty results with empty input | Output empty results with empty input |  ✅ |
+| should export a single profile | Export a single profile |  ✅ |
+| should add source info for the exported profile to the package | Add source info for the exported profile to the package |  ✅ |
+| should export multiple profiles | Export multiple profiles |  ✅ |
+| should still export profiles if one fails | Still export profiles if one fails |  ✅ |
+| should log a error with source information when the parent is not found | Log a error with source information when the parent is not found |  ✅ |
+| should log a error with source information when the parent is not provided | Log a error with source information when the parent is not provided |  ✅ |
+| should export profiles with FSHy parents | Export profiles with FSHy parents |  ✅ |
+| should export profiles with the same FSHy parents | Export profiles with the same FSHy parents |  ✅ |
+| should export profiles with deep FSHy parents | Export profiles with deep FSHy parents |  ✅ |
+| should export profiles with out-of-order FSHy parents | Export profiles with out-of-order FSHy parents |  ✅ |
+| should export a profile with an abstract profile parent | Export a profile with an abstract profile parent |  ✅ |
+| should export a profile with a logical parent | Export a profile with a logical parent |  ✅ |
+| should export profiles with deep logical parents | Export profiles with deep logical parents |  ✅ |
+| should export profiles with profile instance parents | Export profiles with profile instance parents |  ✅ |
+| should defer adding an instance to a profile as a contained resource | Defer adding an instance to a profile as a contained resource |  ✅ |
+| should defer adding an instance with a numeric id to a profile as a contained resource | Defer adding an instance with a numeric id to a profile as a contained resource |  ✅ |
+| should defer adding an instance with an id that resembles a boolean to a profile as a contained resource | Defer adding an instance with an id that resembles a boolean to a profile as a contained resource |  ✅ |
+| should defer adding a binding to an inline ValueSet resource | Defer adding a binding to an inline ValueSet resource |  ✅ |
+| should allow a contained resource with a resourceType to be built from several caret rules | Allow a contained resource with a resourceType to be built from several caret rules |  ✅ |
+| should defer applying a caret rule that would be applied within a contained instance | Defer applying a caret rule that would be applied within a contained instance |  ✅ |
+| should NOT export a profile of an R5 resource in an R4 project | NOT export a profile of an R5 resource in an R4 project |  ✅ |
+| should throw a MismatchedBindingTypeError when a code property is bound to a code system | Throw a MismatchedBindingTypeError when a code property is bound to a code system |  ✅ |
+| should log an error when an inline extension is used | Log an error when an inline extension is used |  ✅ |
 
 ---
 
@@ -882,34 +891,34 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should output empty results with empty input | Output empty results with empty input | |
-| should export a single resource | Export a single resource | |
-| should add source info for the exported resource to the package | Add source info for the exported resource to the package | |
-| should export multiple resources | Export multiple resources | |
-| should still export resources if one fails | Still export resources if one fails | |
-| should export resource with Resource parent by id | Export resource with Resource parent by id | |
-| should export resource with Resource parent by url | Export resource with Resource parent by url | |
-| should export resource with DomainResource parent by id | Export resource with DomainResource parent by id | |
-| should export resource with DomainResource parent by url | Export resource with DomainResource parent by url | |
-| should export resource with DomainResource parent when parent not specified | Export resource with DomainResource parent when parent not specified | |
-| should log an error with source information when the parent is invalid | Log an error with source information when the parent is invalid | |
-| should log an error with source information when the parent is not found | Log an error with source information when the parent is not found | |
-| should log an error when an inline extension is used | Log an error when an inline extension is used | |
-| should allow constraints on newly added elements and sub-elements | Allow constraints on newly added elements and sub-elements | |
-| should allow constraints on root elements | Allow constraints on root elements | |
-| should allow constraints on inherited elements | Allow constraints on inherited elements | |
-| should log an error when slicing an inherited element | Log an error when slicing an inherited element | |
-| should log an error when adding an element with the same path as an inherited element | Log an error when adding an element with the same path as an inherited element | |
-| should log an error when two rules add a new element with the same path | Log an error when two rules add a new element with the same path | |
-| should log an error when a rule with the same path is added by directly calling newElement | Log an error when a rule with the same path is added by directly calling newElement | |
-| should not log a warning when exporting a conformant resource | Not log a warning when exporting a conformant resource | |
-| should log a warning when exporting a non-conformant resource | Log a warning when exporting a non-conformant resource | |
-| should log a warning when exporting a multiple non-conformant resources | Log a warning when exporting a multiple non-conformant resources | |
-| should log a warning and truncate the name when exporting a non-conformant resource with a long name | Log a warning and truncate the name when exporting a non-conformant resource with a long name | |
-| should create Resource root element with short equal to title if short not available AND definition equal to description if definition not available | Create Resource root element with short equal to title if short not available AND definition equal to description if definition not available | |
-| should create Resource root element with short equal to name if short and title not available AND definition equal to name if description and definition not available | Create Resource root element with short equal to name if short and title not available AND definition equal to name if description and definition not available | |
-| should create Resource root element with short equal to title if short not available AND definition equal to short if description and definition not available | Create Resource root element with short equal to title if short not available AND definition equal to short if description and definition not available | |
-| should create Resource root element with short equal short caret rule AND definition equal to definition caret rule | Create Resource root element with short equal short caret rule AND definition equal to definition caret rule | |
+| should output empty results with empty input | Output empty results with empty input |  ✅ |
+| should export a single resource | Export a single resource |  ✅ |
+| should add source info for the exported resource to the package | Add source info for the exported resource to the package |  ✅ |
+| should export multiple resources | Export multiple resources |  ✅ |
+| should still export resources if one fails | Still export resources if one fails |  ✅ |
+| should export resource with Resource parent by id | Export resource with Resource parent by id |  ✅ |
+| should export resource with Resource parent by url | Export resource with Resource parent by url |  ✅ |
+| should export resource with DomainResource parent by id | Export resource with DomainResource parent by id |  ✅ |
+| should export resource with DomainResource parent by url | Export resource with DomainResource parent by url |  ✅ |
+| should export resource with DomainResource parent when parent not specified | Export resource with DomainResource parent when parent not specified |  ✅ |
+| should log an error with source information when the parent is invalid | Log an error with source information when the parent is invalid |  ✅ |
+| should log an error with source information when the parent is not found | Log an error with source information when the parent is not found |  ✅ |
+| should log an error when an inline extension is used | Log an error when an inline extension is used |  ✅ |
+| should allow constraints on newly added elements and sub-elements | Allow constraints on newly added elements and sub-elements |  ✅ |
+| should allow constraints on root elements | Allow constraints on root elements |  ✅ |
+| should allow constraints on inherited elements | Allow constraints on inherited elements |  ✅ |
+| should log an error when slicing an inherited element | Log an error when slicing an inherited element |  ✅ |
+| should log an error when adding an element with the same path as an inherited element | Log an error when adding an element with the same path as an inherited element |  ✅ |
+| should log an error when two rules add a new element with the same path | Log an error when two rules add a new element with the same path |  ✅ |
+| should log an error when a rule with the same path is added by directly calling newElement | Log an error when a rule with the same path is added by directly calling newElement |  ✅ |
+| should not log a warning when exporting a conformant resource | Not log a warning when exporting a conformant resource |  ✅ |
+| should log a warning when exporting a non-conformant resource | Log a warning when exporting a non-conformant resource |  ✅ |
+| should log a warning when exporting a multiple non-conformant resources | Log a warning when exporting a multiple non-conformant resources |  ✅ |
+| should log a warning and truncate the name when exporting a non-conformant resource with a long name | Log a warning and truncate the name when exporting a non-conformant resource with a long name |  ✅ |
+| should create Resource root element with short equal to title if short not available AND definition equal to description if definition not available | Create Resource root element with short equal to title if short not available AND definition equal to description if definition not available |  ✅ |
+| should create Resource root element with short equal to name if short and title not available AND definition equal to name if description and definition not available | Create Resource root element with short equal to name if short and title not available AND definition equal to name if description and definition not available |  ✅ |
+| should create Resource root element with short equal to title if short not available AND definition equal to short if description and definition not available | Create Resource root element with short equal to title if short not available AND definition equal to short if description and definition not available |  ✅ |
+| should create Resource root element with short equal short caret rule AND definition equal to definition caret rule | Create Resource root element with short equal short caret rule AND definition equal to definition caret rule |  ✅ |
 
 ---
 
@@ -923,56 +932,56 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should not export duplicate structure definitions | Not export duplicate structure definitions | |
-| should warn when the structDef is a profile and title and/or description is an empty string | Warn when the structDef is a profile and title and/or description is an empty string | |
-| should warn when the structDef is an extension and title and/or description is an empty string | Warn when the structDef is an extension and title and/or description is an empty string | |
-| should warn when the structDef is a logical and title and/or description is an empty string | Warn when the structDef is a logical and title and/or description is an empty string | |
-| should warn when the structDef is a resource and title and/or description is an empty string | Warn when the structDef is a resource and title and/or description is an empty string | |
-| should log a message when the structure definition has an invalid id | Log a message when the structure definition has an invalid id | |
-| should not log a message when the structure definition overrides an invalid id with a Caret Rule | Not log a message when the structure definition overrides an invalid id with a Caret Rule | |
-| should log a message when the structure definition overrides an invalid id with an invalid Caret Rule | Log a message when the structure definition overrides an invalid id with an invalid Caret Rule | |
+| should not export duplicate structure definitions | Not export duplicate structure definitions |  ✅ |
+| should warn when the structDef is a profile and title and/or description is an empty string | Warn when the structDef is a profile and title and/or description is an empty string |  ✅ |
+| should warn when the structDef is an extension and title and/or description is an empty string | Warn when the structDef is an extension and title and/or description is an empty string |  ✅ |
+| should warn when the structDef is a logical and title and/or description is an empty string | Warn when the structDef is a logical and title and/or description is an empty string |  ✅ |
+| should warn when the structDef is a resource and title and/or description is an empty string | Warn when the structDef is a resource and title and/or description is an empty string |  ✅ |
+| should log a message when the structure definition has an invalid id | Log a message when the structure definition has an invalid id |  ✅ |
+| should not log a message when the structure definition overrides an invalid id with a Caret Rule | Not log a message when the structure definition overrides an invalid id with a Caret Rule |  ✅ |
+| should log a message when the structure definition overrides an invalid id with an invalid Caret Rule | Log a message when the structure definition overrides an invalid id with an invalid Caret Rule |  ✅ |
 | should log a message when the structure definition overrides an valid id with an invalid Caret Rule | Log a message when the structure definition overrides an valid id with an invalid Caret Rule | |
-| should log a message when the structure definition has an invalid name | Log a message when the structure definition has an invalid name | |
-| should not log a message when the structure definition overrides an invalid name with a Caret Rule | Not log a message when the structure definition overrides an invalid name with a Caret Rule | |
-| should log a message when the structure definition overrides an invalid name with an invalid Caret Rule | Log a message when the structure definition overrides an invalid name with an invalid Caret Rule | |
-| should log a message when the structure definition overrides a valid name with an invalid Caret Rule | Log a message when the structure definition overrides a valid name with an invalid Caret Rule | |
-| should sanitize the id and log a message when a valid name is used to make an invalid id | Sanitize the id and log a message when a valid name is used to make an invalid id | |
-| should sanitize the id and log a message when a long valid name is used to make an invalid id | Sanitize the id and log a message when a long valid name is used to make an invalid id | |
-| should log error messages for validation errors on the StructureDefinition | Log error messages for validation errors on the StructureDefinition | |
+| should log a message when the structure definition has an invalid name | Log a message when the structure definition has an invalid name |  ✅ |
+| should not log a message when the structure definition overrides an invalid name with a Caret Rule | Not log a message when the structure definition overrides an invalid name with a Caret Rule |  ✅ |
+| should log a message when the structure definition overrides an invalid name with an invalid Caret Rule | Log a message when the structure definition overrides an invalid name with an invalid Caret Rule |  ✅ |
+| should log a message when the structure definition overrides a valid name with an invalid Caret Rule | Log a message when the structure definition overrides a valid name with an invalid Caret Rule |  ✅ |
+| should sanitize the id and log a message when a valid name is used to make an invalid id | Sanitize the id and log a message when a valid name is used to make an invalid id |  ✅ |
+| should sanitize the id and log a message when a long valid name is used to make an invalid id | Sanitize the id and log a message when a long valid name is used to make an invalid id |  ✅ |
+| should log error messages for validation errors on the StructureDefinition | Log error messages for validation errors on the StructureDefinition |  ✅ |
 
 #### `#Parents`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should create a profile when the definition specifies a resource for a parent | Create a profile when the definition specifies a resource for a parent | |
-| should create a profile when the definition specifies another profile for a parent | Create a profile when the definition specifies another profile for a parent | |
-| should create a profile when the definition specifies a complex data type for a parent | Create a profile when the definition specifies a complex data type for a parent | |
-| should create a profile when the definition specifies a primitive data type for a parent | Create a profile when the definition specifies a primitive data type for a parent | |
-| should create an extension with default parent of base Extension when the definition does not specify a parent | Create an extension with default parent of base Extension when the definition does not specify a parent | |
-| should create an extension when the definition specifies the base Extension for a parent | Create an extension when the definition specifies the base Extension for a parent | |
-| should create an extension when the definition specifies another extension for a parent | Create an extension when the definition specifies another extension for a parent | |
-| should create a logical model with default parent of Base when the definition does not specify a parent | Create a logical model with default parent of Base when the definition does not specify a parent | |
-| should create a logical model when the definition specifies Element for a parent | Create a logical model when the definition specifies Element for a parent | |
-| should create a logical model when the definition specifies another logical model for a parent | Create a logical model when the definition specifies another logical model for a parent | |
-| should create a resource with default parent of DomainResource when the definition does not specify a parent | Create a resource with default parent of DomainResource when the definition does not specify a parent | |
-| should create a resource when the definition specifies Resource for a parent | Create a resource when the definition specifies Resource for a parent | |
-| should throw ParentNotProvidedError when parent specifies an empty parent | Throw ParentNotProvidedError when parent specifies an empty parent | |
-| should throw ParentNotDefinedError when parent is not found | Throw ParentNotDefinedError when parent is not found | |
-| should throw ParentDeclaredAsNameError when the extension declares itself as the parent | Throw ParentDeclaredAsNameError when the extension declares itself as the parent | |
+| should create a profile when the definition specifies a resource for a parent | Create a profile when the definition specifies a resource for a parent |  ✅ |
+| should create a profile when the definition specifies another profile for a parent | Create a profile when the definition specifies another profile for a parent |  ✅ |
+| should create a profile when the definition specifies a complex data type for a parent | Create a profile when the definition specifies a complex data type for a parent |  ✅ |
+| should create a profile when the definition specifies a primitive data type for a parent | Create a profile when the definition specifies a primitive data type for a parent |  ✅ |
+| should create an extension with default parent of base Extension when the definition does not specify a parent | Create an extension with default parent of base Extension when the definition does not specify a parent |  ✅ |
+| should create an extension when the definition specifies the base Extension for a parent | Create an extension when the definition specifies the base Extension for a parent |  ✅ |
+| should create an extension when the definition specifies another extension for a parent | Create an extension when the definition specifies another extension for a parent |  ✅ |
+| should create a logical model with default parent of Base when the definition does not specify a parent | Create a logical model with default parent of Base when the definition does not specify a parent |  ✅ |
+| should create a logical model when the definition specifies Element for a parent | Create a logical model when the definition specifies Element for a parent |  ✅ |
+| should create a logical model when the definition specifies another logical model for a parent | Create a logical model when the definition specifies another logical model for a parent |  ✅ |
+| should create a resource with default parent of DomainResource when the definition does not specify a parent | Create a resource with default parent of DomainResource when the definition does not specify a parent |  ✅ |
+| should create a resource when the definition specifies Resource for a parent | Create a resource when the definition specifies Resource for a parent |  ✅ |
+| should throw ParentNotProvidedError when parent specifies an empty parent | Throw ParentNotProvidedError when parent specifies an empty parent |  ✅ |
+| should throw ParentNotDefinedError when parent is not found | Throw ParentNotDefinedError when parent is not found |  ✅ |
+| should throw ParentDeclaredAsNameError when the extension declares itself as the parent | Throw ParentDeclaredAsNameError when the extension declares itself as the parent |  ✅ |
 | should throw ParentDeclaredAsIdError when a extension sets the same value for parent and id | Throw ParentDeclaredAsIdError when a extension sets the same value for parent and id | |
-| should throw ParentDeclaredAsNameError when the profile declares itself as the parent | Throw ParentDeclaredAsNameError when the profile declares itself as the parent | |
-| should throw ParentDeclaredAsNameError and suggest resource URL when the profile declares itself as the parent and it is a FHIR resource | Throw ParentDeclaredAsNameError and suggest resource URL when the profile declares itself as the parent and it is a FHIR resource | |
-| should throw ParentDeclaredAsIdError when a profile sets the same value for parent and id | Throw ParentDeclaredAsIdError when a profile sets the same value for parent and id | |
-| should throw ParentDeclaredAsIdError and suggest resource URL when a profile sets the same value for parent and id and the parent is a FHIR resource | Throw ParentDeclaredAsIdError and suggest resource URL when a profile sets the same value for parent and id and the parent is a FHIR resource | |
-| should throw ParentDeclaredAsNameError when the resource declares itself as the parent | Throw ParentDeclaredAsNameError when the resource declares itself as the parent | |
-| should throw ParentDeclaredAsIdError when a resource sets the same value for parent and id | Throw ParentDeclaredAsIdError when a resource sets the same value for parent and id | |
-| should throw ParentDeclaredAsNameError when the logical model declares itself as the parent | Throw ParentDeclaredAsNameError when the logical model declares itself as the parent | |
-| should throw ParentDeclaredAsNameError and suggest resource URL when the logical model declares itself as the parent and it is a FHIR resource | Throw ParentDeclaredAsNameError and suggest resource URL when the logical model declares itself as the parent and it is a FHIR resource | |
-| should throw ParentDeclaredAsIdError when a logical model sets the same value for parent and id | Throw ParentDeclaredAsIdError when a logical model sets the same value for parent and id | |
-| should throw ParentDeclaredAsIdError and suggest resource URL when a logical model sets the same value for parent and id and the parent is a FHIR resource | Throw ParentDeclaredAsIdError and suggest resource URL when a logical model sets the same value for parent and id and the parent is a FHIR resource | |
-| should throw InvalidExtensionParentError when an extension has a non-extension for a parent | Throw InvalidExtensionParentError when an extension has a non-extension for a parent | |
-| should throw InvalidLogicalParentError when a logical model has a profile for a parent | Throw InvalidLogicalParentError when a logical model has a profile for a parent | |
-| should throw InvalidResourceParentError when a resource does not have Resource or DomainResource for a parent | Throw InvalidResourceParentError when a resource does not have Resource or DomainResource for a parent | |
+| should throw ParentDeclaredAsNameError when the profile declares itself as the parent | Throw ParentDeclaredAsNameError when the profile declares itself as the parent |  ✅ |
+| should throw ParentDeclaredAsNameError and suggest resource URL when the profile declares itself as the parent and it is a FHIR resource | Throw ParentDeclaredAsNameError and suggest resource URL when the profile declares itself as the parent and it is a FHIR resource |  ✅ |
+| should throw ParentDeclaredAsIdError when a profile sets the same value for parent and id | Throw ParentDeclaredAsIdError when a profile sets the same value for parent and id |  ✅ |
+| should throw ParentDeclaredAsIdError and suggest resource URL when a profile sets the same value for parent and id and the parent is a FHIR resource | Throw ParentDeclaredAsIdError and suggest resource URL when a profile sets the same value for parent and id and the parent is a FHIR resource |  ✅ |
+| should throw ParentDeclaredAsNameError when the resource declares itself as the parent | Throw ParentDeclaredAsNameError when the resource declares itself as the parent |  ✅ |
+| should throw ParentDeclaredAsIdError when a resource sets the same value for parent and id | Throw ParentDeclaredAsIdError when a resource sets the same value for parent and id |  ✅ |
+| should throw ParentDeclaredAsNameError when the logical model declares itself as the parent | Throw ParentDeclaredAsNameError when the logical model declares itself as the parent |  ✅ |
+| should throw ParentDeclaredAsNameError and suggest resource URL when the logical model declares itself as the parent and it is a FHIR resource | Throw ParentDeclaredAsNameError and suggest resource URL when the logical model declares itself as the parent and it is a FHIR resource |  ✅ |
+| should throw ParentDeclaredAsIdError when a logical model sets the same value for parent and id | Throw ParentDeclaredAsIdError when a logical model sets the same value for parent and id |  ✅ |
+| should throw ParentDeclaredAsIdError and suggest resource URL when a logical model sets the same value for parent and id and the parent is a FHIR resource | Throw ParentDeclaredAsIdError and suggest resource URL when a logical model sets the same value for parent and id and the parent is a FHIR resource |  ✅ |
+| should throw InvalidExtensionParentError when an extension has a non-extension for a parent | Throw InvalidExtensionParentError when an extension has a non-extension for a parent |  ✅ |
+| should throw InvalidLogicalParentError when a logical model has a profile for a parent | Throw InvalidLogicalParentError when a logical model has a profile for a parent |  ✅ |
+| should throw InvalidResourceParentError when a resource does not have Resource or DomainResource for a parent | Throw InvalidResourceParentError when a resource does not have Resource or DomainResource for a parent |  ✅ |
 
 #### `StructureDefinitionExporter R4 > #Parents > Issue #1553 Bug Fix`
 
@@ -987,14 +996,14 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should set all user-provided metadata for a profile | Set all user-provided metadata for a profile | |
-| should set status and version metadata for a profile in FSHOnly mode | Set status and version metadata for a profile in FSHOnly mode | |
-| should properly set/clear all metadata properties for a profile | Properly set/clear all metadata properties for a profile | |
+| should set all user-provided metadata for a profile | Set all user-provided metadata for a profile |  ✅ |
+| should set status and version metadata for a profile in FSHOnly mode | Set status and version metadata for a profile in FSHOnly mode |  ✅ |
+| should properly set/clear all metadata properties for a profile | Properly set/clear all metadata properties for a profile |  ✅ |
 | should remove inherited top-level underscore-prefixed metadata properties for a profile | Remove inherited top-level underscore-prefixed metadata properties for a profile | |
 | should only inherit inheritable extensions for a profile | Only inherit inheritable extensions for a profile | |
-| should not overwrite metadata that is not given for a profile | Not overwrite metadata that is not given for a profile | |
-| should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule | |
-| should log an error when multiple profiles have the same id | Log an error when multiple profiles have the same id | |
+| should not overwrite metadata that is not given for a profile | Not overwrite metadata that is not given for a profile |  ✅ |
+| should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule |  ✅ |
+| should log an error when multiple profiles have the same id | Log an error when multiple profiles have the same id |  ✅ |
 
 #### `#Profile-Element`
 
@@ -1008,35 +1017,35 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should set all user-provided metadata for an extension | Set all user-provided metadata for an extension | |
-| should set status and version metadata for an extension in FSHOnly mode | Set status and version metadata for an extension in FSHOnly mode | |
-| should not set metadata on the root element when applyExtensionMetadataToRoot is false | Not set metadata on the root element when applyExtensionMetadataToRoot is false | |
-| should properly set/clear all metadata properties for an extension | Properly set/clear all metadata properties for an extension | |
-| should remove inherited top-level underscore-prefixed metadata properties for an extension | Remove inherited top-level underscore-prefixed metadata properties for an extension | |
-| should overwrite parent context when a new context is set | Overwrite parent context when a new context is set | |
-| should not overwrite metadata that is not given for an extension | Not overwrite metadata that is not given for an extension | |
+| should set all user-provided metadata for an extension | Set all user-provided metadata for an extension |  ✅ |
+| should set status and version metadata for an extension in FSHOnly mode | Set status and version metadata for an extension in FSHOnly mode |  ✅ |
+| should not set metadata on the root element when applyExtensionMetadataToRoot is false | Not set metadata on the root element when applyExtensionMetadataToRoot is false |  ✅ |
+| should properly set/clear all metadata properties for an extension | Properly set/clear all metadata properties for an extension |  ✅ |
+| should remove inherited top-level underscore-prefixed metadata properties for an extension | Remove inherited top-level underscore-prefixed metadata properties for an extension |  ✅ |
+| should overwrite parent context when a new context is set | Overwrite parent context when a new context is set |  ✅ |
+| should not overwrite metadata that is not given for an extension | Not overwrite metadata that is not given for an extension |  ✅ |
 | should export sub-extensions, with similar starting names and different types | Export sub-extensions, with similar starting names and different types | |
 | should not hardcode in the default context if parent already had a context | Not hardcode in the default context if parent already had a context | |
-| should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule | |
-| should log an error when multiple extensions have the same id | Log an error when multiple extensions have the same id | |
-| should log an error when a profile and an extension have the same id | Log an error when a profile and an extension have the same id | |
+| should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule |  ✅ |
+| should log an error when multiple extensions have the same id | Log an error when multiple extensions have the same id |  ✅ |
+| should log an error when a profile and an extension have the same id | Log an error when a profile and an extension have the same id |  ✅ |
 
 #### `#LogicalModel`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should have the correct baseDefinition of Base when parent is not provided | Have the correct baseDefinition of Base when parent is not provided | |
-| should have the correct baseDefinition for a provided parent | Have the correct baseDefinition for a provided parent | |
-| should set all user-provided metadata for a logical model | Set all user-provided metadata for a logical model | |
-| should set status and version metadata for a logical model in FSHOnly mode | Set status and version metadata for a logical model in FSHOnly mode | |
+| should have the correct baseDefinition of Base when parent is not provided | Have the correct baseDefinition of Base when parent is not provided |  ✅ |
+| should have the correct baseDefinition for a provided parent | Have the correct baseDefinition for a provided parent |  ✅ |
+| should set all user-provided metadata for a logical model | Set all user-provided metadata for a logical model |  ✅ |
+| should set status and version metadata for a logical model in FSHOnly mode | Set status and version metadata for a logical model in FSHOnly mode |  ✅ |
 | should properly set/clear all metadata properties for a logical model | Properly set/clear all metadata properties for a logical model | |
 | should remove inherited top-level underscore-prefixed metadata properties for a logical model | Remove inherited top-level underscore-prefixed metadata properties for a logical model | |
-| should not overwrite metadata that is not given for a logical model | Not overwrite metadata that is not given for a logical model | |
-| should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule | |
+| should not overwrite metadata that is not given for a logical model | Not overwrite metadata that is not given for a logical model |  ✅ |
+| should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule |  ✅ |
 | should allow type to be overwritten with caret rule with a uri value | Allow type to be overwritten with caret rule with a uri value | |
 | should log a warning and allow overwriting type with caret rule with a non-uri value | Log a warning and allow overwriting type with caret rule with a non-uri value | |
-| should log an error when multiple logical models have the same id | Log an error when multiple logical models have the same id | |
-| should log an error when a profile and a logical model have the same id | Log an error when a profile and a logical model have the same id | |
+| should log an error when multiple logical models have the same id | Log an error when multiple logical models have the same id |  ✅ |
+| should log an error when a profile and a logical model have the same id | Log an error when a profile and a logical model have the same id |  ✅ |
 | should include added elements along with parent elements | Include added elements along with parent elements | |
 | should include added elements for BackboneElement and children | Include added elements for BackboneElement and children | |
 | should log an error when MustSupport is true in a logical model | Log an error when MustSupport is true in a logical model | |
@@ -1046,15 +1055,15 @@ and to guide decisions about which tests to tackle next.
 | Test name | Description | Ported |
 |-----------|-------------|--------|
 | should have the correct baseDefinition of Element when parent is not provided | Have the correct baseDefinition of Element when parent is not provided | |
-| should have the correct baseDefinition for a Resource parent | Have the correct baseDefinition for a Resource parent | |
-| should have the correct baseDefinition for a DomainResource parent | Have the correct baseDefinition for a DomainResource parent | |
-| should set all user-provided metadata for a resource | Set all user-provided metadata for a resource | |
-| should set status and version metadata for a resource in FSHOnly mode | Set status and version metadata for a resource in FSHOnly mode | |
+| should have the correct baseDefinition for a Resource parent | Have the correct baseDefinition for a Resource parent |  ✅ |
+| should have the correct baseDefinition for a DomainResource parent | Have the correct baseDefinition for a DomainResource parent |  ✅ |
+| should set all user-provided metadata for a resource | Set all user-provided metadata for a resource |  ✅ |
+| should set status and version metadata for a resource in FSHOnly mode | Set status and version metadata for a resource in FSHOnly mode |  ✅ |
 | should properly set/clear all metadata properties for a resource | Properly set/clear all metadata properties for a resource | |
 | should remove inherited top-level underscore-prefixed metadata properties for a resource | Remove inherited top-level underscore-prefixed metadata properties for a resource | |
-| should not overwrite metadata that is not given for a resource | Not overwrite metadata that is not given for a resource | |
-| should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule | |
-| should log an error when multiple resources have the same id | Log an error when multiple resources have the same id | |
+| should not overwrite metadata that is not given for a resource | Not overwrite metadata that is not given for a resource |  ✅ |
+| should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule |  ✅ |
+| should log an error when multiple resources have the same id | Log an error when multiple resources have the same id |  ✅ |
 | should log an error when a resource and a logical model have the same id | Log an error when a resource and a logical model have the same id | |
 | should include added elements along with parent root element | Include added elements along with parent root element | |
 | should include added elements for BackboneElement and children | Include added elements for BackboneElement and children | |
@@ -1136,7 +1145,7 @@ and to guide decisions about which tests to tackle next.
 | should apply a correct value set rule when the VS is referenced by name | Apply a correct value set rule when the VS is referenced by name | |
 | should apply a correct value set rule when the VS has a rule that sets its name and it is referenced by name | Apply a correct value set rule when the VS has a rule that sets its name and it is referenced by name | |
 | should apply a correct value set rule when the VS specifies a version | Apply a correct value set rule when the VS specifies a version | |
-| should use the url specified in a CaretValueRule when referencing a named value set | Use the url specified in a CaretValueRule when referencing a named value set | |
+| should use the url specified in a CaretValueRule when referencing a named value set | Use the url specified in a CaretValueRule when referencing a named value set |  ✅ |
 | should apply a value set rule on an element that has the #can-bind characteristic | Apply a value set rule on an element that has the #can-bind characteristic | |
 | should apply a value set rule on an element that has the #can-bind type characteristic extension | Apply a value set rule on an element that has the #can-bind type characteristic extension | |
 | should apply a value set rule on an element that has the #can-bind type characteristic extension using extension path syntax with url | Apply a value set rule on an element that has the #can-bind type characteristic extension using extension path syntax with url | |
@@ -1231,7 +1240,7 @@ and to guide decisions about which tests to tackle next.
 | should log a warning and apply an instance AssignmentRule when the instance has a numeric id | Log a warning and apply an instance AssignmentRule when the instance has a numeric id | |
 | should apply an instance AssignmentRule when the instance has an id that resembles a boolean | Apply an instance AssignmentRule when the instance has an id that resembles a boolean | |
 | should not apply an instance AssignmentRule when the instance cannot be found | Not apply an instance AssignmentRule when the instance cannot be found | |
-| should use the url specified in a CaretValueRule when referencing a named code system | Use the url specified in a CaretValueRule when referencing a named code system | |
+| should use the url specified in a CaretValueRule when referencing a named code system | Use the url specified in a CaretValueRule when referencing a named code system |  ✅ |
 | should apply an AssignmentRule on the child of a choice element with constrained choices that share a type | Apply an AssignmentRule on the child of a choice element with constrained choices that share a type | |
 | should apply an AssignmentRule on the child of a choice element with constrained choices that share a profile | Apply an AssignmentRule on the child of a choice element with constrained choices that share a profile | |
 | should not apply an incorrect AssignmentRule | Not apply an incorrect AssignmentRule | |
@@ -1308,7 +1317,7 @@ and to guide decisions about which tests to tackle next.
 | should apply CaretValueRules on the aggregation of a type and replace the parent values | Apply CaretValueRules on the aggregation of a type and replace the parent values | |
 | should apply CaretValueRules on elements within the aggregation of a type and replace the parent values | Apply CaretValueRules on elements within the aggregation of a type and replace the parent values | |
 | should apply CaretValueRules on elements within the aggregation of a type and replace the children of parent values when there is no parent value | Apply CaretValueRules on elements within the aggregation of a type and replace the children of parent values when there is no parent value | |
-| should output an error when a choice element has values assigned to more than one choice type | Output an error when a choice element has values assigned to more than one choice type | |
+| should output an error when a choice element has values assigned to more than one choice type | Output an error when a choice element has values assigned to more than one choice type |  ✅ |
 
 #### `#ObeysRule`
 
@@ -1398,8 +1407,8 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply rules from an insert rule | Apply rules from an insert rule | |
-| should log an error and not apply rules from an invalid insert rule | Log an error and not apply rules from an invalid insert rule | |
+| should apply rules from an insert rule | Apply rules from an insert rule |  ✅ |
+| should log an error and not apply rules from an invalid insert rule | Log an error and not apply rules from an invalid insert rule |  ✅ |
 
 #### `#fishForMetadata`
 
@@ -1445,105 +1454,105 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should output empty results with empty input | Output empty results with empty input | |
-| should export a single value set | Export a single value set | |
-| should add source info for the exported value set to the package | Add source info for the exported value set to the package | |
-| should export multiple value sets | Export multiple value sets | |
-| should export a value set with additional metadata | Export a value set with additional metadata | |
-| should export a value set with status and version in FSHOnly mode | Export a value set with status and version in FSHOnly mode | |
-| should warn when title and/or description is an empty string | Warn when title and/or description is an empty string | |
-| should log a message when the value set has an invalid id | Log a message when the value set has an invalid id | |
-| should not log a message when the value set overrides an invalid id with a Caret Rule | Not log a message when the value set overrides an invalid id with a Caret Rule | |
-| should log a message when the value set overrides an invalid id with an invalid Caret Rule | Log a message when the value set overrides an invalid id with an invalid Caret Rule | |
-| should log a message when the value set overrides a valid id with an invalid Caret Rule | Log a message when the value set overrides a valid id with an invalid Caret Rule | |
-| should log a message when the value set has an invalid name | Log a message when the value set has an invalid name | |
-| should not log a message when the value set overrides an invalid name with a Caret Rule | Not log a message when the value set overrides an invalid name with a Caret Rule | |
-| should log a message when the value set overrides an invalid name with an invalid Caret Rule | Log a message when the value set overrides an invalid name with an invalid Caret Rule | |
-| should log a message when the value set overrides a valid name with an invalid Caret Rule | Log a message when the value set overrides a valid name with an invalid Caret Rule | |
-| should sanitize the id and log a message when a valid name is used to make an invalid id | Sanitize the id and log a message when a valid name is used to make an invalid id | |
-| should sanitize the id and log a message when a long valid name is used to make an invalid id | Sanitize the id and log a message when a long valid name is used to make an invalid id | |
-| should log an error when multiple value sets have the same id | Log an error when multiple value sets have the same id | |
-| should export each value set once, even if export is called more than once | Export each value set once, even if export is called more than once | |
-| should export a value set that includes a component from a system | Export a value set that includes a component from a system | |
-| should export a value set that includes a component from a named system | Export a value set that includes a component from a named system | |
-| should export a value set that includes a component from a contained inline instance of code system and add the valueset-system extension | Export a value set that includes a component from a contained inline instance of code system and add the valueset-system extension | |
-| should log an error and not add the component when attempting to reference an inline instance of code system that is not contained | Log an error and not add the component when attempting to reference an inline instance of code system that is not contained | |
-| should log a warning and export the value set when containing an example instance of code system | Log a warning and export the value set when containing an example instance of code system | |
-| should export a value set that includes a component from a value set | Export a value set that includes a component from a value set | |
-| should export a value set that includes a component from a value set with a version | Export a value set that includes a component from a value set with a version | |
-| should export a value set that includes a component from a local value set with a version | Export a value set that includes a component from a local value set with a version | |
-| should export a value set that includes a component from a named value set | Export a value set that includes a component from a named value set | |
-| should export a value set that includes a component from a named versioned value set | Export a value set that includes a component from a named versioned value set | |
-| should export a value set that includes a component from a named versioned value set and warn on version mismatch | Export a value set that includes a component from a named versioned value set and warn on version mismatch | |
-| should throw error for caret rule on valueset compose component without any concept | Throw error for caret rule on valueset compose component without any concept | |
-| should export a value set with a contained resource created on the value set | Export a value set with a contained resource created on the value set | |
-| should export a value set with a contained resource modified on the value set | Export a value set with a contained resource modified on the value set | |
-| should log a warning and export a value set with a contained example resource with a numeric id modified on the value set | Log a warning and export a value set with a contained example resource with a numeric id modified on the value set | |
-| should export a value set that includes a component from a contained code system created on the value set and referenced by id | Export a value set that includes a component from a contained code system created on the value set and referenced by id | |
-| should export a value set that includes a component from a contained code system created on the value set and referenced by name | Export a value set that includes a component from a contained code system created on the value set and referenced by name | |
-| should export a value set that includes a component from a contained code system created on the value set and referenced by url | Export a value set that includes a component from a contained code system created on the value set and referenced by url | |
-| should not use a contained resource created on the value set as a component system when that resource is not a CodeSystem | Not use a contained resource created on the value set as a component system when that resource is not a CodeSystem | |
-| should remove and log error when exporting a value set that includes a component from a self referencing value set | Remove and log error when exporting a value set that includes a component from a self referencing value set | |
-| should export a value set that includes a concept component with at least one concept | Export a value set that includes a concept component with at least one concept | |
-| should export a value set that includes a concept component from a local complete code system name with at least one concept | Export a value set that includes a concept component from a local complete code system name with at least one concept | |
-| should export a value set that includes a concept component from a local complete code system name with concepts added by CaretValueRules | Export a value set that includes a concept component from a local complete code system name with concepts added by CaretValueRules | |
-| should export a value set that includes a concept component from a local complete code system name with at least one concept added by a RuleSet | Export a value set that includes a concept component from a local complete code system name with at least one concept added by a RuleSet | |
-| should export a value set that includes a concept component from a local complete CodeSystem instance name with at least one concept | Export a value set that includes a concept component from a local complete CodeSystem instance name with at least one concept | |
-| should export a value set that includes a concept component from a local complete CodeSystem instance name with at least one concept added by a RuleSet | Export a value set that includes a concept component from a local complete CodeSystem instance name with at least one concept added by a RuleSet | |
-| should export a value set that includes a concept component from a local incomplete CodeSystem when the concept is not in the system | Export a value set that includes a concept component from a local incomplete CodeSystem when the concept is not in the system | |
-| should export a value set that includes a concept component from a local incomplete CodeSystem instance when the concept is not in the system | Export a value set that includes a concept component from a local incomplete CodeSystem instance when the concept is not in the system | |
-| should log an error when exporting a value set that includes a concept component from a local complete code system name when the concept is not in the system | Log an error when exporting a value set that includes a concept component from a local complete code system name when the concept is not in the system | |
-| should log an error when exporting a value set that includes a concept component from a local complete CodeSystem instance name when the concept is not in the system | Log an error when exporting a value set that includes a concept component from a local complete CodeSystem instance name when the concept is not in the system | |
-| should log an error when exporting a value set that includes a concept component from a local complete code system url when the concept is not in the system | Log an error when exporting a value set that includes a concept component from a local complete code system url when the concept is not in the system | |
-| should export a value set that includes a concept component where the concept system includes a version | Export a value set that includes a concept component where the concept system includes a version | |
-| should export a value set that includes a filter component with a regex filter | Export a value set that includes a filter component with a regex filter | |
-| should export a value set that includes a filter component with a code filter | Export a value set that includes a filter component with a code filter | |
-| should export a value set that includes a filter component with a code filter where the value is from a local complete system | Export a value set that includes a filter component with a code filter where the value is from a local complete system | |
-| should export a value set that includes a filter component with a code filter where the value is from a local incomplete system and the code is not in the system | Export a value set that includes a filter component with a code filter where the value is from a local incomplete system and the code is not in the system | |
-| should export a value set that includes a filter component with a code filter where the value is from a local complete Instance of CodeSystem | Export a value set that includes a filter component with a code filter where the value is from a local complete Instance of CodeSystem | |
-| should export a value set that includes a filter component with a code filter where the value is from a local incomplete Instance of CodeSystem and the code is not in the system | Export a value set that includes a filter component with a code filter where the value is from a local incomplete Instance of CodeSystem and the code is not in the system | |
-| should log an error when exporting a value set that includes a filter component with a code filter where the value is from a local complete system, but is not present in the system | Log an error when exporting a value set that includes a filter component with a code filter where the value is from a local complete system, but is not present in the system | |
-| should log an error when exporting a value set that includes a filter component with a code filter where the value is from a local complete Instance of CodeSystem, but is not present in the system | Log an error when exporting a value set that includes a filter component with a code filter where the value is from a local complete Instance of CodeSystem, but is not present in the system | |
-| should export a value set that includes a filter component with a string filter | Export a value set that includes a filter component with a string filter | |
-| should export a value set that excludes a component | Export a value set that excludes a component | |
-| should log a message when a value set has a logical definition without inclusions | Log a message when a value set has a logical definition without inclusions | |
-| should log a message when a value set from system is not a URI | Log a message when a value set from system is not a URI | |
-| should log a message when a value set from is not a URI | Log a message when a value set from is not a URI | |
-| should log a message and not add the concept again when a specific concept is included more than once | Log a message and not add the concept again when a specific concept is included more than once | |
-| should apply a CaretValueRule | Apply a CaretValueRule | |
-| should apply a CaretValueRule with soft indexing | Apply a CaretValueRule with soft indexing | |
-| should apply a CaretValueRule with extension slices in the correct order | Apply a CaretValueRule with extension slices in the correct order | |
-| should apply a CaretValueRule that assigns an inline Instance | Apply a CaretValueRule that assigns an inline Instance | |
-| should apply a CaretValueRule that assigns an inline Instance with a numeric id | Apply a CaretValueRule that assigns an inline Instance with a numeric id | |
-| should apply a CaretValueRule that assigns an inline Instance with an id that resembles a boolean | Apply a CaretValueRule that assigns an inline Instance with an id that resembles a boolean | |
-| should log a message when trying to assign an Instance, but the Instance is not found | Log a message when trying to assign an Instance, but the Instance is not found | |
-| should log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong | Log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong | |
-| should log a message when trying to assign a value that is boolean and refers to an Instance, but both types are wrong | Log a message when trying to assign a value that is boolean and refers to an Instance, but both types are wrong | |
-| should export a value set with an extension | Export a value set with an extension | |
-| should log a message when applying invalid CaretValueRule | Log a message when applying invalid CaretValueRule | |
-| should use the url specified in a CaretValueRule when referencing a named value set | Use the url specified in a CaretValueRule when referencing a named value set | |
-| should use the url specified in a CaretValueRule when referencing a named code system | Use the url specified in a CaretValueRule when referencing a named code system | |
-| should apply a CaretValueRule at an included concept | Apply a CaretValueRule at an included concept | |
-| should apply a CaretValueRule at an included concept when there is a compose rule for a filter on the system first | Apply a CaretValueRule at an included concept when there is a compose rule for a filter on the system first | |
-| should apply a CaretValueRule at a concept from a code system defined in FSH identified by name | Apply a CaretValueRule at a concept from a code system defined in FSH identified by name | |
-| should apply a CaretValueRule at a concept from a code system defined in FSH identified by id | Apply a CaretValueRule at a concept from a code system defined in FSH identified by id | |
-| should apply a CaretValueRule at an excluded concept | Apply a CaretValueRule at an excluded concept | |
-| should apply a CaretValueRule at an excluded concept when there is a compose rule for a filter on the system first | Apply a CaretValueRule at an excluded concept when there is a compose rule for a filter on the system first | |
-| should apply a CaretValueRule that assigns an instance at a concept | Apply a CaretValueRule that assigns an instance at a concept | |
-| should log an error when a CaretValueRule is applied at a concept that is neither included nor excluded | Log an error when a CaretValueRule is applied at a concept that is neither included nor excluded | |
-| should not throw an error when caret rules are applied to a code from a specific version of a codeSystem | Not throw an error when caret rules are applied to a code from a specific version of a codeSystem | |
-| should output an error when a choice element has values assigned to more than one choice type | Output an error when a choice element has values assigned to more than one choice type | |
+| should output empty results with empty input | Output empty results with empty input |  ✅ |
+| should export a single value set | Export a single value set |  ✅ |
+| should add source info for the exported value set to the package | Add source info for the exported value set to the package |  ✅ |
+| should export multiple value sets | Export multiple value sets |  ✅ |
+| should export a value set with additional metadata | Export a value set with additional metadata |  ✅ |
+| should export a value set with status and version in FSHOnly mode | Export a value set with status and version in FSHOnly mode |  ✅ |
+| should warn when title and/or description is an empty string | Warn when title and/or description is an empty string |  ✅ |
+| should log a message when the value set has an invalid id | Log a message when the value set has an invalid id |  ✅ |
+| should not log a message when the value set overrides an invalid id with a Caret Rule | Not log a message when the value set overrides an invalid id with a Caret Rule |  ✅ |
+| should log a message when the value set overrides an invalid id with an invalid Caret Rule | Log a message when the value set overrides an invalid id with an invalid Caret Rule |  ✅ |
+| should log a message when the value set overrides a valid id with an invalid Caret Rule | Log a message when the value set overrides a valid id with an invalid Caret Rule |  ✅ |
+| should log a message when the value set has an invalid name | Log a message when the value set has an invalid name |  ✅ |
+| should not log a message when the value set overrides an invalid name with a Caret Rule | Not log a message when the value set overrides an invalid name with a Caret Rule |  ✅ |
+| should log a message when the value set overrides an invalid name with an invalid Caret Rule | Log a message when the value set overrides an invalid name with an invalid Caret Rule |  ✅ |
+| should log a message when the value set overrides a valid name with an invalid Caret Rule | Log a message when the value set overrides a valid name with an invalid Caret Rule |  ✅ |
+| should sanitize the id and log a message when a valid name is used to make an invalid id | Sanitize the id and log a message when a valid name is used to make an invalid id |  ✅ |
+| should sanitize the id and log a message when a long valid name is used to make an invalid id | Sanitize the id and log a message when a long valid name is used to make an invalid id |  ✅ |
+| should log an error when multiple value sets have the same id | Log an error when multiple value sets have the same id |  ✅ |
+| should export each value set once, even if export is called more than once | Export each value set once, even if export is called more than once |  ✅ |
+| should export a value set that includes a component from a system | Export a value set that includes a component from a system |  ✅ |
+| should export a value set that includes a component from a named system | Export a value set that includes a component from a named system |  ✅ |
+| should export a value set that includes a component from a contained inline instance of code system and add the valueset-system extension | Export a value set that includes a component from a contained inline instance of code system and add the valueset-system extension |  ✅ |
+| should log an error and not add the component when attempting to reference an inline instance of code system that is not contained | Log an error and not add the component when attempting to reference an inline instance of code system that is not contained |  ✅ |
+| should log a warning and export the value set when containing an example instance of code system | Log a warning and export the value set when containing an example instance of code system |  ✅ |
+| should export a value set that includes a component from a value set | Export a value set that includes a component from a value set |  ✅ |
+| should export a value set that includes a component from a value set with a version | Export a value set that includes a component from a value set with a version |  ✅ |
+| should export a value set that includes a component from a local value set with a version | Export a value set that includes a component from a local value set with a version |  ✅ |
+| should export a value set that includes a component from a named value set | Export a value set that includes a component from a named value set |  ✅ |
+| should export a value set that includes a component from a named versioned value set | Export a value set that includes a component from a named versioned value set |  ✅ |
+| should export a value set that includes a component from a named versioned value set and warn on version mismatch | Export a value set that includes a component from a named versioned value set and warn on version mismatch |  ✅ |
+| should throw error for caret rule on valueset compose component without any concept | Throw error for caret rule on valueset compose component without any concept |  ✅ |
+| should export a value set with a contained resource created on the value set | Export a value set with a contained resource created on the value set |  ✅ |
+| should export a value set with a contained resource modified on the value set | Export a value set with a contained resource modified on the value set |  ✅ |
+| should log a warning and export a value set with a contained example resource with a numeric id modified on the value set | Log a warning and export a value set with a contained example resource with a numeric id modified on the value set |  ✅ |
+| should export a value set that includes a component from a contained code system created on the value set and referenced by id | Export a value set that includes a component from a contained code system created on the value set and referenced by id |  ✅ |
+| should export a value set that includes a component from a contained code system created on the value set and referenced by name | Export a value set that includes a component from a contained code system created on the value set and referenced by name |  ✅ |
+| should export a value set that includes a component from a contained code system created on the value set and referenced by url | Export a value set that includes a component from a contained code system created on the value set and referenced by url |  ✅ |
+| should not use a contained resource created on the value set as a component system when that resource is not a CodeSystem | Not use a contained resource created on the value set as a component system when that resource is not a CodeSystem |  ✅ |
+| should remove and log error when exporting a value set that includes a component from a self referencing value set | Remove and log error when exporting a value set that includes a component from a self referencing value set |  ✅ |
+| should export a value set that includes a concept component with at least one concept | Export a value set that includes a concept component with at least one concept |  ✅ |
+| should export a value set that includes a concept component from a local complete code system name with at least one concept | Export a value set that includes a concept component from a local complete code system name with at least one concept |  ✅ |
+| should export a value set that includes a concept component from a local complete code system name with concepts added by CaretValueRules | Export a value set that includes a concept component from a local complete code system name with concepts added by CaretValueRules |  ✅ |
+| should export a value set that includes a concept component from a local complete code system name with at least one concept added by a RuleSet | Export a value set that includes a concept component from a local complete code system name with at least one concept added by a RuleSet |  ✅ |
+| should export a value set that includes a concept component from a local complete CodeSystem instance name with at least one concept | Export a value set that includes a concept component from a local complete CodeSystem instance name with at least one concept |  ✅ |
+| should export a value set that includes a concept component from a local complete CodeSystem instance name with at least one concept added by a RuleSet | Export a value set that includes a concept component from a local complete CodeSystem instance name with at least one concept added by a RuleSet |  ✅ |
+| should export a value set that includes a concept component from a local incomplete CodeSystem when the concept is not in the system | Export a value set that includes a concept component from a local incomplete CodeSystem when the concept is not in the system |  ✅ |
+| should export a value set that includes a concept component from a local incomplete CodeSystem instance when the concept is not in the system | Export a value set that includes a concept component from a local incomplete CodeSystem instance when the concept is not in the system |  ✅ |
+| should log an error when exporting a value set that includes a concept component from a local complete code system name when the concept is not in the system | Log an error when exporting a value set that includes a concept component from a local complete code system name when the concept is not in the system |  ✅ |
+| should log an error when exporting a value set that includes a concept component from a local complete CodeSystem instance name when the concept is not in the system | Log an error when exporting a value set that includes a concept component from a local complete CodeSystem instance name when the concept is not in the system |  ✅ |
+| should log an error when exporting a value set that includes a concept component from a local complete code system url when the concept is not in the system | Log an error when exporting a value set that includes a concept component from a local complete code system url when the concept is not in the system |  ✅ |
+| should export a value set that includes a concept component where the concept system includes a version | Export a value set that includes a concept component where the concept system includes a version |  ✅ |
+| should export a value set that includes a filter component with a regex filter | Export a value set that includes a filter component with a regex filter |  ✅ |
+| should export a value set that includes a filter component with a code filter | Export a value set that includes a filter component with a code filter |  ✅ |
+| should export a value set that includes a filter component with a code filter where the value is from a local complete system | Export a value set that includes a filter component with a code filter where the value is from a local complete system |  ✅ |
+| should export a value set that includes a filter component with a code filter where the value is from a local incomplete system and the code is not in the system | Export a value set that includes a filter component with a code filter where the value is from a local incomplete system and the code is not in the system |  ✅ |
+| should export a value set that includes a filter component with a code filter where the value is from a local complete Instance of CodeSystem | Export a value set that includes a filter component with a code filter where the value is from a local complete Instance of CodeSystem |  ✅ |
+| should export a value set that includes a filter component with a code filter where the value is from a local incomplete Instance of CodeSystem and the code is not in the system | Export a value set that includes a filter component with a code filter where the value is from a local incomplete Instance of CodeSystem and the code is not in the system |  ✅ |
+| should log an error when exporting a value set that includes a filter component with a code filter where the value is from a local complete system, but is not present in the system | Log an error when exporting a value set that includes a filter component with a code filter where the value is from a local complete system, but is not present in the system |  ✅ |
+| should log an error when exporting a value set that includes a filter component with a code filter where the value is from a local complete Instance of CodeSystem, but is not present in the system | Log an error when exporting a value set that includes a filter component with a code filter where the value is from a local complete Instance of CodeSystem, but is not present in the system |  ✅ |
+| should export a value set that includes a filter component with a string filter | Export a value set that includes a filter component with a string filter |  ✅ |
+| should export a value set that excludes a component | Export a value set that excludes a component |  ✅ |
+| should log a message when a value set has a logical definition without inclusions | Log a message when a value set has a logical definition without inclusions |  ✅ |
+| should log a message when a value set from system is not a URI | Log a message when a value set from system is not a URI |  ✅ |
+| should log a message when a value set from is not a URI | Log a message when a value set from is not a URI |  ✅ |
+| should log a message and not add the concept again when a specific concept is included more than once | Log a message and not add the concept again when a specific concept is included more than once |  ✅ |
+| should apply a CaretValueRule | Apply a CaretValueRule |  ✅ |
+| should apply a CaretValueRule with soft indexing | Apply a CaretValueRule with soft indexing |  ✅ |
+| should apply a CaretValueRule with extension slices in the correct order | Apply a CaretValueRule with extension slices in the correct order |  ✅ |
+| should apply a CaretValueRule that assigns an inline Instance | Apply a CaretValueRule that assigns an inline Instance |  ✅ |
+| should apply a CaretValueRule that assigns an inline Instance with a numeric id | Apply a CaretValueRule that assigns an inline Instance with a numeric id |  ✅ |
+| should apply a CaretValueRule that assigns an inline Instance with an id that resembles a boolean | Apply a CaretValueRule that assigns an inline Instance with an id that resembles a boolean |  ✅ |
+| should log a message when trying to assign an Instance, but the Instance is not found | Log a message when trying to assign an Instance, but the Instance is not found |  ✅ |
+| should log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong | Log a message when trying to assign a value that is numeric and refers to an Instance, but both types are wrong |  ✅ |
+| should log a message when trying to assign a value that is boolean and refers to an Instance, but both types are wrong | Log a message when trying to assign a value that is boolean and refers to an Instance, but both types are wrong |  ✅ |
+| should export a value set with an extension | Export a value set with an extension |  ✅ |
+| should log a message when applying invalid CaretValueRule | Log a message when applying invalid CaretValueRule |  ✅ |
+| should use the url specified in a CaretValueRule when referencing a named value set | Use the url specified in a CaretValueRule when referencing a named value set |  ✅ |
+| should use the url specified in a CaretValueRule when referencing a named code system | Use the url specified in a CaretValueRule when referencing a named code system |  ✅ |
+| should apply a CaretValueRule at an included concept | Apply a CaretValueRule at an included concept |  ✅ |
+| should apply a CaretValueRule at an included concept when there is a compose rule for a filter on the system first | Apply a CaretValueRule at an included concept when there is a compose rule for a filter on the system first |  ✅ |
+| should apply a CaretValueRule at a concept from a code system defined in FSH identified by name | Apply a CaretValueRule at a concept from a code system defined in FSH identified by name |  ✅ |
+| should apply a CaretValueRule at a concept from a code system defined in FSH identified by id | Apply a CaretValueRule at a concept from a code system defined in FSH identified by id |  ✅ |
+| should apply a CaretValueRule at an excluded concept | Apply a CaretValueRule at an excluded concept |  ✅ |
+| should apply a CaretValueRule at an excluded concept when there is a compose rule for a filter on the system first | Apply a CaretValueRule at an excluded concept when there is a compose rule for a filter on the system first |  ✅ |
+| should apply a CaretValueRule that assigns an instance at a concept | Apply a CaretValueRule that assigns an instance at a concept |  ✅ |
+| should log an error when a CaretValueRule is applied at a concept that is neither included nor excluded | Log an error when a CaretValueRule is applied at a concept that is neither included nor excluded |  ✅ |
+| should not throw an error when caret rules are applied to a code from a specific version of a codeSystem | Not throw an error when caret rules are applied to a code from a specific version of a codeSystem |  ✅ |
+| should output an error when a choice element has values assigned to more than one choice type | Output an error when a choice element has values assigned to more than one choice type |  ✅ |
 
 #### `#insertRules`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply rules from an insert rule | Apply rules from an insert rule | |
-| should apply a CaretValueRule from a rule set with soft indexing | Apply a CaretValueRule from a rule set with soft indexing | |
-| should apply concept-creating rules from a rule set and combine concepts from the same system | Apply concept-creating rules from a rule set and combine concepts from the same system | |
-| should apply concept-creating rules from a rule set and combine concepts from the same system and valuesets | Apply concept-creating rules from a rule set and combine concepts from the same system and valuesets | |
-| should apply concept-creating rules from a rule set and combine excluded concepts from the same system and valuesets | Apply concept-creating rules from a rule set and combine excluded concepts from the same system and valuesets | |
-| should log an error and not apply rules from an invalid insert rule | Log an error and not apply rules from an invalid insert rule | |
+| should apply rules from an insert rule | Apply rules from an insert rule |  ✅ |
+| should apply a CaretValueRule from a rule set with soft indexing | Apply a CaretValueRule from a rule set with soft indexing |  ✅ |
+| should apply concept-creating rules from a rule set and combine concepts from the same system | Apply concept-creating rules from a rule set and combine concepts from the same system |  ✅ |
+| should apply concept-creating rules from a rule set and combine concepts from the same system and valuesets | Apply concept-creating rules from a rule set and combine concepts from the same system and valuesets |  ✅ |
+| should apply concept-creating rules from a rule set and combine excluded concepts from the same system and valuesets | Apply concept-creating rules from a rule set and combine excluded concepts from the same system and valuesets |  ✅ |
+| should log an error and not apply rules from an invalid insert rule | Log an error and not apply rules from an invalid insert rule |  ✅ |
 
 ---
 
