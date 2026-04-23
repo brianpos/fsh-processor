@@ -11,7 +11,7 @@ and to guide decisions about which tests to tackle next.
 > See the re-assessment in [`sushi-test-mapping.md`](./sushi-test-mapping.md#assessment-as-of-2026-04-23-porting-can-now-begin)
 > for the full rationale and suggested order.
 >
-> **Progress so far (452 / 1138 tests ported):**
+> **Progress so far (569 / 1138 tests ported):**
 > - `CodeSystemExporter.test.ts` — **59 / 59** ✅ fully ported → `Sushi/CodeSystemExporterTests.cs`
 > - `FHIRExporter.test.ts` — **25 / 25** ✅ fully ported → `Sushi/FHIRExporterTests.cs`
 > - `MappingExporter.test.ts` — **21 / 21** ✅ fully ported → `Sushi/MappingExporterTests.cs`
@@ -20,7 +20,7 @@ and to guide decisions about which tests to tackle next.
 > - `StructureDefinition.ProfileExporter.test.ts` — **24 / 24** ✅ fully ported → `Sushi/ProfileExporterTests.cs`
 > - `StructureDefinition.ResourceExporter.test.ts` — **28 / 28** ✅ fully ported → `Sushi/ResourceExporterTests.cs`
 > - `ValueSetExporter.test.ts` — **94 / 94** ✅ fully ported → `Sushi/ValueSetExporterTests.cs`
-> - `StructureDefinitionExporter.test.ts` — **79 / 376** partially ported → `Sushi/StructureDefinitionExporterTests.cs`
+> - `StructureDefinitionExporter.test.ts` — **187 / 376** partially ported → `Sushi/StructureDefinitionExporterTests.cs`
 > - `InstanceExporter.test.ts` — **36 / 370** partially ported → `Sushi/InstanceExporterTests.cs`
 > - `Package.test.ts` — **0 / 55** out of scope (SUSHI's `fishForFHIR`/`fishForMetadata` API has no C# equivalent)
 >
@@ -987,10 +987,10 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should create a profile when the definition specifies another profile does not have a canonical version for the parent | Create a profile when the definition specifies another profile does not have a canonical version for the parent | |
-| should create profiles when the definition specifies a different canonical version for the parent | Create profiles when the definition specifies a different canonical version for the parent | |
-| should throw an Error when the definition specifies another profile having an unsupported canonical version for the parent | Throw an Error when the definition specifies another profile having an unsupported canonical version for the parent | |
-| should throw an Error when the definition specifies another profile having an unexpected canonical version for the parent | Throw an Error when the definition specifies another profile having an unexpected canonical version for the parent | |
+| should create a profile when the definition specifies another profile does not have a canonical version for the parent | Create a profile when the definition specifies another profile does not have a canonical version for the parent |  ✅ |
+| should create profiles when the definition specifies a different canonical version for the parent | Create profiles when the definition specifies a different canonical version for the parent |  ✅ |
+| should throw an Error when the definition specifies another profile having an unsupported canonical version for the parent | Throw an Error when the definition specifies another profile having an unsupported canonical version for the parent |  ✅ |
+| should throw an Error when the definition specifies another profile having an unexpected canonical version for the parent | Throw an Error when the definition specifies another profile having an unexpected canonical version for the parent |  ✅ |
 
 #### `#Profile`
 
@@ -999,8 +999,8 @@ and to guide decisions about which tests to tackle next.
 | should set all user-provided metadata for a profile | Set all user-provided metadata for a profile |  ✅ |
 | should set status and version metadata for a profile in FSHOnly mode | Set status and version metadata for a profile in FSHOnly mode |  ✅ |
 | should properly set/clear all metadata properties for a profile | Properly set/clear all metadata properties for a profile |  ✅ |
-| should remove inherited top-level underscore-prefixed metadata properties for a profile | Remove inherited top-level underscore-prefixed metadata properties for a profile | |
-| should only inherit inheritable extensions for a profile | Only inherit inheritable extensions for a profile | |
+| should remove inherited top-level underscore-prefixed metadata properties for a profile | Remove inherited top-level underscore-prefixed metadata properties for a profile |  ✅ |
+| should only inherit inheritable extensions for a profile | Only inherit inheritable extensions for a profile |  ✅ |
 | should not overwrite metadata that is not given for a profile | Not overwrite metadata that is not given for a profile |  ✅ |
 | should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule |  ✅ |
 | should log an error when multiple profiles have the same id | Log an error when multiple profiles have the same id |  ✅ |
@@ -1009,9 +1009,9 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply constraints to all instances of contentReference elements when the profile-element extension is applied | Apply constraints to all instances of contentReference elements when the profile-element extension is applied | |
-| should apply the profile-element extension when there are several extensions in the type.profile array | Apply the profile-element extension when there are several extensions in the type.profile array | |
-| should not apply constraints to all instances of contentReference elements when the profile-element extension is misapplied | Not apply constraints to all instances of contentReference elements when the profile-element extension is misapplied | |
+| should apply constraints to all instances of contentReference elements when the profile-element extension is applied | Apply constraints to all instances of contentReference elements when the profile-element extension is applied |  ✅ |
+| should apply the profile-element extension when there are several extensions in the type.profile array | Apply the profile-element extension when there are several extensions in the type.profile array |  ✅ |
+| should not apply constraints to all instances of contentReference elements when the profile-element extension is misapplied | Not apply constraints to all instances of contentReference elements when the profile-element extension is misapplied |  ✅ |
 
 #### `#Extension`
 
@@ -1024,8 +1024,8 @@ and to guide decisions about which tests to tackle next.
 | should remove inherited top-level underscore-prefixed metadata properties for an extension | Remove inherited top-level underscore-prefixed metadata properties for an extension |  ✅ |
 | should overwrite parent context when a new context is set | Overwrite parent context when a new context is set |  ✅ |
 | should not overwrite metadata that is not given for an extension | Not overwrite metadata that is not given for an extension |  ✅ |
-| should export sub-extensions, with similar starting names and different types | Export sub-extensions, with similar starting names and different types | |
-| should not hardcode in the default context if parent already had a context | Not hardcode in the default context if parent already had a context | |
+| should export sub-extensions, with similar starting names and different types | Export sub-extensions, with similar starting names and different types |  ✅ |
+| should not hardcode in the default context if parent already had a context | Not hardcode in the default context if parent already had a context |  ✅ |
 | should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule |  ✅ |
 | should log an error when multiple extensions have the same id | Log an error when multiple extensions have the same id |  ✅ |
 | should log an error when a profile and an extension have the same id | Log an error when a profile and an extension have the same id |  ✅ |
@@ -1038,136 +1038,136 @@ and to guide decisions about which tests to tackle next.
 | should have the correct baseDefinition for a provided parent | Have the correct baseDefinition for a provided parent |  ✅ |
 | should set all user-provided metadata for a logical model | Set all user-provided metadata for a logical model |  ✅ |
 | should set status and version metadata for a logical model in FSHOnly mode | Set status and version metadata for a logical model in FSHOnly mode |  ✅ |
-| should properly set/clear all metadata properties for a logical model | Properly set/clear all metadata properties for a logical model | |
-| should remove inherited top-level underscore-prefixed metadata properties for a logical model | Remove inherited top-level underscore-prefixed metadata properties for a logical model | |
+| should properly set/clear all metadata properties for a logical model | Properly set/clear all metadata properties for a logical model |  ✅ |
+| should remove inherited top-level underscore-prefixed metadata properties for a logical model | Remove inherited top-level underscore-prefixed metadata properties for a logical model |  ✅ |
 | should not overwrite metadata that is not given for a logical model | Not overwrite metadata that is not given for a logical model |  ✅ |
 | should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule |  ✅ |
-| should allow type to be overwritten with caret rule with a uri value | Allow type to be overwritten with caret rule with a uri value | |
-| should log a warning and allow overwriting type with caret rule with a non-uri value | Log a warning and allow overwriting type with caret rule with a non-uri value | |
+| should allow type to be overwritten with caret rule with a uri value | Allow type to be overwritten with caret rule with a uri value |  ✅ |
+| should log a warning and allow overwriting type with caret rule with a non-uri value | Log a warning and allow overwriting type with caret rule with a non-uri value |  ✅ |
 | should log an error when multiple logical models have the same id | Log an error when multiple logical models have the same id |  ✅ |
 | should log an error when a profile and a logical model have the same id | Log an error when a profile and a logical model have the same id |  ✅ |
-| should include added elements along with parent elements | Include added elements along with parent elements | |
+| should include added elements along with parent elements | Include added elements along with parent elements |  ✅ |
 | should include added elements for BackboneElement and children | Include added elements for BackboneElement and children | |
-| should log an error when MustSupport is true in a logical model | Log an error when MustSupport is true in a logical model | |
+| should log an error when MustSupport is true in a logical model | Log an error when MustSupport is true in a logical model |  ✅ |
 
 #### `#Resource`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should have the correct baseDefinition of Element when parent is not provided | Have the correct baseDefinition of Element when parent is not provided | |
+| should have the correct baseDefinition of Element when parent is not provided | Have the correct baseDefinition of Element when parent is not provided |  ✅ |
 | should have the correct baseDefinition for a Resource parent | Have the correct baseDefinition for a Resource parent |  ✅ |
 | should have the correct baseDefinition for a DomainResource parent | Have the correct baseDefinition for a DomainResource parent |  ✅ |
 | should set all user-provided metadata for a resource | Set all user-provided metadata for a resource |  ✅ |
 | should set status and version metadata for a resource in FSHOnly mode | Set status and version metadata for a resource in FSHOnly mode |  ✅ |
-| should properly set/clear all metadata properties for a resource | Properly set/clear all metadata properties for a resource | |
-| should remove inherited top-level underscore-prefixed metadata properties for a resource | Remove inherited top-level underscore-prefixed metadata properties for a resource | |
+| should properly set/clear all metadata properties for a resource | Properly set/clear all metadata properties for a resource |  ✅ |
+| should remove inherited top-level underscore-prefixed metadata properties for a resource | Remove inherited top-level underscore-prefixed metadata properties for a resource |  ✅ |
 | should not overwrite metadata that is not given for a resource | Not overwrite metadata that is not given for a resource |  ✅ |
 | should allow metadata to be overwritten with caret rule | Allow metadata to be overwritten with caret rule |  ✅ |
 | should log an error when multiple resources have the same id | Log an error when multiple resources have the same id |  ✅ |
-| should log an error when a resource and a logical model have the same id | Log an error when a resource and a logical model have the same id | |
-| should include added elements along with parent root element | Include added elements along with parent root element | |
+| should log an error when a resource and a logical model have the same id | Log an error when a resource and a logical model have the same id |  ✅ |
+| should include added elements along with parent root element | Include added elements along with parent root element |  ✅ |
 | should include added elements for BackboneElement and children | Include added elements for BackboneElement and children | |
-| should log an error when MustSupport is true in a resource | Log an error when MustSupport is true in a resource | |
+| should log an error when MustSupport is true in a resource | Log an error when MustSupport is true in a resource |  ✅ |
 
 #### `#Invariant`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should not warn or error on a valid Invariant using keywords | Not warn or error on a valid Invariant using keywords | |
-| should not warn or error on a valid Invariant using rules | Not warn or error on a valid Invariant using rules | |
-| should log an error when description is not provided | Log an error when description is not provided | |
-| should log an error when severity is not provided | Log an error when severity is not provided | |
-| should log an error when severity is not one of the valid values (set by keyword) | Log an error when severity is not one of the valid values (set by keyword) | |
-| should log an error when severity is not one of the valid values (set by rule) | Log an error when severity is not one of the valid values (set by rule) | |
-| should log a warning when severity includes a system (set by keyword) | Log a warning when severity includes a system (set by keyword) | |
-| should log a warning when severity includes a system (set by rule) | Log a warning when severity includes a system (set by rule) | |
+| should not warn or error on a valid Invariant using keywords | Not warn or error on a valid Invariant using keywords |  ✅ |
+| should not warn or error on a valid Invariant using rules | Not warn or error on a valid Invariant using rules |  ✅ |
+| should log an error when description is not provided | Log an error when description is not provided |  ✅ |
+| should log an error when severity is not provided | Log an error when severity is not provided |  ✅ |
+| should log an error when severity is not one of the valid values (set by keyword) | Log an error when severity is not one of the valid values (set by keyword) |  ✅ |
+| should log an error when severity is not one of the valid values (set by rule) | Log an error when severity is not one of the valid values (set by rule) |  ✅ |
+| should log a warning when severity includes a system (set by keyword) | Log a warning when severity includes a system (set by keyword) |  ✅ |
+| should log a warning when severity includes a system (set by rule) | Log a warning when severity includes a system (set by rule) |  ✅ |
 
 #### `#Rules`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should emit an error and continue when the path is not found | Emit an error and continue when the path is not found | |
-| should emit an error and continue when the path for the child of a choice element is not found | Emit an error and continue when the path for the child of a choice element is not found | |
+| should emit an error and continue when the path is not found | Emit an error and continue when the path is not found |  ✅ |
+| should emit an error and continue when the path for the child of a choice element is not found | Emit an error and continue when the path for the child of a choice element is not found |  ✅ |
 
 #### `#AddElementRule`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should throw an error for an invalid AddElementRule path | Throw an error for an invalid AddElementRule path | |
-| should add an element with a type and minimum required attributes | Add an element with a type and minimum required attributes | |
-| should add an element with a content reference and minimum required attributes | Add an element with a content reference and minimum required attributes | |
-| should add an element with additional constraint attributes | Add an element with additional constraint attributes | |
-| should add an element with multiple targetTypes | Add an element with multiple targetTypes | |
-| should add an element with all boolean flags set to true | Add an element with all boolean flags set to true | |
-| should add an element with all boolean flags set to false | Add an element with all boolean flags set to false | |
-| should add an element with trial use standards flag set to true | Add an element with trial use standards flag set to true | |
-| should add an element with normative standards flag set to true | Add an element with normative standards flag set to true | |
-| should add an element with draft standards flag set to true | Add an element with draft standards flag set to true | |
-| should add an element with all standards flags set to false | Add an element with all standards flags set to false | |
-| should log an error when more than one standards flag is set to true | Log an error when more than one standards flag is set to true | |
-| should add an element with supported doc attributes | Add an element with supported doc attributes | |
-| should log an error and add an element when an element name contains a prohibited special character or is more than 64 characters long | Log an error and add an element when an element name contains a prohibited special character or is more than 64 characters long | |
-| should log a warning and add an element when an element name is not a simple alphanumeric | Log a warning and add an element when an element name is not a simple alphanumeric | |
-| should log an error when SDRule added before AddElementRule | Log an error when SDRule added before AddElementRule | |
-| should log an error when path does not have [x] for multiple data types in AddElementRule | Log an error when path does not have [x] for multiple data types in AddElementRule | |
-| should not log an error when path does not have [x] for multiple reference types in AddElementRule | Not log an error when path does not have [x] for multiple reference types in AddElementRule | |
-| should not log an error when path does not have [x] for multiple canonical types in AddElementRule | Not log an error when path does not have [x] for multiple canonical types in AddElementRule | |
+| should throw an error for an invalid AddElementRule path | Throw an error for an invalid AddElementRule path |  ✅ |
+| should add an element with a type and minimum required attributes | Add an element with a type and minimum required attributes |  ✅ |
+| should add an element with a content reference and minimum required attributes | Add an element with a content reference and minimum required attributes |  ✅ |
+| should add an element with additional constraint attributes | Add an element with additional constraint attributes |  ✅ |
+| should add an element with multiple targetTypes | Add an element with multiple targetTypes |  ✅ |
+| should add an element with all boolean flags set to true | Add an element with all boolean flags set to true |  ✅ |
+| should add an element with all boolean flags set to false | Add an element with all boolean flags set to false |  ✅ |
+| should add an element with trial use standards flag set to true | Add an element with trial use standards flag set to true |  ✅ |
+| should add an element with normative standards flag set to true | Add an element with normative standards flag set to true |  ✅ |
+| should add an element with draft standards flag set to true | Add an element with draft standards flag set to true |  ✅ |
+| should add an element with all standards flags set to false | Add an element with all standards flags set to false |  ✅ |
+| should log an error when more than one standards flag is set to true | Log an error when more than one standards flag is set to true |  ✅ |
+| should add an element with supported doc attributes | Add an element with supported doc attributes |  ✅ |
+| should log an error and add an element when an element name contains a prohibited special character or is more than 64 characters long | Log an error and add an element when an element name contains a prohibited special character or is more than 64 characters long |  ✅ |
+| should log a warning and add an element when an element name is not a simple alphanumeric | Log a warning and add an element when an element name is not a simple alphanumeric |  ✅ |
+| should log an error when SDRule added before AddElementRule | Log an error when SDRule added before AddElementRule |  ✅ |
+| should log an error when path does not have [x] for multiple data types in AddElementRule | Log an error when path does not have [x] for multiple data types in AddElementRule |  ✅ |
+| should not log an error when path does not have [x] for multiple reference types in AddElementRule | Not log an error when path does not have [x] for multiple reference types in AddElementRule |  ✅ |
+| should not log an error when path does not have [x] for multiple canonical types in AddElementRule | Not log an error when path does not have [x] for multiple canonical types in AddElementRule |  ✅ |
 
 #### `#CardRule`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a correct card rule | Apply a correct card rule | |
-| should not apply an incorrect card rule | Not apply an incorrect card rule | |
-| should apply a card rule with only min specified | Apply a card rule with only min specified | |
-| should apply a card rule with only max specified | Apply a card rule with only max specified | |
-| should not apply an incorrect min only card rule | Not apply an incorrect min only card rule | |
-| should not apply an incorrect max only card rule | Not apply an incorrect max only card rule | |
-| should not apply a card rule with no sides specified | Not apply a card rule with no sides specified | |
+| should apply a correct card rule | Apply a correct card rule |  ✅ |
+| should not apply an incorrect card rule | Not apply an incorrect card rule |  ✅ |
+| should apply a card rule with only min specified | Apply a card rule with only min specified |  ✅ |
+| should apply a card rule with only max specified | Apply a card rule with only max specified |  ✅ |
+| should not apply an incorrect min only card rule | Not apply an incorrect min only card rule |  ✅ |
+| should not apply an incorrect max only card rule | Not apply an incorrect max only card rule |  ✅ |
+| should not apply a card rule with no sides specified | Not apply a card rule with no sides specified |  ✅ |
 
 #### `#FlagRule`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a valid flag rule | Apply a valid flag rule | |
-| should apply a flag rule that specifies an element is trial use | Apply a flag rule that specifies an element is trial use | |
-| should apply a flag rule that specifies an element is normative | Apply a flag rule that specifies an element is normative | |
-| should apply a flag rule that specifies an element is a draft | Apply a flag rule that specifies an element is a draft | |
-| should log an error when more than one standards status flag rule is specified on an element | Log an error when more than one standards status flag rule is specified on an element | |
-| should apply a flag rule that changes the existing standards status | Apply a flag rule that changes the existing standards status | |
+| should apply a valid flag rule | Apply a valid flag rule |  ✅ |
+| should apply a flag rule that specifies an element is trial use | Apply a flag rule that specifies an element is trial use |  ✅ |
+| should apply a flag rule that specifies an element is normative | Apply a flag rule that specifies an element is normative |  ✅ |
+| should apply a flag rule that specifies an element is a draft | Apply a flag rule that specifies an element is a draft |  ✅ |
+| should log an error when more than one standards status flag rule is specified on an element | Log an error when more than one standards status flag rule is specified on an element |  ✅ |
+| should apply a flag rule that changes the existing standards status | Apply a flag rule that changes the existing standards status |  ✅ |
 
 #### `#ValueSetRule`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a correct value set rule to an unbound string | Apply a correct value set rule to an unbound string | |
-| should apply a correct value set rule that overrides a previous binding | Apply a correct value set rule that overrides a previous binding | |
-| should apply a correct value set rule when the VS is referenced by name | Apply a correct value set rule when the VS is referenced by name | |
-| should apply a correct value set rule when the VS has a rule that sets its name and it is referenced by name | Apply a correct value set rule when the VS has a rule that sets its name and it is referenced by name | |
-| should apply a correct value set rule when the VS specifies a version | Apply a correct value set rule when the VS specifies a version | |
+| should apply a correct value set rule to an unbound string | Apply a correct value set rule to an unbound string |  ✅ |
+| should apply a correct value set rule that overrides a previous binding | Apply a correct value set rule that overrides a previous binding |  ✅ |
+| should apply a correct value set rule when the VS is referenced by name | Apply a correct value set rule when the VS is referenced by name |  ✅ |
+| should apply a correct value set rule when the VS has a rule that sets its name and it is referenced by name | Apply a correct value set rule when the VS has a rule that sets its name and it is referenced by name |  ✅ |
+| should apply a correct value set rule when the VS specifies a version | Apply a correct value set rule when the VS specifies a version |  ✅ |
 | should use the url specified in a CaretValueRule when referencing a named value set | Use the url specified in a CaretValueRule when referencing a named value set |  ✅ |
 | should apply a value set rule on an element that has the #can-bind characteristic | Apply a value set rule on an element that has the #can-bind characteristic | |
 | should apply a value set rule on an element that has the #can-bind type characteristic extension | Apply a value set rule on an element that has the #can-bind type characteristic extension | |
 | should apply a value set rule on an element that has the #can-bind type characteristic extension using extension path syntax with url | Apply a value set rule on an element that has the #can-bind type characteristic extension using extension path syntax with url | |
 | should log a warning and apply a value set rule on an element that is missing the #can-bind characteristic and extension | Log a warning and apply a value set rule on an element that is missing the #can-bind characteristic and extension | |
-| should not apply a value set rule on an element that cannot support it | Not apply a value set rule on an element that cannot support it | |
-| should not override a binding with a less strict binding | Not override a binding with a less strict binding | |
+| should not apply a value set rule on an element that cannot support it | Not apply a value set rule on an element that cannot support it |  ✅ |
+| should not override a binding with a less strict binding | Not override a binding with a less strict binding |  ✅ |
 
 #### `#OnlyRule`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a correct OnlyRule on a non-reference choice | Apply a correct OnlyRule on a non-reference choice | |
-| should apply a correct OnlyRule on a reference | Apply a correct OnlyRule on a reference | |
-| should apply a correct OnlyRule on a reference to Any | Apply a correct OnlyRule on a reference to Any | |
-| should apply a correct OnlyRule on a canonical | Apply a correct OnlyRule on a canonical | |
-| should apply a correct OnlyRule with a version on a canonical | Apply a correct OnlyRule with a version on a canonical | |
-| should apply a correct OnlyRule on a canonical to Any | Apply a correct OnlyRule on a canonical to Any | |
-| should apply a correct OnlyRule with a specific reference target constrained | Apply a correct OnlyRule with a specific reference target constrained | |
-| should apply a correct OnlyRule with a specific canonical target constrained | Apply a correct OnlyRule with a specific canonical target constrained | |
-| should apply a correct OnlyRule on a non-reference FSHy choice | Apply a correct OnlyRule on a non-reference FSHy choice | |
-| should apply a correct OnlyRule on a FSHy reference | Apply a correct OnlyRule on a FSHy reference | |
-| should apply a correct OnlyRule on a FSHy canonical | Apply a correct OnlyRule on a FSHy canonical | |
+| should apply a correct OnlyRule on a non-reference choice | Apply a correct OnlyRule on a non-reference choice |  ✅ |
+| should apply a correct OnlyRule on a reference | Apply a correct OnlyRule on a reference |  ✅ |
+| should apply a correct OnlyRule on a reference to Any | Apply a correct OnlyRule on a reference to Any |  ✅ |
+| should apply a correct OnlyRule on a canonical | Apply a correct OnlyRule on a canonical |  ✅ |
+| should apply a correct OnlyRule with a version on a canonical | Apply a correct OnlyRule with a version on a canonical |  ✅ |
+| should apply a correct OnlyRule on a canonical to Any | Apply a correct OnlyRule on a canonical to Any |  ✅ |
+| should apply a correct OnlyRule with a specific reference target constrained | Apply a correct OnlyRule with a specific reference target constrained |  ✅ |
+| should apply a correct OnlyRule with a specific canonical target constrained | Apply a correct OnlyRule with a specific canonical target constrained |  ✅ |
+| should apply a correct OnlyRule on a non-reference FSHy choice | Apply a correct OnlyRule on a non-reference FSHy choice |  ✅ |
+| should apply a correct OnlyRule on a FSHy reference | Apply a correct OnlyRule on a FSHy reference |  ✅ |
+| should apply a correct OnlyRule on a FSHy canonical | Apply a correct OnlyRule on a FSHy canonical |  ✅ |
 | should apply a correct OnlyRule with a specific target constrained to FSHy definition | Apply a correct OnlyRule with a specific target constrained to FSHy definition | |
 | should apply a correct OnlyRule with a specific canonical target constrained to FSHy definition | Apply a correct OnlyRule with a specific canonical target constrained to FSHy definition | |
 | should apply correct OnlyRules on circular FSHy reference choices | Apply correct OnlyRules on circular FSHy reference choices | |
@@ -1190,9 +1190,9 @@ and to guide decisions about which tests to tackle next.
 | should apply a correct OnlyRule on a reference to a defined logical type and log a warning if it is defined without the logical target extension | Apply a correct OnlyRule on a reference to a defined logical type and log a warning if it is defined without the logical target extension | |
 | should log a debug message when we detect a circular dependency in OnlyRules that might result in incomplete definitions | Log a debug message when we detect a circular dependency in OnlyRules that might result in incomplete definitions | |
 | should log a warning message when we detect a circular dependency that causes an incomplete parent | Log a warning message when we detect a circular dependency that causes an incomplete parent | |
-| should apply an OnlyRule to constrain an id element | Apply an OnlyRule to constrain an id element | |
-| should apply an OnlyRule to constrain a url element | Apply an OnlyRule to constrain a url element | |
-| should not apply an incorrect OnlyRule | Not apply an incorrect OnlyRule | |
+| should apply an OnlyRule to constrain an id element | Apply an OnlyRule to constrain an id element |  ✅ |
+| should apply an OnlyRule to constrain a url element | Apply an OnlyRule to constrain a url element |  ✅ |
+| should not apply an incorrect OnlyRule | Not apply an incorrect OnlyRule |  ✅ |
 | should log an error when a type constraint implicitly removes a choice created in the current StructureDefinition | Log an error when a type constraint implicitly removes a choice created in the current StructureDefinition | |
 | should not log an error when a type constraint implicitly removes a choice that has no rules applied in the current StructureDefinition | Not log an error when a type constraint implicitly removes a choice that has no rules applied in the current StructureDefinition | |
 | should not log an error when a type constraint is applied to a specific slice | Not log an error when a type constraint is applied to a specific slice | |
@@ -1259,11 +1259,11 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a ContainsRule on an element with defined slicing | Apply a ContainsRule on an element with defined slicing | |
+| should apply a ContainsRule on an element with defined slicing | Apply a ContainsRule on an element with defined slicing |  ✅ |
 | should apply a ContainsRule on a slice | Apply a ContainsRule on a slice | |
-| should apply a ContainsRule on an extension slice | Apply a ContainsRule on an extension slice | |
+| should apply a ContainsRule on an extension slice | Apply a ContainsRule on an extension slice |  ✅ |
 | should log a warning when an element has both a slice name and slicing | Log a warning when an element has both a slice name and slicing | |
-| should apply a ContainsRule of a defined extension on an extension element | Apply a ContainsRule of a defined extension on an extension element | |
+| should apply a ContainsRule of a defined extension on an extension element | Apply a ContainsRule of a defined extension on an extension element |  ✅ |
 | should apply a ContainsRule of a defined extension on a modifierExtension element | Apply a ContainsRule of a defined extension on a modifierExtension element | |
 | should apply a ContainsRule of an aliased extension on an extension element | Apply a ContainsRule of an aliased extension on an extension element | |
 | should apply a ContainsRule of an existing aliased extension on an extension element | Apply a ContainsRule of an existing aliased extension on an extension element | |
@@ -1275,11 +1275,11 @@ and to guide decisions about which tests to tackle next.
 | should apply a ContainsRule of an extension with an overridden URL by URL | Apply a ContainsRule of an extension with an overridden URL by URL | |
 | should apply multiple ContainsRule on an element with defined slicing | Apply multiple ContainsRule on an element with defined slicing | |
 | should apply a containsRule on the child of a choice element with a common ancestor of Element | Apply a containsRule on the child of a choice element with a common ancestor of Element | |
-| should report an error and not add the slice when a ContainsRule tries to add a slice that already exists | Report an error and not add the slice when a ContainsRule tries to add a slice that already exists | |
+| should report an error and not add the slice when a ContainsRule tries to add a slice that already exists | Report an error and not add the slice when a ContainsRule tries to add a slice that already exists |  ✅ |
 | should report an error and not add the extension when an extension ContainsRule tries to add a slice that already exists but has a different extension URL | Report an error and not add the extension when an extension ContainsRule tries to add a slice that already exists but has a different extension URL | |
 | should report a warning and not re-add the extension when an extension ContainsRule tries to add a slice that already exists with a matching extension URL | Report a warning and not re-add the extension when an extension ContainsRule tries to add a slice that already exists with a matching extension URL | |
 | should report an error and not add the slice when a ContainsRule tries to add a slice that was created on the parent | Report an error and not add the slice when a ContainsRule tries to add a slice that was created on the parent | |
-| should not apply a ContainsRule on an element without defined slicing | Not apply a ContainsRule on an element without defined slicing | |
+| should not apply a ContainsRule on an element without defined slicing | Not apply a ContainsRule on an element without defined slicing |  ✅ |
 | should NOT report a warning if the extension slice name resolves to an external extension type and no explicit type was specified | NOT report a warning if the extension slice name resolves to an external extension type and no explicit type was specified | |
 | should NOT report a warning if the extension slice name resolves to a FSH extension and no explicit type was specified | NOT report a warning if the extension slice name resolves to a FSH extension and no explicit type was specified | |
 | should not report a warning if the extension slice name resolves to an extension type but explicit type was specified | Not report a warning if the extension slice name resolves to an extension type but explicit type was specified | |
@@ -1298,17 +1298,17 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply a CaretValueRule on an element with a path | Apply a CaretValueRule on an element with a path | |
+| should apply a CaretValueRule on an element with a path | Apply a CaretValueRule on an element with a path |  ✅ |
 | should not apply an invalid CaretValueRule on an element with a path | Not apply an invalid CaretValueRule on an element with a path | |
-| should apply a CaretValueRule on the parent element | Apply a CaretValueRule on the parent element | |
-| should apply a CaretValueRule on an element without a path | Apply a CaretValueRule on an element without a path | |
+| should apply a CaretValueRule on the parent element | Apply a CaretValueRule on the parent element |  ✅ |
+| should apply a CaretValueRule on an element without a path | Apply a CaretValueRule on an element without a path |  ✅ |
 | should apply a CaretValueRule on the child of a primitive element without a path | Apply a CaretValueRule on the child of a primitive element without a path | |
 | should apply a CaretValueRule on an extension of a primitive element without a path | Apply a CaretValueRule on an extension of a primitive element without a path | |
 | should apply a CaretValueRule on an extension on ElementDefinition | Apply a CaretValueRule on an extension on ElementDefinition | |
 | should apply a CaretValueRule on an extension on ElementDefinition even when the extension references an allowed R5 resource in an R4 IG | Apply a CaretValueRule on an extension on ElementDefinition even when the extension references an allowed R5 resource in an R4 IG | |
 | should not apply an invalid CaretValueRule on an element without a path | Not apply an invalid CaretValueRule on an element without a path | |
-| should apply a CaretValueRule on an extension element without a path | Apply a CaretValueRule on an extension element without a path | |
-| should apply a Reference CaretValueRule on an SD and replace the Reference | Apply a Reference CaretValueRule on an SD and replace the Reference | |
+| should apply a CaretValueRule on an extension element without a path | Apply a CaretValueRule on an extension element without a path |  ✅ |
+| should apply a Reference CaretValueRule on an SD and replace the Reference | Apply a Reference CaretValueRule on an SD and replace the Reference |  ✅ |
 | should apply a Reference CaretValueRule on an ED and replace the Reference | Apply a Reference CaretValueRule on an ED and replace the Reference | |
 | should apply a CodeSystem CaretValueRule on an SD and replace the CodeSystem | Apply a CodeSystem CaretValueRule on an SD and replace the CodeSystem | |
 | should apply a CodeSystem CaretValueRule on an ED and replace the Reference | Apply a CodeSystem CaretValueRule on an ED and replace the Reference | |
@@ -1323,26 +1323,26 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should apply an ObeysRule at the specified path | Apply an ObeysRule at the specified path | |
-| should apply an ObeysRule at specified path (for Invariant with rules) | Apply an ObeysRule at specified path (for Invariant with rules) | |
+| should apply an ObeysRule at the specified path | Apply an ObeysRule at the specified path |  ✅ |
+| should apply an ObeysRule at specified path (for Invariant with rules) | Apply an ObeysRule at specified path (for Invariant with rules) |  ✅ |
 | should apply an ObeysRule at specified path (for Invariant with rules overriding keywords) | Apply an ObeysRule at specified path (for Invariant with rules overriding keywords) | |
 | should apply an ObeysRule at specified path (for Invariant with soft-indexed rules) | Apply an ObeysRule at specified path (for Invariant with soft-indexed rules) | |
 | should apply an ObeysRule at specified path (for Invariant with insert rules) | Apply an ObeysRule at specified path (for Invariant with insert rules) | |
-| should apply an ObeysRule at the path which does not have a constraint | Apply an ObeysRule at the path which does not have a constraint | |
-| should apply an ObeysRule to the base element when no path specified | Apply an ObeysRule to the base element when no path specified | |
-| should apply an ObeysRule to the base element when no path specified (for Invariant with rules) | Apply an ObeysRule to the base element when no path specified (for Invariant with rules) | |
-| should not apply an ObeysRule on an invariant that does not exist | Not apply an ObeysRule on an invariant that does not exist | |
-| should log an error when applying an ObeysRule on an invariant with an invalid id | Log an error when applying an ObeysRule on an invariant with an invalid id | |
+| should apply an ObeysRule at the path which does not have a constraint | Apply an ObeysRule at the path which does not have a constraint |  ✅ |
+| should apply an ObeysRule to the base element when no path specified | Apply an ObeysRule to the base element when no path specified |  ✅ |
+| should apply an ObeysRule to the base element when no path specified (for Invariant with rules) | Apply an ObeysRule to the base element when no path specified (for Invariant with rules) |  ✅ |
+| should not apply an ObeysRule on an invariant that does not exist | Not apply an ObeysRule on an invariant that does not exist |  ✅ |
+| should log an error when applying an ObeysRule on an invariant with an invalid id | Log an error when applying an ObeysRule on an invariant with an invalid id |  ✅ |
 | should log an error with correct tracking info when applying an ObeysRule with an invalid rule | Log an error with correct tracking info when applying an ObeysRule with an invalid rule | |
 
 #### `#Extension preprocessing`
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should zero out Extension.value[x] when Extension.extension is used | Zero out Extension.value[x] when Extension.extension is used | |
+| should zero out Extension.value[x] when Extension.extension is used | Zero out Extension.value[x] when Extension.extension is used |  ✅ |
 | should not zero out Extension.value[x] if Extension.extension is zeroed out | Not zero out Extension.value[x] if Extension.extension is zeroed out | |
-| should log an error if Extension.extension and Extension.value[x] are both used but apply both rules | Log an error if Extension.extension and Extension.value[x] are both used but apply both rules | |
-| should zero out Extension.extension when Extension.value[x] is used | Zero out Extension.extension when Extension.value[x] is used | |
+| should log an error if Extension.extension and Extension.value[x] are both used but apply both rules | Log an error if Extension.extension and Extension.value[x] are both used but apply both rules |  ✅ |
+| should zero out Extension.extension when Extension.value[x] is used | Zero out Extension.extension when Extension.value[x] is used |  ✅ |
 | should not zero out Extension.extension if Extension.value[x] is zeroed out | Not zero out Extension.extension if Extension.value[x] is zeroed out | |
 | should log an error if Extension.value[x] is changed after Extension.extension is used but apply both rules | Log an error if Extension.value[x] is changed after Extension.extension is used but apply both rules | |
 | should zero out value[x] on an extension defined inline that uses extension | Zero out value[x] on an extension defined inline that uses extension | |
@@ -1395,9 +1395,9 @@ and to guide decisions about which tests to tackle next.
 
 | Test name | Description | Ported |
 |-----------|-------------|--------|
-| should correctly generate a diff containing only changed elements | Correctly generate a diff containing only changed elements | |
+| should correctly generate a diff containing only changed elements | Correctly generate a diff containing only changed elements |  ✅ |
 | should correctly generate a diff containing only changed elements when elements are unfolded | Correctly generate a diff containing only changed elements when elements are unfolded | |
-| should correctly generate a diff containing only changed elements when elements are sliced | Correctly generate a diff containing only changed elements when elements are sliced | |
+| should correctly generate a diff containing only changed elements when elements are sliced | Correctly generate a diff containing only changed elements when elements are sliced |  ✅ |
 | should not include inherited extension slices in a child differential when the child adds slicing on another element | Not include inherited extension slices in a child differential when the child adds slicing on another element | |
 | should include sliceName in a differential when an attribute of the slice is changed | Include sliceName in a differential when an attribute of the slice is changed | |
 | should include mustSupport in the differential of a new slice, even if the base element is also mustSupport | Include mustSupport in the differential of a new slice, even if the base element is also mustSupport | |
