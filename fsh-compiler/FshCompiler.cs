@@ -376,7 +376,7 @@ public static class FshCompiler
         // C-PR3: Determine the profile's Kind from the parent type via the resolver or ModelInspector.
         // For profiles of resources → "resource"; for datatypes → "complex-type".
         // Fall back to "resource" when the type can't be resolved (most common case).
-        var parentTypeName = profile.Parent?.Value ?? "DomainResource";
+        var parentTypeName = context.ResolveAlias(profile.Parent?.Value) ?? "DomainResource";
 
         // Build a merged resolver that includes both compiled SDs and the external resolver.
         var mergedResolver = BuildMergedResolver(context, opts.Resolver);
@@ -390,7 +390,7 @@ public static class FshCompiler
         else if (opts.Inspector?.IsKnownResource(parentTypeName) == true || opts.Inspector?.IsDataType(parentTypeName) == true)
             parentTypeName = opts.Inspector.CanonicalUriForFhirCoreType(parentTypeName) ?? parentTypeName;
 
-        var resolvedParent = context.ResolveAlias(parentTypeName);
+        var resolvedParent = parentTypeName;
 
         // C-PR4: StructureDefinition.Type must be the bare FHIR type name.
         // When the parent is a URL (e.g. from an alias), strip to the last segment and
