@@ -9,6 +9,7 @@ using FshCode = Hl7.FhirShorthand.Serialization.Models.Code;
 using FshCanonical = Hl7.FhirShorthand.Serialization.Models.Canonical;
 using FshRatio = Hl7.FhirShorthand.Serialization.Models.Ratio;
 using FshCodeableReference = Hl7.FhirShorthand.Serialization.Models.CodeableReference;
+using Hl7.Fhir.Specification.Source;
 
 namespace Hl7.FhirShorthand.Compiler;
 
@@ -39,12 +40,12 @@ public static class FhirValueMapper
     /// Optional function that resolves an FSH alias name (e.g. <c>$m49.htm</c>) to its
     /// canonical URL.  When <c>null</c>, alias names are used as-is.
     /// </param>
-    public static DataType? ToDataType(FshValue? value, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null) =>
+    public static DataType? ToDataType(FshValue? value, ModelInspector? inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver) =>
         value switch
         {
             StringValue sv => new FhirString(NormalizeLineEndings(sv.Value)),
             // Normalize whole-number decimals (e.g. 0.0 → 0, 1.0 → 1) to match sushi's
-            // JSON serialisation behaviour, which omits the trailing decimal point.
+            // JSON serialization behavior, which omits the trailing decimal point.
             NumberValue nv => new FhirDecimal(nv.Value == decimal.Truncate(nv.Value) ? decimal.Truncate(nv.Value) : nv.Value),
             BooleanValue bv => new FhirBoolean(bv.Value),
             DateTimeValue dtv => new FhirDateTime(dtv.Value),
@@ -53,11 +54,24 @@ public static class FhirValueMapper
             FshQuantity q => ToQuantity(q),
             RegexValue rv => new FhirString(rv.Pattern),
             Reference r => new ResourceReference(r.Type, r.Display),
-            FshCanonical can => new FhirCanonical(can.Version is null ? can.Url : $"{can.Url}|{can.Version}"),
+            FshCanonical can => ResolveCanonical(can, canonicalResolver),
             FshCodeableReference cr => new FhirCodeableReference { Reference = new ResourceReference(cr.Type) },
             FshRatio r => CreateRatio(r, inspector),
             _ => null
         };
+
+    private static FhirCanonical ResolveCanonical(FshCanonical can, IResourceResolver resolver)
+    {
+        if (!can.Url.Contains("/"))
+        {
+            var sd = resolver.FindStructureDefinition(can.Url);
+            if (sd != null)
+            {
+                return new FhirCanonical(sd.Url);
+            }
+        }
+        return new FhirCanonical(can.Version is null ? can.Url : $"{can.Url}|{can.Version}");
+    }
 
     /// <summary>
     /// Converts a <see cref="FshCode"/> to the most specific Firely <see cref="DataType"/>
@@ -99,12 +113,12 @@ public static class FhirValueMapper
     /// <param name="aliasResolver">
     /// Optional alias resolver forwarded to <see cref="ToDataType"/>.
     /// </param>
-    public static DataType? ToDataTypeForCaretPath(FshValue? value, string caretPath, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null) =>
+    public static DataType? ToDataTypeForCaretPath(FshValue? value, string caretPath, ModelInspector? inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver) =>
         caretPath switch
         {
             // Integer caret paths (e.g. ^min, ^max on ElementDefinition constraints)
             "^min" when value is NumberValue nv2 => new Integer((int)nv2.Value),
-            _ => ToDataType(value, inspector, aliasResolver)
+            _ => ToDataType(value, inspector, aliasResolver, canonicalResolver)
         };
 
     /// <summary>

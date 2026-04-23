@@ -1,7 +1,8 @@
-using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
+using Hl7.Fhir.Specification.Source;
 using Hl7.Fhir.Utility;
+using Hl7.FhirShorthand.Serialization.Models;
 using System.Text.RegularExpressions;
 using FshCanonical = Hl7.FhirShorthand.Serialization.Models.Canonical;
 using FshCode = Hl7.FhirShorthand.Serialization.Models.Code;
@@ -58,7 +59,7 @@ public static class FhirCaretValueWriter
     /// does not exist in the model or the value type is incompatible, in which case the caller
     /// should fall back (e.g. to an extension).
     /// </returns>
-    public static bool TrySet(Base target, string elementName, FshValue? fshValue, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null)
+    public static bool TrySet(Base target, string elementName, FshValue? fshValue, ModelInspector? inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         if (fshValue is null) return false;
 
@@ -69,7 +70,7 @@ public static class FhirCaretValueWriter
         var propMap = classMap.FindMappedElementByName(elementName);
         if (propMap is null) return false;
 
-        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector, aliasResolver);
+        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector, aliasResolver, canonicalResolver);
         if (converted is null) return false;
 
         if (propMap.IsCollection)
@@ -107,7 +108,7 @@ public static class FhirCaretValueWriter
     /// <see cref="TrySet"/>).
     /// </summary>
     public static bool TrySetIndexed(
-        Base target, string elementName, int index, FshValue? fshValue, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null)
+        Base target, string elementName, int index, FshValue? fshValue, ModelInspector? inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         if (fshValue is null) return false;
 
@@ -118,7 +119,7 @@ public static class FhirCaretValueWriter
         var propMap = classMap.FindMappedElementByName(elementName);
         if (propMap is null) return false;
 
-        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector, aliasResolver);
+        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector, aliasResolver, canonicalResolver);
         if (converted is null) return false;
 
         if (!propMap.IsCollection)
@@ -176,14 +177,15 @@ public static class FhirCaretValueWriter
         string compoundPath,
         FshValue? fshValue,
         Dictionary<string, int> softIndexState,
-        ModelInspector? inspector = null,
-        Func<string, string>? aliasResolver = null)
+        ModelInspector? inspector,
+        Func<string, string>? aliasResolver,
+        IResourceResolver canonicalResolver)
     {
         if (fshValue is null) return false;
 
         // Fast path: no compound navigation needed.
         if (!compoundPath.Contains('.') && !compoundPath.Contains('['))
-            return TrySet(target, compoundPath, fshValue, inspector, aliasResolver);
+            return TrySet(target, compoundPath, fshValue, inspector, aliasResolver, canonicalResolver);
 
         var activeInspector = inspector ?? _conformanceFallback.Value;
 
@@ -202,7 +204,7 @@ public static class FhirCaretValueWriter
                 {
                     var indexStr = compoundPath[(bracketStart + 1)..bracketEnd];
                     if (int.TryParse(indexStr, out var idx))
-                        return TrySetIndexed(target, compoundPath[..bracketStart], idx, fshValue, inspector, aliasResolver);
+                        return TrySetIndexed(target, compoundPath[..bracketStart], idx, fshValue, inspector, aliasResolver, canonicalResolver);
                 }
             }
             return false;
@@ -217,11 +219,11 @@ public static class FhirCaretValueWriter
 
         // Recursively set the tail path; if still compound, recurse.
         if (tailPath.Contains('.') || tailPath.Contains('['))
-            return TrySetCompound(nextBase, tailPath, fshValue, softIndexState, activeInspector, aliasResolver);
+            return TrySetCompound(nextBase, tailPath, fshValue, softIndexState, activeInspector, aliasResolver, canonicalResolver);
 
         // Leaf segment: try plain TrySet first, then choice-type fallback.
-        if (TrySet(nextBase, tailPath, fshValue, activeInspector, aliasResolver)) return true;
-        return TrySetChoiceTypeLeaf(nextBase, tailPath, fshValue!, activeInspector, aliasResolver);
+        if (TrySet(nextBase, tailPath, fshValue, activeInspector, aliasResolver, canonicalResolver)) return true;
+        return TrySetChoiceTypeLeaf(nextBase, tailPath, fshValue!, activeInspector, aliasResolver, canonicalResolver);
     }
 
     /// <summary>
@@ -459,7 +461,7 @@ public static class FhirCaretValueWriter
     /// </para>
     /// </remarks>
     internal static bool TrySetChoiceTypeLeaf(
-        Base target, string elementName, FshValue fshValue, ModelInspector inspector, Func<string, string>? aliasResolver = null)
+        Base target, string elementName, FshValue fshValue, ModelInspector inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         var classMap = inspector.FindClassMapping(target.GetType());
         if (classMap is null) return false;
@@ -489,8 +491,8 @@ public static class FhirCaretValueWriter
             // that numeric targets (Integer, PositiveInt, UnsignedInt, Integer64) get the
             // proper primitive constructor via CreateNumericPrimitive, rather than producing
             // a generic FhirDecimal from ToDataType that AdaptToTargetType cannot narrow.
-            var dataType = ConvertValue(fshValue, suffixType.NativeType, inspector, aliasResolver)
-                           ?? AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector, aliasResolver), suffixType.NativeType);
+            var dataType = ConvertValue(fshValue, suffixType.NativeType, inspector, aliasResolver, canonicalResolver)
+                           ?? AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector, aliasResolver, canonicalResolver), suffixType.NativeType);
             if (dataType is null) return false;
 
             // Verify the concrete type is assignment-compatible with the property's implementing type.
@@ -542,7 +544,7 @@ public static class FhirCaretValueWriter
         return true;
     }
 
-    private static object? ConvertValue(FshValue fshValue, Type targetType, ModelInspector inspector, Func<string, string>? aliasResolver = null)
+    private static object? ConvertValue(FshValue fshValue, Type targetType, ModelInspector inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         // Plain System.String property — e.g. Extension.Url in the Firely SDK is declared as a
         // raw C# string rather than a FHIR PrimitiveType, so it has no string(string) constructor
@@ -601,14 +603,14 @@ public static class FhirCaretValueWriter
             // CodeableConcept), fall through to ToDataType which produces a Coding that
             // AdaptToTargetType can then wrap in a CodeableConcept.
             FshCode c        => CreatePrimitive(targetType, FhirValueMapper.SplitCodeValue(c.Value).Code)
-                                ?? AdaptToTargetType(FhirValueMapper.ToDataType(c, inspector, aliasResolver), targetType),
+                                ?? AdaptToTargetType(FhirValueMapper.ToDataType(c, inspector, aliasResolver, canonicalResolver), targetType),
             BooleanValue bv  => targetType == typeof(FhirBoolean) ? new FhirBoolean(bv.Value) : null,
             NumberValue nv   => CreateNumericPrimitive(targetType, nv.Value),
             // NameValue: `$alias` parsed as a name for non-string FHIR primitive targets
             // (e.g. Canonical URL fields such as `definition`, `profile`, `import`).
             // Resolve the alias and create the target primitive from the resulting URL.
             NameValue nv2    => CreatePrimitive(targetType, aliasResolver?.Invoke(nv2.Value) ?? nv2.Value),
-            _                => AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector), targetType)
+            _                => AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector, aliasResolver, canonicalResolver), targetType)
         };
     }
 

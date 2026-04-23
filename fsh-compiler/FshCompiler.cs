@@ -548,7 +548,7 @@ public static class FshCompiler
     /// produce a bogus type value.
     /// </summary>
     private static string ExtractBareTypeName(
-        string resolvedParent, string originalParent, ModelInspector? inspector, IResourceResolver? resolver = null)
+        string resolvedParent, string originalParent, ModelInspector? inspector, IResourceResolver? resolver)
     {
         if (!IsAbsoluteUrl(resolvedParent))
             return resolvedParent;   // Already bare (e.g. "Patient", "DomainResource").
@@ -1033,6 +1033,7 @@ public static class FshCompiler
             }
         };
 
+        var canonicalResolver = BuildMergedResolver(context, opts.Resolver);
         foreach (var rule in vs.Rules)
         {
             switch (rule)
@@ -1042,7 +1043,7 @@ public static class FshCompiler
                     break;
 
                 case VsCaretValueRule caretRule:
-                    ApplyVsCaretValueRule(caretRule, fvs, opts.Inspector, context.ResolveAlias);
+                    ApplyVsCaretValueRule(caretRule, fvs, opts.Inspector, context.ResolveAlias, canonicalResolver);
                     break;
 
                 case VsInsertRule insertRule:
@@ -1050,7 +1051,7 @@ public static class FshCompiler
                     break;
 
                 case CodeCaretValueRule codeCaretRule:
-                    ApplyCodeCaretValueRule(codeCaretRule, fvs, opts.Inspector, context.ResolveAlias);
+                    ApplyCodeCaretValueRule(codeCaretRule, fvs, opts.Inspector, context.ResolveAlias, canonicalResolver);
                     break;
 
                 case CodeInsertRule codeInsertRule:
@@ -1102,6 +1103,7 @@ public static class FshCompiler
         // Soft-index state for top-level (CodeSystem) caret rules and per-concept caret rules.
         var csIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
         var conceptIndexStates = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+        var canonicalResolver = BuildMergedResolver(context, opts.Resolver);
 
         foreach (var rule in PropagateConceptCodesToCaretRules(cs.Rules))
         {
@@ -1112,7 +1114,7 @@ public static class FshCompiler
                     break;
 
                 case CsCaretValueRule caretRule:
-                    ApplyCsCaretValueRule(caretRule, fcs, csIndexState, conceptIndexStates, resolvedInspector, context.ResolveAlias);
+                    ApplyCsCaretValueRule(caretRule, fcs, csIndexState, conceptIndexStates, resolvedInspector, context.ResolveAlias, canonicalResolver);
                     break;
 
                 case CsInsertRule insertRule:
@@ -1294,6 +1296,7 @@ public static class FshCompiler
         // Soft-index state is shared across all caret rules so that [+]/[=] pairs on
         // compound SD-level caret paths (e.g. ^context[+].type + ^context[=].expression) work.
         var caretSoftIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
+        var canonicalResolver = BuildMergedResolver(context, opts.Resolver);
         foreach (var rule in ComposeIndentedPaths(rules))
         {
             switch (rule)
@@ -1319,7 +1322,7 @@ public static class FshCompiler
                     break;
 
                 case FixedValueRule fixedValueRule:
-                    ApplyFixedValueRule(fixedValueRule, sd, opts.Inspector, context.ResolveAlias, opts.Resolver);
+                    ApplyFixedValueRule(fixedValueRule, sd, opts.Inspector, context.ResolveAlias, canonicalResolver);
                     break;
 
                 case ContainsRule containsRule:
@@ -1335,7 +1338,7 @@ public static class FshCompiler
                     break;
 
                 case CaretValueRule caretValueRule:
-                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, context.ResolveAlias, caretSoftIndexState, context, opts);
+                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, context.ResolveAlias, canonicalResolver, caretSoftIndexState, context, opts);
                     break;
 
                 case InsertRule insertRule:
@@ -1483,19 +1486,19 @@ public static class FshCompiler
         };
     }
 
-    private static void ApplyFixedValueRule(FixedValueRule fixedValueRule, StructureDefinition sd, ModelInspector? inspector = null, Func<string, string>? aliasResolver = null, IResourceResolver? resolver = null)
+    private static void ApplyFixedValueRule(FixedValueRule fixedValueRule, StructureDefinition sd, ModelInspector? inspector, Func<string, string>? aliasResolver, IResourceResolver? canonicalResolver)
     {
         if (string.IsNullOrEmpty(fixedValueRule.Path) || fixedValueRule.Value is null) return;
         var ed = GetOrCreateElement(fixedValueRule.Path, sd);
-        var dt = FhirValueMapper.ToDataType(fixedValueRule.Value, inspector, aliasResolver);
+        var dt = FhirValueMapper.ToDataType(fixedValueRule.Value, inspector, aliasResolver, canonicalResolver);
         if (dt != null)
         {
             // When the mapped value is a Coding but the target element type is CodeableConcept
             // (e.g. `* code = $system#code` on a CodeableConcept field), wrap the Coding in a
             // CodeableConcept to produce the correct pattern[x] variant.
-            if (dt is Hl7.Fhir.Model.Coding coding && resolver != null && sd.Type != null)
+            if (dt is Hl7.Fhir.Model.Coding coding && canonicalResolver != null && sd.Type != null)
             {
-                var typeCode = ResolveElementTypeCode(fixedValueRule.Path, sd.Type, resolver);
+                var typeCode = ResolveElementTypeCode(fixedValueRule.Path, sd.Type, canonicalResolver);
                 if (string.Equals(typeCode, "CodeableConcept", StringComparison.Ordinal))
                 {
                     dt = new Hl7.Fhir.Model.CodeableConcept
@@ -2187,7 +2190,8 @@ public static class FshCompiler
         CaretValueRule caretValueRule,
         StructureDefinition sd,
         ModelInspector? inspector,
-        Func<string, string>? aliasResolver = null,
+        Func<string, string>? aliasResolver,
+        IResourceResolver canonicalResolver,
         Dictionary<string, int>? softIndexState = null,
         CompilerContext? context = null,
         CompilerOptions? opts = null)
@@ -2198,7 +2202,7 @@ public static class FshCompiler
         // Path "." refers to the root ElementDefinition, not the SD.
         if (string.IsNullOrEmpty(caretValueRule.Path))
         {
-            ApplySdCaretPath(caretValueRule, sd, inspector, aliasResolver, softIndexState);
+            ApplySdCaretPath(caretValueRule, sd, inspector, aliasResolver, canonicalResolver, softIndexState);
         }
         else
         {
@@ -2213,7 +2217,7 @@ public static class FshCompiler
             // must preserve base-inherited aliases at other indices (e.g. alias[1]).
             PreSeedInheritedListFromBase(caretValueRule.CaretPath.TrimStart('^'), ed, sd, context, opts);
             // Each element gets its own soft-index state for element-level compound paths.
-            ApplyEdCaretPath(adjustedRule, ed, inspector, aliasResolver);
+            ApplyEdCaretPath(adjustedRule, ed, inspector, aliasResolver, canonicalResolver);
         }
     }
 
@@ -2346,7 +2350,8 @@ public static class FshCompiler
         CaretValueRule rule,
         StructureDefinition sd,
         ModelInspector? inspector,
-        Func<string, string>? aliasResolver = null,
+        Func<string, string>? aliasResolver,
+        IResourceResolver canonicalResolver,
         Dictionary<string, int>? softIndexState = null)
     {
         var path = rule.CaretPath.TrimStart('^');
@@ -2355,10 +2360,10 @@ public static class FshCompiler
         if (path.Contains('.') || path.Contains('['))
         {
             var state = softIndexState ?? new Dictionary<string, int>(StringComparer.Ordinal);
-            if (FhirCaretValueWriter.TrySetCompound(sd, path, rule.Value, state, inspector, aliasResolver))
+            if (FhirCaretValueWriter.TrySetCompound(sd, path, rule.Value, state, inspector, aliasResolver, canonicalResolver))
                 return;
         }
-        else if (FhirCaretValueWriter.TrySet(sd, path, rule.Value, inspector, aliasResolver))
+        else if (FhirCaretValueWriter.TrySet(sd, path, rule.Value, inspector, aliasResolver, canonicalResolver))
         {
             return;
         }
@@ -2368,7 +2373,7 @@ public static class FshCompiler
         sd.Extension.Add(new FhirExtension
         {
             Url = path,
-            Value = FhirValueMapper.ToDataType(rule.Value, inspector, aliasResolver)
+            Value = FhirValueMapper.ToDataType(rule.Value, inspector, aliasResolver, canonicalResolver)
         });
     }
 
@@ -2376,7 +2381,8 @@ public static class FshCompiler
         CaretValueRule rule,
         ElementDefinition ed,
         ModelInspector? inspector,
-        Func<string, string>? aliasResolver = null)
+        Func<string, string>? aliasResolver, 
+        IResourceResolver canonicalResolver)
     {
         var path = rule.CaretPath.TrimStart('^');
 
@@ -2384,15 +2390,15 @@ public static class FshCompiler
         if (path.Contains('.') || path.Contains('['))
         {
             var state = new Dictionary<string, int>(StringComparer.Ordinal);
-            if (FhirCaretValueWriter.TrySetCompound(ed, path, rule.Value, state, inspector, aliasResolver))
+            if (FhirCaretValueWriter.TrySetCompound(ed, path, rule.Value, state, inspector, aliasResolver, canonicalResolver))
                 return;
         }
-        else if (FhirCaretValueWriter.TrySet(ed, path, rule.Value, inspector, aliasResolver))
+        else if (FhirCaretValueWriter.TrySet(ed, path, rule.Value, inspector, aliasResolver, canonicalResolver))
         {
             return;
         }
         else if (inspector != null && rule.Value != null
-              && FhirCaretValueWriter.TrySetChoiceTypeLeaf(ed, path, rule.Value, inspector, aliasResolver))
+              && FhirCaretValueWriter.TrySetChoiceTypeLeaf(ed, path, rule.Value, inspector, aliasResolver, canonicalResolver))
         {
             // Handles choice-type paths like minValueDate, maxValueDate, etc. on ElementDefinition.
             return;
@@ -2403,7 +2409,7 @@ public static class FshCompiler
         ed.Extension.Add(new FhirExtension
         {
             Url = path,
-            Value = FhirValueMapper.ToDataType(rule.Value, inspector, aliasResolver)
+            Value = FhirValueMapper.ToDataType(rule.Value, inspector, aliasResolver, canonicalResolver)
         });
     }
 
@@ -2605,14 +2611,14 @@ public static class FshCompiler
             _ => FilterOperator.Equal
         };
 
-    private static void ApplyVsCaretValueRule(VsCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
+    private static void ApplyVsCaretValueRule(VsCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         var path = rule.CaretPath.TrimStart('^');
         // Use SetCsCaretPath so that multi-level dot-separated paths (e.g. "contact.telecom.system")
         // are navigated correctly by creating/reusing intermediate child objects.  A single-segment
         // path is handled identically to the previous TrySet call.
         var activeInspector = inspector ?? ModelInspector.ForAssembly(typeof(StructureDefinition).Assembly);
-        SetCsCaretPath(fvs, path, rule.Value, activeInspector, aliasResolver);
+        SetCsCaretPath(fvs, path, rule.Value, activeInspector, aliasResolver, canonicalResolver);
         // Silently ignore if the path is not in the ValueSet model.
     }
 
@@ -2626,6 +2632,7 @@ public static class FshCompiler
         var resolved = RuleSetResolver.Resolve(
             insertRule.RuleSetReference, insertRule.IsParameterized, insertRule.Parameters, context);
 
+        var canonicalResolver = BuildMergedResolver(context, opts.Resolver);
         foreach (var rule in resolved)
         {
             switch (rule)
@@ -2634,13 +2641,13 @@ public static class FshCompiler
                     ApplyVsComponentRule(compRule, fvs, context, opts);
                     break;
                 case VsCaretValueRule vsCaretRule:
-                    ApplyVsCaretValueRule(vsCaretRule, fvs, opts.Inspector, context.ResolveAlias);
+                    ApplyVsCaretValueRule(vsCaretRule, fvs, opts.Inspector, context.ResolveAlias, canonicalResolver);
                     break;
                 // CaretValueRule (SD-style, no path) can appear in a RuleSet re-parsed
                 // via a synthetic Profile wrapper and applies to the VS root.
                 case CaretValueRule sdCaret when string.IsNullOrEmpty(sdCaret.Path):
                     var vsPath = sdCaret.CaretPath.TrimStart('^');
-                    FhirCaretValueWriter.TrySet(fvs, vsPath, sdCaret.Value, opts.Inspector, context.ResolveAlias);
+                    FhirCaretValueWriter.TrySet(fvs, vsPath, sdCaret.Value, opts.Inspector, context.ResolveAlias, canonicalResolver);
                     break;
                 case VsInsertRule nestedInsert:
                     ApplyVsInsertRule(nestedInsert, fvs, context, opts);
@@ -2656,7 +2663,7 @@ public static class FshCompiler
     /// <see cref="FhirValueSet.ConceptReferenceComponent"/>.
     /// </summary>
     private static void ApplyCodeCaretValueRule(
-        CodeCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector, Func<string, string>? aliasResolver = null)
+        CodeCaretValueRule rule, FhirValueSet fvs, ModelInspector? inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         if (rule.Codes.Count == 0 || string.IsNullOrEmpty(rule.CaretPath)) return;
         var path = rule.CaretPath.TrimStart('^');
@@ -2666,7 +2673,7 @@ public static class FshCompiler
             var bare = codeStr.TrimStart('#');
             var concept = FindConceptReferenceByCode(fvs, bare);
             if (concept != null)
-                FhirCaretValueWriter.TrySet(concept, path, rule.Value, inspector, aliasResolver);
+                FhirCaretValueWriter.TrySet(concept, path, rule.Value, inspector, aliasResolver, canonicalResolver);
         }
     }
 
@@ -2697,6 +2704,7 @@ public static class FshCompiler
         var resolved = RuleSetResolver.Resolve(
             insertRule.RuleSetReference, insertRule.IsParameterized, insertRule.Parameters, context);
 
+        var canonicalResolver = BuildMergedResolver(context, opts.Resolver);
         foreach (var rule in resolved)
         {
             switch (rule)
@@ -2711,7 +2719,7 @@ public static class FshCompiler
                         CaretPath = codeCaretRule.CaretPath,
                         Value = codeCaretRule.Value
                     };
-                    ApplyCodeCaretValueRule(merged, fvs, opts.Inspector);
+                    ApplyCodeCaretValueRule(merged, fvs, opts.Inspector, context.ResolveAlias, canonicalResolver);
                     break;
                 case CodeInsertRule nestedInsert:
                     ApplyCodeInsertRule(nestedInsert, fvs, context, opts);
@@ -2765,7 +2773,8 @@ public static class FshCompiler
         Dictionary<string, int> csIndexState,
         Dictionary<string, Dictionary<string, int>> conceptIndexStates,
         ModelInspector inspector,
-        Func<string, string>? aliasResolver = null)
+        Func<string, string>? aliasResolver, 
+        IResourceResolver canonicalResolver)
     {
         var path = rule.CaretPath.TrimStart('^');
 
@@ -2782,13 +2791,13 @@ public static class FshCompiler
                     conceptIndexStates[cleanCode] = conceptState = new Dictionary<string, int>(StringComparer.Ordinal);
 
                 var resolvedPath = ResolveSoftIndices(path, conceptState);
-                SetCsCaretPath(concept, resolvedPath, rule.Value, inspector, aliasResolver);
+                SetCsCaretPath(concept, resolvedPath, rule.Value, inspector, aliasResolver, canonicalResolver);
             }
         }
         else
         {
             var resolvedPath = ResolveSoftIndices(path, csIndexState);
-            SetCsCaretPath(fcs, resolvedPath, rule.Value, inspector, aliasResolver);
+            SetCsCaretPath(fcs, resolvedPath, rule.Value, inspector, aliasResolver, canonicalResolver);
         }
     }
 
@@ -2818,6 +2827,7 @@ public static class FshCompiler
         csIndexState ??= new Dictionary<string, int>(StringComparer.Ordinal);
         conceptIndexStates ??= new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
         Func<string, string> aliasResolver = context.ResolveAlias;
+        var canonicalResolver = BuildMergedResolver(context, opts.Resolver);
 
         foreach (var rule in resolved)
         {
@@ -2827,11 +2837,11 @@ public static class FshCompiler
                     ApplyConceptRule(concept, fcs);
                     break;
                 case CsCaretValueRule csCaretRule:
-                    ApplyCsCaretValueRule(csCaretRule, fcs, csIndexState, conceptIndexStates, inspector, aliasResolver);
+                    ApplyCsCaretValueRule(csCaretRule, fcs, csIndexState, conceptIndexStates, inspector, aliasResolver, canonicalResolver);
                     break;
                 case CaretValueRule sdCaret when string.IsNullOrEmpty(sdCaret.Path):
                     var csPath = ResolveSoftIndices(sdCaret.CaretPath.TrimStart('^'), csIndexState);
-                    SetCsCaretPath(fcs, csPath, sdCaret.Value, inspector, aliasResolver);
+                    SetCsCaretPath(fcs, csPath, sdCaret.Value, inspector, aliasResolver, canonicalResolver);
                     break;
                 case CsInsertRule nestedInsert:
                     ApplyCsInsertRule(nestedInsert, fcs, context, opts, csIndexState, conceptIndexStates);
@@ -4632,6 +4642,7 @@ public static class FshCompiler
             return resolved;
         }
 
+        var canonicalResolver = BuildMergedResolver(context, opts.Resolver);
         foreach (var rule in rules)
         {
             switch (rule)
@@ -4664,7 +4675,7 @@ public static class FshCompiler
                         resolvedPath.EndsWith(".resourceType", StringComparison.Ordinal))
                     {
                         var resourceParentPath = resolvedPath[..^".resourceType".Length];
-                        if (TryCreateConcreteResourceAtPath(resource, resourceParentPath, rtSv.Value, inspector, ResolveExtensionAwareAlias))
+                        if (TryCreateConcreteResourceAtPath(resource, resourceParentPath, rtSv.Value, inspector, ResolveExtensionAwareAlias, canonicalResolver))
                             break;
                     }
                     // When the value is a NameValue (cross-instance reference) and the leaf
@@ -4683,7 +4694,7 @@ public static class FshCompiler
                             for (int si = 0; si < segments.Length - 1 && parent != null; si++)
                             {
                                 var (sn, sIdx, sni) = ParseInstanceSegment(segments[si]);
-                                parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, ResolveExtensionAwareAlias);
+                                parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, ResolveExtensionAwareAlias, canonicalResolver);
                             }
                             if (parent != null)
                             {
@@ -4720,12 +4731,12 @@ public static class FshCompiler
                         }
                     }
 
-                    SetInstancePath(resource, resolvedPath, ResolveInstanceCanonical(fixedRule.Value, context, opts, inspector), inspector, ResolveExtensionAwareAlias);
+                    SetInstancePath(resource, resolvedPath, ResolveInstanceCanonical(fixedRule.Value, context, opts, inspector), inspector, ResolveExtensionAwareAlias, canonicalResolver);
                     // C-EXT1: After setting a value that navigates through a named Extension
                     // (e.g. extension[code]), sync the soft-index state for that extension list
                     // so that a subsequent extension[+] correctly appends AFTER the named
                     // extension rather than overwriting it at index 0.
-                    SyncSoftIndexForNamedExtensions(resolvedPath, resource, softIndexState, inspector, ResolveExtensionAwareAlias);
+                    SyncSoftIndexForNamedExtensions(resolvedPath, resource, softIndexState, inspector, ResolveExtensionAwareAlias, canonicalResolver);
                     break;
 
                 case InstanceInsertRule insertRule:
@@ -4844,7 +4855,8 @@ public static class FshCompiler
         Base resource,
         Dictionary<string, int> state,
         ModelInspector inspector,
-        Func<string, string>? aliasResolver)
+        Func<string, string>? aliasResolver, 
+        IResourceResolver canonicalResolver)
     {
         var segments = SplitInstancePath(resolvedPath);
         // Skip the last segment (the leaf value being set — not an intermediate node).
@@ -4896,7 +4908,7 @@ public static class FshCompiler
             }
 
             // Navigate to next segment. Stop if navigation returns null (non-navigable type).
-            current = GetOrCreateInstanceChild(current, name, idx, inspector, namedIdx, aliasResolver);
+            current = GetOrCreateInstanceChild(current, name, idx, inspector, namedIdx, aliasResolver, canonicalResolver);
             resolvedSegmentParts.Add(seg);
         }
     }
@@ -4905,7 +4917,7 @@ public static class FshCompiler
     /// <paramref name="path"/>, creating intermediate objects and list elements as needed.
     /// Returns <c>true</c> when the leaf value was set successfully.
     /// </summary>
-    private static bool SetInstancePath(Base obj, string path, FshValue value, ModelInspector inspector, Func<string, string>? aliasResolver = null)
+    private static bool SetInstancePath(Base obj, string path, FshValue value, ModelInspector inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         var segments = SplitInstancePath(path);
         if (segments.Length == 0) return false;
@@ -4920,17 +4932,17 @@ public static class FshCompiler
             var (segName, segIdx, segNamedIdx) = ParseInstanceSegment(segments[i]);
             parentOfLeaf = current;
             parentPropName = segName;
-            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector, segNamedIdx, aliasResolver);
+            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector, segNamedIdx, aliasResolver, canonicalResolver);
             if (current is null) return false;
         }
 
         // Set the leaf.
         var (leafName, leafIdx, _) = ParseInstanceSegment(segments[segments.Length - 1]);
         bool success;
-        if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver))
+        if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver, canonicalResolver))
             success = true;
         else
-            success = FhirCaretValueWriter.TrySetChoiceTypeLeaf(current, leafName, value, inspector, aliasResolver);
+            success = FhirCaretValueWriter.TrySetChoiceTypeLeaf(current, leafName, value, inspector, aliasResolver, canonicalResolver);
 
         // C-EXT2 (Sushi compat): when setting the `url` of an Extension to a value that
         // contains FHIR choice-type brackets (e.g. "value[x]"), also append a sibling empty
@@ -4963,7 +4975,7 @@ public static class FshCompiler
     /// direct property lookup fails.  This fallback is intentionally scoped to the CodeSystem
     /// caret-value path so that it does not alter behavior for general instance rule paths.
     /// </summary>
-    private static bool SetCsCaretPath(Base obj, string path, FshValue value, ModelInspector inspector, Func<string, string>? aliasResolver = null)
+    private static bool SetCsCaretPath(Base obj, string path, FshValue value, ModelInspector inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         var segments = SplitInstancePath(path);
         if (segments.Length == 0) return false;
@@ -4974,18 +4986,18 @@ public static class FshCompiler
         for (int i = 0; i < segments.Length - 1; i++)
         {
             var (segName, segIdx, segNamedIdx) = ParseInstanceSegment(segments[i]);
-            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector, segNamedIdx, aliasResolver);
+            current = GetOrCreateInstanceChild(current, segName, segIdx, inspector, segNamedIdx, aliasResolver, canonicalResolver);
             if (current is null) return false;
         }
 
         // Set the leaf — try normal path first, then choice-type fallback.
         var (leafName, leafIdx, _) = ParseInstanceSegment(segments[^1]);
-        if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver))
+        if (FhirCaretValueWriter.TrySetIndexed(current, leafName, leafIdx, value, inspector, aliasResolver, canonicalResolver))
             return true;
 
         // Choice-type fallback: e.g. "valueDecimal", "admitReasonCoding" — scan right-to-left
         // for a suffix that is a recognised FHIR DataType name.
-        return FhirCaretValueWriter.TrySetChoiceTypeLeaf(current, leafName, value, inspector, aliasResolver);
+        return FhirCaretValueWriter.TrySetChoiceTypeLeaf(current, leafName, value, inspector, aliasResolver, canonicalResolver);
     }
 
     /// <summary>
@@ -5003,7 +5015,7 @@ public static class FshCompiler
     /// </param>
     private static Base? GetOrCreateInstanceChild(
         Base parent, string name, int index, ModelInspector inspector,
-        string? namedIndex = null, Func<string, string>? aliasResolver = null)
+        string? namedIndex, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         var classMap = inspector.FindClassMapping(parent.GetType());
         if (classMap is null) return null;
@@ -5014,7 +5026,7 @@ public static class FshCompiler
             // Choice-type fallback: the path segment uses a typed variant name such as
             // "valueExpression" where the underlying FHIR property is "value[x]".
             // Scan right-to-left for an uppercase boundary, check whether the suffix names a
-            // recognised FHIR DataType, and whether the base is a mapped property.  When found,
+            // recognized FHIR DataType, and whether the base is a mapped property.  When found,
             // get-or-create an instance of the concrete DataType and return it so the caller can
             // continue navigating into its children.
             return GetOrCreateChoiceTypeChild(parent, name, classMap, inspector);
@@ -5052,7 +5064,7 @@ public static class FshCompiler
                     ? aliasResolver(namedIndex)
                     : namedIndex;
                 // Percent-encode bracket characters in absolute URLs so that FHIR choice-type
-                // markers like [x] serialise as %5Bx%5D.  Only applied to absolute URLs;
+                // markers like [x] serialize as %5Bx%5D.  Only applied to absolute URLs;
                 // relative identifiers and slice names are left unchanged.
                 // Uri.AbsoluteUri is not used here: it appends a trailing slash to bare-host
                 // URIs and does not encode [ ] in paths on .NET.
@@ -5592,7 +5604,8 @@ public static class FshCompiler
         string abstractPath,
         string resourceTypeName,
         ModelInspector inspector,
-        Func<string, string>? aliasResolver)
+        Func<string, string>? aliasResolver, 
+        IResourceResolver canonicalResolver)
     {
         var segments = SplitInstancePath(abstractPath);
         if (segments.Length == 0) return false;
@@ -5602,7 +5615,7 @@ public static class FshCompiler
         for (int si = 0; si < segments.Length - 1 && parent != null; si++)
         {
             var (sn, sIdx, sni) = ParseInstanceSegment(segments[si]);
-            parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, aliasResolver);
+            parent = GetOrCreateInstanceChild(parent, sn, sIdx, inspector, sni, aliasResolver, canonicalResolver);
         }
         if (parent == null) return false;
 

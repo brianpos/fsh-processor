@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <Content Include="TestData\**\*.fsh" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="TestData\**\*.yaml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

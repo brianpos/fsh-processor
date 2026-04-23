@@ -1,17 +1,23 @@
+using Firely.Fhir.Packages;
+using Hl7.Fhir.ElementModel;
+using Hl7.Fhir.Model;
+using Hl7.Fhir.Rest;
+using Hl7.Fhir.Serialization;
+using Hl7.Fhir.Specification.Snapshot;
+using Hl7.Fhir.Specification.Source;
+using Hl7.Fhir.Specification.Summary;
+using Hl7.Fhir.Utility;
 using Hl7.FhirShorthand.Compiler;
 using Hl7.FhirShorthand.Compiler_r4;
 using Hl7.FhirShorthand.Serialization;
 using Hl7.FhirShorthand.Serialization.Models;
-using Hl7.Fhir.Model;
-using Hl7.Fhir.Serialization;
-using Hl7.Fhir.Specification.Snapshot;
-using Hl7.Fhir.Specification.Source;
-using Hl7.Fhir.Utility;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using YamlDotNet.Serialization;
 using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
+using Task = System.Threading.Tasks.Task;
 
 namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
@@ -57,7 +63,97 @@ public class SdcIgCompilerTests
     public void TestInitialize()
     {
         if (_source == null)
-            _source = new CachedResolver(ZipSource.CreateValidationSource());
+        {
+            var mr = new MultiResolver();
+            _source = new CachedResolver(mr);
+
+            mr.AddSource(ZipSource.CreateValidationSource());
+
+            // Load in the dependency packages too!
+            var yaml = ReadSushiYaml();
+            // can't use the Firely Package Source here as it doesn't index the name (no-one else does either, but Sushi needs it)
+            // and it also doesn't have a non async version (so drops out of my processing)
+            // FhirPackageSource resolver = new(ModelInfo.ModelInspector, "https://packages.simplifier.net", yaml.Dependencies.Select(kvp => $"{kvp.Key}@{kvp.Value.Version}").ToArray());
+            // mr.AddSource(resolver);
+
+            // Instead I created a custom resolver specifically for this Sushi processing of dependencies
+            // (at least for testing anyway)
+            var dnr = new DependencyNameResolver(ModelInfo.ModelInspector);
+            mr.AddSource(dnr);
+
+            Firely.Fhir.Packages.DiskPackageCache cache = new Firely.Fhir.Packages.DiskPackageCache();
+            foreach (var dep in yaml.Dependencies)
+            {
+                var pr = new Firely.Fhir.Packages.PackageReference(dep.Key, dep.Value.Version);
+                if (!cache.IsInstalled(pr).Result)
+                {
+                    var pc = PackageClient.Create();
+                    var content = pc.GetPackage(pr).Result;
+                    cache.Install(pr, content).WaitNoResult();
+                }
+
+                var contentFolder = cache.PackageContentFolder(pr);
+                var packageCacheFolder = Path.Combine(Path.GetTempPath(), "FhirShorthand.Compiler");
+                var packageCacheFile = Path.Combine(packageCacheFolder, $"{dep.Key}#{dep.Value.Version}.json");
+                if (!Directory.Exists(Path.Combine(packageCacheFolder)))
+                    Directory.CreateDirectory(packageCacheFolder);
+
+                if (File.Exists(packageCacheFile))
+                {
+                    string jsonText = File.ReadAllText(packageCacheFile);
+                    var details = JsonSerializer.Deserialize<List<Compiler.ResourceSummaryDetails>>(jsonText);
+                    dnr.AppendDetails(details, contentFolder);
+                }
+                else
+                {
+                    // We need to actually create the index file...
+                    List<ResourceSummaryDetails> details = new List<ResourceSummaryDetails>();
+                    foreach (var filename in Directory.EnumerateFiles(contentFolder, "*.xml", SearchOption.AllDirectories))
+                    {
+                        var fi = new FileInfo(filename);
+                        if (fi.Name.StartsWith("."))
+                            continue;
+                        var detail = SushiPackageIndexer.ExtractIndexDetailsFromXml(fi);
+                        details.Add(detail);
+                    }
+                    foreach (var filename in Directory.EnumerateFiles(contentFolder, "*.json", SearchOption.AllDirectories))
+                    {
+                        var fi = new FileInfo(filename);
+                        if (fi.Name.StartsWith("."))
+                            continue;
+                        var detail = SushiPackageIndexer.ExtractIndexDetailsFromJson(fi);
+                        details.Add(detail);
+                    }
+                    dnr.AppendDetails(details, contentFolder);
+
+                    // persist the cache file
+                    string jsonCache = JsonSerializer.Serialize(details, new JsonSerializerOptions() { WriteIndented = true });
+                    File.WriteAllText(packageCacheFile, jsonCache);
+                }
+                //    FhirPackageSource ps2 = new FhirPackageSource(ModelInfo.ModelInspector, cache.PackageContentFolder(pr));
+                //    mr.AddSource(ps2);
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task TestReadSushiYaml()
+    {
+        var yaml = ReadSushiYaml();
+        foreach (var dep in yaml.Dependencies)
+        {
+            Console.WriteLine($"{dep.Key} : {dep.Value.Version}");
+        }
+    }
+
+    public SushiYaml ReadSushiYaml()
+    {
+        string filename = Path.Combine(SdcPath, "sushi-config.yaml");
+        string yamlText = File.ReadAllText(filename);
+
+        var deserializer = new DeserializerBuilder().IgnoreUnmatchedProperties().Build();
+        var yaml = deserializer.Deserialize<SushiYaml>(yamlText);
+        return yaml;
     }
 
     [TestMethod]
@@ -879,7 +975,15 @@ public class SdcIgCompilerTests
             if (File.Exists(filePath))
             {
                 var jsonSushiGenerated = File.ReadAllText(filePath);
-                if (jsonSushiGenerated != json)
+
+                // normalize through our parser/serializer again
+                var parserSettings = new ParserSettings { AcceptUnknownMembers = true, AllowUnrecognizedEnums = true };
+                var jsonParser = new FhirJsonParser(parserSettings);
+                var resourceSushi = jsonParser.Parse<FhirResource>(jsonSushiGenerated);
+                var normalizedJson = resourceSushi.ToJson(serializerSettings);
+
+
+                if (normalizedJson != json)
                 {
                     // Log the name of the source/target files
                     Console.WriteLine($"Expected JSON file: {filePath}");
@@ -905,9 +1009,8 @@ public class SdcIgCompilerTests
                         Console.WriteLine($"  Warning: could not write {resource.TypeName}/{resource.Id}: {ex.Message}");
                     }
 
-
                     // report the JSON difference to the console (using a jsondiff lib)
-                    var diff = new JsonDiffPatchDotNet.JsonDiffPatch().Diff(jsonSushiGenerated, json);
+                    var diff = new JsonDiffPatchDotNet.JsonDiffPatch().Diff(normalizedJson, json);
                     Console.WriteLine($"JSON difference for file {fileName}:\n{diff}");
 
                     // and fail the test
@@ -2122,9 +2225,9 @@ public class SdcIgCompilerTests
         foreach (var segment in path.Split('.'))
         {
             var bracketStart = segment.IndexOf('[');
-            var bracketEnd   = segment.IndexOf(']');
+            var bracketEnd = segment.IndexOf(']');
             if (bracketStart < 0 || bracketEnd < bracketStart) continue;
-            var baseName  = segment[..bracketStart];
+            var baseName = segment[..bracketStart];
             var innerName = segment[(bracketStart + 1)..bracketEnd];
             if (!string.Equals(baseName, "extension", StringComparison.OrdinalIgnoreCase)) continue;
             if (string.IsNullOrEmpty(innerName) || innerName.StartsWith('$') ||
@@ -2149,7 +2252,7 @@ public class SdcIgCompilerTests
         ref int mismatches)
     {
         var sushiPaths = ExtractStringValuesFromNestedArray(sushiEl, ["differential", "element"], "path");
-        var ourPaths   = ExtractStringValuesFromNestedArray(ourEl,    ["differential", "element"], "path");
+        var ourPaths = ExtractStringValuesFromNestedArray(ourEl, ["differential", "element"], "path");
 
         var sushiPathSet = new HashSet<string>(sushiPaths, StringComparer.Ordinal);
         var ourPathSet = new HashSet<string>(ourPaths, StringComparer.Ordinal);
@@ -2184,7 +2287,7 @@ public class SdcIgCompilerTests
         ref int mismatches)
     {
         var sushiCodes = ExtractStringValuesFromNestedArray(sushiEl, ["concept"], "code");
-        var ourCodes   = ExtractStringValuesFromNestedArray(ourEl,   ["concept"], "code");
+        var ourCodes = ExtractStringValuesFromNestedArray(ourEl, ["concept"], "code");
 
         if (sushiCodes.Count != ourCodes.Count)
         {
@@ -2215,7 +2318,7 @@ public class SdcIgCompilerTests
         ref int mismatches)
     {
         var sushiSystems = ExtractStringValuesFromNestedArray(sushiEl, ["compose", "include"], "system");
-        var ourSystems   = ExtractStringValuesFromNestedArray(ourEl,   ["compose", "include"], "system");
+        var ourSystems = ExtractStringValuesFromNestedArray(ourEl, ["compose", "include"], "system");
 
         if (sushiSystems.Count != ourSystems.Count)
         {

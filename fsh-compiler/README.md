@@ -92,3 +92,9 @@ fsh-compiler-R5/         # FHIR R5 adapter — Namespace: Hl7.FhirShorthand.Comp
 ## License
 
 BSD 3-Clause — see [LICENSE.txt](https://github.com/brianpos/fsh-processor/blob/master/LICENSE.txt) for details.
+
+## Known Issues
+
+* setting names extension doesn't walk the profiles<br/>
+     *Which means the creation of instances definitely needs to walk the structure definition
+	 while setting properties, so that it knows possible slice names*

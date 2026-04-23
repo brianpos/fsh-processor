@@ -14,6 +14,7 @@ public class AliasResolver : IAsyncResourceResolver, IResourceResolver
     /// <param name="resources">Resources to be loaded in memory.</param>
     public AliasResolver(Dictionary<string, StructureDefinition> CompiledStructureDefinitions)
     {
+        // this isn't "indexed" as the content is not expected to be large, and is extended after this resolver is created
         _resources = CompiledStructureDefinitions;
     }
 
