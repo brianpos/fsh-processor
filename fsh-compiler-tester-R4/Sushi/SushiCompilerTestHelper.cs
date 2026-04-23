@@ -106,4 +106,32 @@ public static class SushiCompilerTestHelper
         return sd.Differential?.Element
             .FirstOrDefault(e => e.ElementId == pathOrId || e.Path == pathOrId);
     }
+
+    /// <summary>
+    /// Returns all <see cref="Hl7.Fhir.Model.CodeSystem"/> resources in the compiled result,
+    /// corresponding to SUSHI's <c>exporter.export().codeSystems</c>.
+    /// </summary>
+    public static List<Hl7.Fhir.Model.CodeSystem> CodeSystems(List<FhirResource> resources) =>
+        resources.OfType<Hl7.Fhir.Model.CodeSystem>().ToList();
+
+    /// <summary>
+    /// Returns the first compiled <see cref="Hl7.Fhir.Model.CodeSystem"/> with the given
+    /// <see cref="Hl7.Fhir.Model.CodeSystem.Name"/>; null when not found.
+    /// </summary>
+    public static Hl7.Fhir.Model.CodeSystem? FindCs(List<FhirResource> resources, string name) =>
+        resources.OfType<Hl7.Fhir.Model.CodeSystem>().FirstOrDefault(cs => cs.Name == name);
+
+    /// <summary>
+    /// Returns all <see cref="Hl7.Fhir.Model.ValueSet"/> resources in the compiled result,
+    /// corresponding to SUSHI's <c>exporter.export().valueSets</c>.
+    /// </summary>
+    public static List<Hl7.Fhir.Model.ValueSet> ValueSets(List<FhirResource> resources) =>
+        resources.OfType<Hl7.Fhir.Model.ValueSet>().ToList();
+
+    /// <summary>
+    /// Returns the first compiled <see cref="Hl7.Fhir.Model.ValueSet"/> with the given
+    /// <see cref="Hl7.Fhir.Model.ValueSet.Name"/>; null when not found.
+    /// </summary>
+    public static Hl7.Fhir.Model.ValueSet? FindVs(List<FhirResource> resources, string name) =>
+        resources.OfType<Hl7.Fhir.Model.ValueSet>().FirstOrDefault(vs => vs.Name == name);
 }
