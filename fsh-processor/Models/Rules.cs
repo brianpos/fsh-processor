@@ -1,4 +1,4 @@
-namespace fsh_processor.Models;
+namespace Hl7.FhirShorthand.Serialization.Models;
 
 /// <summary>
 /// Base class for all FSH rules
@@ -236,6 +236,12 @@ public class AddElementRule : LrRule
     /// Definition (can be multiline)
     /// </summary>
     public string? Definition { get; set; }
+
+    /// <summary>
+    /// Whether Definition was originally a multiline (triple-quoted) string.
+    /// <c>null</c> = auto-detect; <c>true</c> = always multiline; <c>false</c> = always single-line.
+    /// </summary>
+    public bool? IsDefinitionMultiline { get; set; }
 }
 
 /// <summary>
@@ -268,6 +274,12 @@ public class AddCRElementRule : LrRule
     /// Definition (can be multiline)
     /// </summary>
     public string? Definition { get; set; }
+
+    /// <summary>
+    /// Whether Definition was originally a multiline (triple-quoted) string.
+    /// <c>null</c> = auto-detect; <c>true</c> = always multiline; <c>false</c> = always single-line.
+    /// </summary>
+    public bool? IsDefinitionMultiline { get; set; }
 }
 
 /// <summary>
@@ -595,6 +607,12 @@ public class Concept : CsRule
     /// Definition (can be multiline)
     /// </summary>
     public string? Definition { get; set; }
+
+    /// <summary>
+    /// Whether Definition was originally a multiline (triple-quoted) string.
+    /// <c>null</c> = auto-detect; <c>true</c> = always multiline; <c>false</c> = always single-line.
+    /// </summary>
+    public bool? IsDefinitionMultiline { get; set; }
 }
 
 /// <summary>

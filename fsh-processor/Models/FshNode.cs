@@ -1,6 +1,6 @@
 using Hl7.Fhir.Utility;
 
-namespace fsh_processor.Models;
+namespace Hl7.FhirShorthand.Serialization.Models;
 
 /// <summary>
 /// Base class for all FSH syntax tree nodes.

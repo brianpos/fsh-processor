@@ -1,7 +1,7 @@
 using Hl7.Fhir.Model;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Tests compiling FSH ValueSet entities to FHIR R4 ValueSet resources.
@@ -35,6 +35,21 @@ public class R4ValueSetCompilerTests
         Assert.IsNotNull(vs.Compose);
         Assert.AreEqual(1, vs.Compose.Include.Count);
         Assert.AreEqual("http://loinc.org", vs.Compose.Include[0].System);
+    }
+
+    [TestMethod]
+    public void ShouldPreserveUrnCodeSystemInSingleCodeInclude()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            ValueSet: MyValueSet
+            * urn:ietf:bcp:13#application/sql ""SQL""
+        ");
+        var vs = CompilerTestHelper.GetValueSet(resources, "MyValueSet");
+        Assert.IsNotNull(vs.Compose);
+        Assert.AreEqual(1, vs.Compose.Include.Count);
+        // Per language-reference include coding syntax, explicit system identifiers are
+        // used as provided; URN systems must not be canonical-base rewritten.
+        Assert.AreEqual("urn:ietf:bcp:13", vs.Compose.Include[0].System);
     }
 
     [TestMethod]

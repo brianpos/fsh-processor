@@ -1,0 +1,17 @@
+{
+  "resourceType": "ValueSet",
+  "id": "launchContext",
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/launchContext",
+  "name": "QuestionnaireLaunchContext",
+  "title": "Questionnaire Launch Context",
+  "status": "active",
+  "experimental": false,
+  "description": "The standard context for Questionnaire at launch time",
+  "compose": {
+    "include": [
+      {
+        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/launchContext"
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
-namespace fsh_processor.Models;
+namespace Hl7.FhirShorthand.Serialization.Models;
 
-using fsh_processor.antlr;
+using Hl7.FhirShorthand.Serialization.antlr;
 
 /// <summary>
 /// Represents a hidden token from the ANTLR parser (comments, whitespace, etc.)

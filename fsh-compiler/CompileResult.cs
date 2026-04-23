@@ -1,4 +1,4 @@
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 /// <summary>
 /// Discriminated-union result type returned by <see cref="FshCompiler"/>.

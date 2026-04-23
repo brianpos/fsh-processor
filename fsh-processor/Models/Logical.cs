@@ -1,4 +1,4 @@
-namespace fsh_processor.Models;
+namespace Hl7.FhirShorthand.Serialization.Models;
 
 /// <summary>
 /// Logical model definition (Logical: name)
@@ -24,6 +24,12 @@ public class Logical : FshEntity
     /// Description
     /// </summary>
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Whether Description was originally a multiline (triple-quoted) string.
+    /// <c>null</c> = auto-detect; <c>true</c> = always multiline; <c>false</c> = always single-line.
+    /// </summary>
+    public bool? IsDescriptionMultiline { get; set; }
 
     /// <summary>
     /// Characteristics codes

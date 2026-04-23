@@ -1,0 +1,57 @@
+{
+  "resourceType": "ValueSet",
+  "id": "sdc-question-library-states",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-valueset"
+    ]
+  },
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/sdc-question-library-states",
+  "name": "AustralianStates",
+  "title": "Australian States - example value set",
+  "status": "active",
+  "experimental": true,
+  "description": "An example value set (using fake codes) used by a modular Questionnaire",
+  "immutable": false,
+  "compose": {
+    "include": [
+      {
+        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/AustralianStateCodes",
+        "concept": [
+          {
+            "code": "ACT",
+            "display": "Australian Capital Territory"
+          },
+          {
+            "code": "NSW",
+            "display": "New South Wales"
+          },
+          {
+            "code": "NT",
+            "display": "Northern Territory"
+          },
+          {
+            "code": "Qld",
+            "display": "Queensland"
+          },
+          {
+            "code": "SA",
+            "display": "South Australia"
+          },
+          {
+            "code": "Vic",
+            "display": "Victoria"
+          },
+          {
+            "code": "Tas",
+            "display": "Tasmania"
+          },
+          {
+            "code": "WA",
+            "display": "Western Australia"
+          }
+        ]
+      }
+    ]
+  }
+}

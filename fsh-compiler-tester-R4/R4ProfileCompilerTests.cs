@@ -1,9 +1,9 @@
-using fsh_compiler;
-using fsh_processor;
+using Hl7.FhirShorthand.Compiler;
+using Hl7.FhirShorthand.Serialization;
 using Hl7.Fhir.Model;
 using FhirResource = Hl7.Fhir.Model.Resource;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Tests compiling FSH Profile entities to FHIR R4 StructureDefinitions.
@@ -23,7 +23,7 @@ public class R4ProfileCompilerTests
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyPatient");
         Assert.AreEqual("MyPatient", sd.Name);
         Assert.AreEqual("Patient", sd.Type);
-        Assert.AreEqual("Patient", sd.BaseDefinition);
+        Assert.AreEqual("http://hl7.org/fhir/StructureDefinition/Patient", sd.BaseDefinition);
         Assert.AreEqual(StructureDefinition.TypeDerivationRule.Constraint, sd.Derivation);
     }
 
@@ -228,6 +228,49 @@ public class R4ProfileCompilerTests
         Assert.AreEqual("final", ((Code)ed.Pattern!).Value);
     }
 
+    [TestMethod]
+    public void ShouldApplyPatternRatioWithQuantityParts()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * referenceRange.low = 3 'mg' : 1 'mg'
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "referenceRange.low");
+        Assert.IsNotNull(ed.Pattern, "Pattern should be set");
+        Assert.IsInstanceOfType<Ratio>(ed.Pattern);
+        var ratio = (Ratio)ed.Pattern!;
+        Assert.IsNotNull(ratio.Numerator);
+        Assert.AreEqual(3m, ratio.Numerator.Value);
+        // FSH UCUM units ('mg') are stored as Code + System, not the display Unit field.
+        Assert.AreEqual("mg", ratio.Numerator.Code);
+        Assert.AreEqual("http://unitsofmeasure.org", ratio.Numerator.System);
+        Assert.IsNotNull(ratio.Denominator);
+        Assert.AreEqual(1m, ratio.Denominator.Value);
+        Assert.AreEqual("mg", ratio.Denominator.Code);
+        Assert.AreEqual("http://unitsofmeasure.org", ratio.Denominator.System);
+    }
+
+    [TestMethod]
+    public void ShouldApplyFixedRatioWithNumericParts()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+            * referenceRange.low = 10 : 2 (exactly)
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "referenceRange.low");
+        Assert.IsNotNull(ed.Fixed, "Fixed should be set");
+        Assert.IsInstanceOfType<Ratio>(ed.Fixed);
+        var ratio = (Ratio)ed.Fixed!;
+        Assert.IsNotNull(ratio.Numerator);
+        Assert.AreEqual(10m, ratio.Numerator.Value);
+        Assert.IsNotNull(ratio.Denominator);
+        Assert.AreEqual(2m, ratio.Denominator.Value);
+    }
+
     // ─── OnlyRule ────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -256,6 +299,8 @@ public class R4ProfileCompilerTests
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
         var ed = CompilerTestHelper.GetElement(sd, "value[x]");
         Assert.AreEqual(3, ed.Type.Count);
+        // Primitive datatypes (lowercase-initial) sort before complex/resource types
+        // to match FHIR canonical ordering and sushi output.
         CollectionAssert.AreEqual(
             new[] { "Quantity", "string", "boolean" },
             ed.Type.Select(t => t.Code).ToArray());
@@ -455,6 +500,28 @@ public class R4ProfileCompilerTests
     }
 
     [TestMethod]
+    public void ShouldNormalizeLineEndingsInMultilineCaretComment()
+    {
+        var resources = CompilerTestHelper.CompileDoc(""""
+            Profile: MyObservation
+            Parent: Observation
+            * status ^comment = """
+                line one
+
+                line two
+              """
+            """");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        var ed = CompilerTestHelper.GetElement(sd, "status");
+
+        // Spec is silent on newline normalization details; pin LF-only output for
+        // deterministic sushi parity in strict JSON text comparison tests.
+        Assert.IsNotNull(ed.Comment);
+        Assert.IsFalse(ed.Comment.Contains("\r"));
+        Assert.IsTrue(ed.Comment.Contains("\n"));
+    }
+
+    [TestMethod]
     public void ShouldApplyCaretValueRequirementsOnElement()
     {
         var resources = CompilerTestHelper.CompileDoc(@"
@@ -616,7 +683,8 @@ public class R4ProfileCompilerTests
         Assert.IsNotNull(ed.Type);
         Assert.AreEqual(1, ed.Type.Count);
         Assert.AreEqual("Reference", ed.Type[0].Code);
-        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "Patient");
+        // Bare resource type names are resolved to their core FHIR canonical URL (matches sushi output).
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/Patient");
     }
 
     [TestMethod]
@@ -633,8 +701,8 @@ public class R4ProfileCompilerTests
         Assert.AreEqual(1, ed.Type.Count);
         Assert.AreEqual("Reference", ed.Type[0].Code);
         Assert.AreEqual(2, ed.Type[0].TargetProfile.Count());
-        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "Patient");
-        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "Practitioner");
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/Patient");
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/Practitioner");
     }
 
     [TestMethod]
@@ -650,7 +718,7 @@ public class R4ProfileCompilerTests
         Assert.IsNotNull(ed.Type);
         Assert.AreEqual(1, ed.Type.Count);
         Assert.AreEqual("canonical", ed.Type[0].Code);
-        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "ValueSet");
+        CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/ValueSet");
     }
 
     [TestMethod]
@@ -675,19 +743,19 @@ public class R4ProfileCompilerTests
     [TestMethod]
     public void ShouldCompileMultipleDocsWithSharedAliases()
     {
-        var doc1 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+        var doc1 = Hl7.FhirShorthand.Serialization.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
             Alias: $Patient = http://hl7.org/fhir/StructureDefinition/Patient
         "));
-        var doc2 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+        var doc2 = Hl7.FhirShorthand.Serialization.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
             Profile: MyObservation
             Parent: Observation
             * subject only Reference($Patient)
         "));
 
-        var fshDoc1 = ((fsh_processor.Models.ParseResult.Success)doc1).Document;
-        var fshDoc2 = ((fsh_processor.Models.ParseResult.Success)doc2).Document;
+        var fshDoc1 = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc1).Document;
+        var fshDoc2 = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc2).Document;
 
-        var result = fsh_compiler_r4.R4FshCompiler.Compile(new[] { fshDoc1, fshDoc2 });
+        var result = Hl7.FhirShorthand.Compiler_r4.R4FshCompiler.Compile(new[] { fshDoc1, fshDoc2 });
         Assert.IsTrue(result.IsSuccess, "Multi-doc compilation should succeed");
         var resources = ((CompileResult<List<FhirResource>>.SuccessResult)result).Value;
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyObservation");
@@ -700,22 +768,22 @@ public class R4ProfileCompilerTests
     [TestMethod]
     public void ShouldCompileMultipleDocsWithSharedInvariant()
     {
-        var doc1 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+        var doc1 = Hl7.FhirShorthand.Serialization.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
             Invariant: obs-1
             Description: ""Must have value""
             Expression: ""value.exists()""
             Severity: #error
         "));
-        var doc2 = fsh_processor.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
+        var doc2 = Hl7.FhirShorthand.Serialization.FshParser.Parse(CompilerTestHelper.LeftAlign(@"
             Profile: MyObservation
             Parent: Observation
             * obeys obs-1
         "));
 
-        var fshDoc1 = ((fsh_processor.Models.ParseResult.Success)doc1).Document;
-        var fshDoc2 = ((fsh_processor.Models.ParseResult.Success)doc2).Document;
+        var fshDoc1 = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc1).Document;
+        var fshDoc2 = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc2).Document;
 
-        var result = fsh_compiler_r4.R4FshCompiler.Compile(new[] { fshDoc1, fshDoc2 });
+        var result = Hl7.FhirShorthand.Compiler_r4.R4FshCompiler.Compile(new[] { fshDoc1, fshDoc2 });
         Assert.IsTrue(result.IsSuccess);
         var resources = ((CompileResult<List<FhirResource>>.SuccessResult)result).Value;
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
@@ -775,9 +843,52 @@ public class R4ProfileCompilerTests
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyPatient");
         var sliceEd = CompilerTestHelper.GetSliceElement(sd, "extension", "myExt");
+        Assert.AreEqual("myExt", sliceEd.SliceName);
         Assert.IsNotNull(sliceEd.Type, "Slice element should have Type set");
         Assert.AreEqual(1, sliceEd.Type.Count);
-        Assert.AreEqual("http://example.org/StructureDefinition/myExt", sliceEd.Type[0].Code);
+        // Per FHIR: a profiled extension slice uses type.code = "Extension" with the
+        // extension's canonical URL carried in type.profile.
+        Assert.AreEqual("Extension", sliceEd.Type[0].Code);
+        Assert.AreEqual(
+            "http://example.org/StructureDefinition/myExt",
+            sliceEd.Type[0].Profile.Single());
+    }
+
+    [TestMethod]
+    public void ShouldSetExtensionRootMinToSumOfRequiredSliceMins()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyPatient
+            Parent: Patient
+            * extension contains
+                http://example.org/StructureDefinition/ext-a named extA 1..1 and
+                http://example.org/StructureDefinition/ext-b named extB 1..1
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyPatient");
+        var extensionEd = CompilerTestHelper.GetElement(sd, "extension");
+
+        // Per language-reference.md contains rules for extensions + cardinality compliance,
+        // the parent extension array minimum must support the sum of required slice mins.
+        Assert.AreEqual(2, extensionEd.Min);
+    }
+
+    [TestMethod]
+    public void ShouldSetExtensionRootMinFromOnlyRequiredSlices()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyPatient
+            Parent: Patient
+            * extension contains
+                http://example.org/StructureDefinition/ext-a named extA 1..1 and
+                http://example.org/StructureDefinition/ext-b named extB 0..1 and
+                http://example.org/StructureDefinition/ext-c named extC 0..*
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyPatient");
+        var extensionEd = CompilerTestHelper.GetElement(sd, "extension");
+
+        // Per language-reference.md cardinality rules, optional slices do not increase
+        // the minimum parent cardinality; only required slices contribute.
+        Assert.AreEqual(1, extensionEd.Min);
     }
 
     // ─── Compiler warnings (Gap 15) ──────────────────────────────────────────
@@ -791,13 +902,84 @@ public class R4ProfileCompilerTests
             * insert NonExistentRuleSet
         ");
         var doc = FshParser.Parse(fsh);
-        Assert.IsInstanceOfType<fsh_processor.Models.ParseResult.Success>(doc);
-        var fshDoc = ((fsh_processor.Models.ParseResult.Success)doc).Document;
+        Assert.IsInstanceOfType<Hl7.FhirShorthand.Serialization.Models.ParseResult.Success>(doc);
+        var fshDoc = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc).Document;
 
-        var result = fsh_compiler_r4.R4FshCompiler.Compile(fshDoc);
+        var result = Hl7.FhirShorthand.Compiler_r4.R4FshCompiler.Compile(fshDoc);
         Assert.IsTrue(result.IsSuccess, "Should succeed despite unresolved rule set");
         Assert.IsTrue(result.Warnings.Count > 0, "Should emit at least one warning");
         Assert.IsTrue(result.Warnings.Any(w => w.Message.Contains("NonExistentRuleSet")),
             "Warning should mention the missing rule set name");
+    }
+
+    // ─── Profile metadata (Status, Abstract, Kind) ───────────────────────────
+
+    [TestMethod]
+    public void ShouldSetStatusActiveOnProfile()
+    {
+        var resources = CompilerTestHelper.CompileDoc(CompilerTestHelper.LeftAlign(@"
+            Profile: MyPatient
+            Parent: Patient
+        "));
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.AreEqual(PublicationStatus.Active, sd.Status,
+            "Profile should have Status = active");
+    }
+
+    [TestMethod]
+    public void ShouldSetAbstractFalseOnProfile()
+    {
+        var resources = CompilerTestHelper.CompileDoc(CompilerTestHelper.LeftAlign(@"
+            Profile: MyPatient
+            Parent: Patient
+        "));
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.IsFalse(sd.Abstract, "Profile should have Abstract = false");
+    }
+
+    [TestMethod]
+    public void ShouldSetKindResourceForProfileOfDomainResource()
+    {
+        var resources = CompilerTestHelper.CompileDoc(CompilerTestHelper.LeftAlign(@"
+            Profile: MyPatient
+            Parent: Patient
+        "));
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.AreEqual(StructureDefinition.StructureDefinitionKind.Resource, sd.Kind,
+            "Profile of a resource should have Kind = resource");
+    }
+
+    [TestMethod]
+    public void ShouldSetKindComplexTypeForProfileOfDatatype()
+    {
+        var resources = CompilerTestHelper.CompileDoc(CompilerTestHelper.LeftAlign(@"
+            Profile: MyAddress
+            Parent: Address
+        "));
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+        Assert.AreEqual(StructureDefinition.StructureDefinitionKind.ComplexType, sd.Kind,
+            "Profile of a complex datatype should have Kind = complex-type");
+    }
+
+    [TestMethod]
+    public void ShouldUseResourceTypePathSegmentInUrl()
+    {
+        var fsh = CompilerTestHelper.LeftAlign(@"
+            Profile: MyPatient
+            Id: my-patient
+            Parent: Patient
+        ");
+        var doc = FshParser.Parse(fsh);
+        var fshDoc = ((Hl7.FhirShorthand.Serialization.Models.ParseResult.Success)doc).Document;
+        var opts = new CompilerOptions
+        {
+            CanonicalBase = "http://example.org/fhir",
+            FhirVersion = "4.0.1",
+            Inspector = Hl7.Fhir.Model.ModelInfo.ModelInspector
+        };
+        var result = FshCompiler.Compile(fshDoc, opts);
+        var sd = (StructureDefinition)((CompileResult<List<FhirResource>>.SuccessResult)result).Value[0];
+        Assert.AreEqual("http://example.org/fhir/StructureDefinition/my-patient", sd.Url,
+            "Profile URL should use /StructureDefinition/ segment");
     }
 }

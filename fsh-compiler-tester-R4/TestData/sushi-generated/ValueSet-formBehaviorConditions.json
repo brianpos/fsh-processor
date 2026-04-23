@@ -1,0 +1,17 @@
+{
+  "resourceType": "ValueSet",
+  "id": "formBehaviorConditions",
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/formBehaviorConditions",
+  "name": "QuestionnaireBehaviorConditions",
+  "title": "Questionnaire Form Behavior Conditions",
+  "status": "active",
+  "experimental": true,
+  "description": "Defines example codes for use in the Form Behavior examples",
+  "compose": {
+    "include": [
+      {
+        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/questionnaire-behavior-condition"
+      }
+    ]
+  }
+}

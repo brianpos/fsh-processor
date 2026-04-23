@@ -8,7 +8,7 @@
 //    Our parser does not implement semantic validation; those tests are inconclusive.
 //  - SUSHI's importText() supports multi-file alias sharing; our parser is single-file.
 
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;

@@ -1,11 +1,13 @@
-using System.Reflection;
-using fsh_processor.Models;
 using Hl7.Fhir.Introspection;
 using Hl7.Fhir.Model;
+using Hl7.Fhir.Specification.Source;
 using Hl7.Fhir.Utility;
-using FshCode = fsh_processor.Models.Code;
+using Hl7.FhirShorthand.Serialization.Models;
+using System.Text.RegularExpressions;
+using FshCanonical = Hl7.FhirShorthand.Serialization.Models.Canonical;
+using FshCode = Hl7.FhirShorthand.Serialization.Models.Code;
 
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 /// <summary>
 /// Uses the Firely SDK's <see cref="ModelInspector"/> to dynamically set caret-value properties
@@ -48,12 +50,16 @@ public static class FhirCaretValueWriter
     /// Pass the version-specific <c>ModelInfo.ModelInspector</c>; when <c>null</c> the
     /// Conformance-assembly fallback is used.
     /// </param>
+    /// <param name="aliasResolver">
+    /// Optional function that resolves FSH alias names in system-qualified codes (e.g.
+    /// <c>$m49.htm</c> → <c>http://unstats.un.org/unsd/methods/m49/m49.htm</c>).
+    /// </param>
     /// <returns>
     /// <c>true</c> when a matching property was found and set; <c>false</c> when the property
     /// does not exist in the model or the value type is incompatible, in which case the caller
     /// should fall back (e.g. to an extension).
     /// </returns>
-    public static bool TrySet(Base target, string elementName, FshValue? fshValue, ModelInspector? inspector = null)
+    public static bool TrySet(Base target, string elementName, FshValue? fshValue, ModelInspector? inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         if (fshValue is null) return false;
 
@@ -64,8 +70,30 @@ public static class FhirCaretValueWriter
         var propMap = classMap.FindMappedElementByName(elementName);
         if (propMap is null) return false;
 
-        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector);
+        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector, aliasResolver, canonicalResolver);
         if (converted is null) return false;
+
+        if (propMap.IsCollection)
+        {
+            // Collection property: append the new value to the existing list (or create one).
+            // This matches FSH semantics where a non-indexed caret assignment like
+            //   * ^contextInvariant = "..."
+            // appends to the collection (equivalent to [+]).
+            var list = propMap.GetValue(target) as System.Collections.IList;
+            if (list is null)
+            {
+                var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+                list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                propMap.SetValue(target, list);
+            }
+            list.Add(converted);
+            return true;
+        }
+
+        // When overwriting a non-collection primitive, preserve any extensions that may have
+        // been set on the existing primitive instance (e.g. via `* path.extension[+]`).
+        if (TryUpdatePrimitiveValueInPlace(propMap, target, converted))
+            return true;
 
         propMap.SetValue(target, converted);
         return true;
@@ -80,7 +108,7 @@ public static class FhirCaretValueWriter
     /// <see cref="TrySet"/>).
     /// </summary>
     public static bool TrySetIndexed(
-        Base target, string elementName, int index, FshValue? fshValue, ModelInspector? inspector = null)
+        Base target, string elementName, int index, FshValue? fshValue, ModelInspector? inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
     {
         if (fshValue is null) return false;
 
@@ -91,11 +119,16 @@ public static class FhirCaretValueWriter
         var propMap = classMap.FindMappedElementByName(elementName);
         if (propMap is null) return false;
 
-        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector);
+        var converted = ConvertValue(fshValue, propMap.ImplementingType, activeInspector, aliasResolver, canonicalResolver);
         if (converted is null) return false;
 
         if (!propMap.IsCollection)
         {
+            // When overwriting a non-collection primitive, preserve any extensions that may have
+            // been set on the existing primitive instance (e.g. via `* path.extension[+]`).
+            if (TryUpdatePrimitiveValueInPlace(propMap, target, converted))
+                return true;
+
             propMap.SetValue(target, converted);
             return true;
         }
@@ -118,8 +151,436 @@ public static class FhirCaretValueWriter
 
     // ─── Value conversion ────────────────────────────────────────────────────
 
-    private static object? ConvertValue(FshValue fshValue, Type targetType, ModelInspector inspector)
+    /// <summary>
+    /// Attempts to set a potentially compound (dot-separated) caret path on a FHIR object,
+    /// supporting soft-index notation (<c>[+]</c>, <c>[=]</c>, <c>[N]</c>) and URL-keyed
+    /// extension navigation (<c>extension[$alias]</c>) for collection navigation.
+    /// Simple (single-segment, no brackets) paths are forwarded to <see cref="TrySet"/>.
+    /// </summary>
+    /// <param name="target">Root FHIR object to start navigation from.</param>
+    /// <param name="compoundPath">
+    /// Dot-separated path, e.g. <c>"context.type"</c>, <c>"context[+].type"</c>,
+    /// <c>"slicing.discriminator.path"</c>, <c>"binding.description"</c>,
+    /// <c>"extension[$alias].valueCode"</c>.
+    /// </param>
+    /// <param name="fshValue">The FSH value to set at the leaf segment.</param>
+    /// <param name="softIndexState">
+    /// Mutable dictionary tracking the current soft-index counter per path prefix.
+    /// Pass the same instance across sequential rule applications so <c>[+]</c>/<c>[=]</c>
+    /// pairs work correctly.
+    /// </param>
+    /// <param name="inspector">Version-specific model inspector.</param>
+    /// <param name="aliasResolver">FSH alias resolver.</param>
+    /// <returns><c>true</c> when the value was set; <c>false</c> otherwise.</returns>
+    public static bool TrySetCompound(
+        Base target,
+        string compoundPath,
+        FshValue? fshValue,
+        Dictionary<string, int> softIndexState,
+        ModelInspector? inspector,
+        Func<string, string>? aliasResolver,
+        IResourceResolver canonicalResolver)
     {
+        if (fshValue is null) return false;
+
+        // Fast path: no compound navigation needed.
+        if (!compoundPath.Contains('.') && !compoundPath.Contains('['))
+            return TrySet(target, compoundPath, fshValue, inspector, aliasResolver, canonicalResolver);
+
+        var activeInspector = inspector ?? _conformanceFallback.Value;
+
+        // Split at the first dot outside brackets to get head segment and the remaining tail.
+        var dotIndex = FindFirstDotOutsideBrackets(compoundPath);
+        if (dotIndex < 0)
+        {
+            // No dot — has bracket notation only (e.g. "context[+]").
+            // When the bracket contains an explicit integer (e.g. "alias[0]"), interpret as a
+            // direct indexed assignment on the target object itself.
+            var bracketStart = compoundPath.IndexOf('[');
+            if (bracketStart > 0)
+            {
+                var bracketEnd = compoundPath.IndexOf(']', bracketStart);
+                if (bracketEnd > bracketStart)
+                {
+                    var indexStr = compoundPath[(bracketStart + 1)..bracketEnd];
+                    if (int.TryParse(indexStr, out var idx))
+                        return TrySetIndexed(target, compoundPath[..bracketStart], idx, fshValue, inspector, aliasResolver, canonicalResolver);
+                }
+            }
+            return false;
+        }
+
+        var headSegment = compoundPath[..dotIndex];
+        var tailPath    = compoundPath[(dotIndex + 1)..];
+
+        // Navigate into the child indicated by headSegment.
+        var next = NavigateToChild(target, headSegment, softIndexState, activeInspector, create: true, aliasResolver);
+        if (next is not Base nextBase) return false;
+
+        // Recursively set the tail path; if still compound, recurse.
+        if (tailPath.Contains('.') || tailPath.Contains('['))
+            return TrySetCompound(nextBase, tailPath, fshValue, softIndexState, activeInspector, aliasResolver, canonicalResolver);
+
+        // Leaf segment: try plain TrySet first, then choice-type fallback.
+        if (TrySet(nextBase, tailPath, fshValue, activeInspector, aliasResolver, canonicalResolver)) return true;
+        return TrySetChoiceTypeLeaf(nextBase, tailPath, fshValue!, activeInspector, aliasResolver, canonicalResolver);
+    }
+
+    /// <summary>
+    /// Returns the index of the first <c>'.'</c> that is not inside square brackets,
+    /// or <c>-1</c> if no such dot exists.
+    /// </summary>
+    private static int FindFirstDotOutsideBrackets(string path)
+    {
+        int depth = 0;
+        for (int i = 0; i < path.Length; i++)
+        {
+            switch (path[i])
+            {
+                case '[': depth++; break;
+                case ']': if (depth > 0) depth--; break;
+                case '.' when depth == 0: return i;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Navigates one path segment on <paramref name="parent"/> and returns the child object.
+    /// Supports:
+    /// <list type="bullet">
+    ///   <item><description><c>name</c>  — scalar: get existing value or create one when <paramref name="create"/> is <c>true</c>; collection: uses element at index 0, creating it if absent.</description></item>
+    ///   <item><description><c>name[+]</c> — append a new element to the collection and track its index in <paramref name="softIndexState"/>.</description></item>
+    ///   <item><description><c>name[=]</c> — reuse the last index tracked in <paramref name="softIndexState"/> for the same name.</description></item>
+    ///   <item><description><c>name[N]</c> — use element at explicit integer index N.</description></item>
+    ///   <item><description><c>extension[$alias]</c> — find or create the extension whose URL matches the resolved alias.</description></item>
+    /// </list>
+    /// </summary>
+    private static object? NavigateToChild(
+        Base parent,
+        string segment,
+        Dictionary<string, int> softIndexState,
+        ModelInspector activeInspector,
+        bool create,
+        Func<string, string>? aliasResolver = null)
+    {
+        // Detect bracket notation.
+        var bracketStart = segment.IndexOf('[');
+        string baseName;
+        string? indexToken;
+
+        if (bracketStart >= 0)
+        {
+            baseName   = segment[..bracketStart];
+            var bracketEnd = segment.IndexOf(']', bracketStart);
+            indexToken = bracketEnd > bracketStart
+                ? segment[(bracketStart + 1)..bracketEnd]
+                : null;
+        }
+        else
+        {
+            baseName   = segment;
+            indexToken = null;
+        }
+
+        var classMap = activeInspector.FindClassMapping(parent.GetType());
+        if (classMap is null) return null;
+
+        var propMap = classMap.FindMappedElementByName(baseName);
+        if (propMap is null)
+        {
+            // Not found by direct name — try interpreting as a choice-type suffix, e.g.
+            // "valueExpression" → base="value", type="Expression".  This allows compound
+            // caret paths such as `^extension.valueExpression.name` to navigate into the
+            // polymorphic value[x] property of an Extension using the JSON-style suffixed name.
+            return TryNavigateChoiceType(parent, baseName, create, activeInspector);
+        }
+
+        if (propMap.IsCollection)
+        {
+            var list = propMap.GetValue(parent) as System.Collections.IList;
+
+            // URL-keyed extension navigation: extension[$alias] or extension[urlString]
+            // When the index is neither a soft-index (+/=) nor an integer, it's treated as
+            // a URL/alias key to find an extension by its url property.
+            if (indexToken != null
+                && indexToken != "+"
+                && indexToken != "="
+                && !int.TryParse(indexToken, out _))
+            {
+                var resolvedUrl = aliasResolver != null ? aliasResolver(indexToken) : indexToken;
+
+                // Try to find an existing Extension with this URL.
+                if (list != null)
+                {
+                    foreach (var item in list)
+                    {
+                        if (item is Hl7.Fhir.Model.Extension ext && ext.Url == resolvedUrl)
+                            return ext;
+                    }
+                }
+
+                if (!create) return null;
+
+                // Create a new extension with the resolved URL.
+                if (list is null)
+                {
+                    var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+                    list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                    propMap.SetValue(parent, list);
+                }
+                var newExt = new Hl7.Fhir.Model.Extension { Url = resolvedUrl };
+                list.Add(newExt);
+                return newExt;
+            }
+
+            int targetIndex;
+            if (indexToken == "+")
+            {
+                // Append a new element; record new index.
+                if (list is null)
+                {
+                    var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+                    list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                    propMap.SetValue(parent, list);
+                }
+                var newItem = Activator.CreateInstance(propMap.ImplementingType)!;
+                list.Add(newItem);
+                targetIndex = list.Count - 1;
+                softIndexState[baseName] = targetIndex;
+                return newItem;
+            }
+            else if (indexToken == "=")
+            {
+                // Reuse last index for this name.
+                softIndexState.TryGetValue(baseName, out targetIndex);
+            }
+            else if (indexToken != null && int.TryParse(indexToken, out var explicitIdx))
+            {
+                targetIndex = explicitIdx;
+            }
+            else
+            {
+                // No index: use index 0 (get-or-create).
+                targetIndex = 0;
+            }
+
+            if (list is null)
+            {
+                if (!create) return null;
+                var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+                list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                propMap.SetValue(parent, list);
+            }
+
+            while (list.Count <= targetIndex)
+                list.Add(Activator.CreateInstance(propMap.ImplementingType)!);
+
+            return list[targetIndex];
+        }
+        else
+        {
+            // Non-collection property: get or create.
+            var current = propMap.GetValue(parent);
+            if (current is null && create)
+            {
+                current = Activator.CreateInstance(propMap.ImplementingType);
+                if (current is not null)
+                    propMap.SetValue(parent, current);
+            }
+            return current;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to navigate into a choice-type property (<c>value[x]</c>) using the JSON-style
+    /// suffixed name (e.g. <c>"valueExpression"</c> → base property <c>"value"</c>, concrete
+    /// type <c>Expression</c>).  When the property is found and a concrete instance is created
+    /// or already present, the instance is returned; otherwise <c>null</c>.
+    /// </summary>
+    private static Base? TryNavigateChoiceType(Base parent, string name, bool create, ModelInspector inspector)
+    {
+        var classMap = inspector.FindClassMapping(parent.GetType());
+        if (classMap is null) return null;
+
+        // Scan from right-to-left; each uppercase letter is a candidate split point where
+        // name[..i] is the base property name and name[i..] is the FHIR type name.
+        for (int i = name.Length - 1; i > 0; i--)
+        {
+            if (!char.IsUpper(name[i])) continue;
+            var baseName   = name[..i];
+            var typeSuffix = name[i..];
+
+            var propMap = classMap.FindMappedElementByName(baseName);
+            if (propMap is null) continue;
+
+            // Verify the suffix is a recognised FHIR type.
+            var typeClassMap = inspector.FindClassMapping(typeSuffix);
+            if (typeClassMap is null) continue;
+
+            // Get the existing value; if absent and create=true, instantiate the concrete type.
+            var current = propMap.GetValue(parent);
+            if (current == null)
+            {
+                if (!create) return null;
+                try
+                {
+                    current = Activator.CreateInstance(typeClassMap.NativeType);
+                    if (current is not null)
+                        propMap.SetValue(parent, current);
+                }
+                catch { return null; }
+            }
+            return current as Base;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Handles FHIR choice-type element names such as <c>valueDecimal</c>, <c>valueCoding</c>,
+    /// or <c>admitReasonCoding</c> (where <c>admitReason</c> is the base property and
+    /// <c>Coding</c> is the FHIR DataType suffix).
+    /// </summary>
+    /// <remarks>
+    /// In FHIR, choice-type elements use a <c>[x]</c> suffix in the schema and are serialised
+    /// with a type-specific suffix in JSON/XML (e.g. <c>valueCoding</c>, <c>valueDecimal</c>).
+    /// The Firely SDK's <see cref="ClassMapping"/> registers the property under the base name
+    /// only (e.g. <c>"value"</c>), so a direct lookup with the suffixed name returns <c>null</c>.
+    /// <para>
+    /// The method scans the element name from right to left, finding each uppercase letter as
+    /// a candidate split point where <c>name[i..]</c> is the potential type suffix and
+    /// <c>name[..i]</c> is the potential base property name.  The first candidate where both
+    /// the suffix is a recognised FHIR DataType (via <see cref="ModelInspector.FindClassMapping"/>)
+    /// AND the base name maps to a property on the target class is used.
+    /// </para>
+    /// <para>
+    /// This method is intentionally <c>internal</c> so it can be called from the CodeSystem
+    /// compiler path, where choice-type values are expected (e.g. <c>concept.property.value[x]</c>).
+    /// It is NOT wired into the general <see cref="TrySet"/>/<see cref="TrySetIndexed"/> path to
+    /// avoid incorrectly setting choice-type values for elements that do not allow the given type.
+    /// </para>
+    /// </remarks>
+    internal static bool TrySetChoiceTypeLeaf(
+        Base target, string elementName, FshValue fshValue, ModelInspector inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
+    {
+        var classMap = inspector.FindClassMapping(target.GetType());
+        if (classMap is null) return false;
+
+        // Scan right-to-left over uppercase letters.  Each uppercase position is a candidate
+        // boundary between the base property name and the FHIR DataType suffix.
+        // e.g. "admitReasonCoding" → tries R(5) first (suffix "ReasonCoding" – not a DataType),
+        //      then C(11) (suffix "Coding" – is a DataType, base "admitReason" is a property) ✓
+        // e.g. "valueDateTime"     → tries T(9) (suffix "Time" – is a DataType, but base
+        //      "valueDate" is not a property → skip), then D(5) ("DateTime" + "value") ✓
+        for (int i = elementName.Length - 1; i >= 1; i--)
+        {
+            if (!char.IsUpper(elementName[i])) continue;
+
+            var typeSuffix = elementName[i..];
+            var baseName   = elementName[..i];
+
+            // The suffix must be a recognised FHIR DataType name.
+            var suffixType = inspector.FindClassMapping(typeSuffix);
+            if (suffixType is null) continue;
+
+            // The base must be a mapped property on the target class.
+            var propMap = classMap.FindMappedElementByName(baseName);
+            if (propMap is null) continue;
+
+            // Produce a concrete DataType from the FSH value.  Route through ConvertValue so
+            // that numeric targets (Integer, PositiveInt, UnsignedInt, Integer64) get the
+            // proper primitive constructor via CreateNumericPrimitive, rather than producing
+            // a generic FhirDecimal from ToDataType that AdaptToTargetType cannot narrow.
+            var dataType = ConvertValue(fshValue, suffixType.NativeType, inspector, aliasResolver, canonicalResolver)
+                           ?? AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector, aliasResolver, canonicalResolver), suffixType.NativeType);
+            if (dataType is null) return false;
+
+            // Verify the concrete type is assignment-compatible with the property's implementing type.
+            if (!propMap.ImplementingType.IsAssignableFrom(dataType.GetType())) return false;
+
+            if (propMap.IsCollection)
+            {
+                var list = propMap.GetValue(target) as System.Collections.IList;
+                if (list is null)
+                {
+                    var listType = typeof(List<>).MakeGenericType(propMap.ImplementingType);
+                    list = (System.Collections.IList)Activator.CreateInstance(listType)!;
+                    propMap.SetValue(target, list);
+                }
+                list.Add(dataType);
+                return true;
+            }
+
+            // When overwriting a non-collection primitive choice-type (e.g. valueDecimal),
+            // preserve any extensions that were set on the existing primitive instance.
+            if (TryUpdatePrimitiveValueInPlace(propMap, target, dataType))
+                return true;
+
+            propMap.SetValue(target, dataType);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// When overwriting a non-collection primitive FHIR property, if the existing value is
+    /// a <see cref="PrimitiveType"/> of the same type as <paramref name="newValue"/>, updates
+    /// the existing instance's <c>ObjectValue</c> in place so that any extensions already set
+    /// on the existing primitive (e.g. via <c>* path.extension[+]</c>) are preserved.
+    /// Returns <c>true</c> when the in-place update was performed; <c>false</c> when the
+    /// property is empty or the types do not match (caller should fall back to
+    /// <see cref="PropertyMapping.SetValue"/>).
+    /// </summary>
+    private static bool TryUpdatePrimitiveValueInPlace(PropertyMapping propMap, Base target, object newValue)
+    {
+        if (newValue is not PrimitiveType newPrimitive) return false;
+
+        var existing = propMap.GetValue(target);
+        if (existing is not PrimitiveType existingPrimitive) return false;
+        if (existing.GetType() != newValue.GetType()) return false;
+
+        existingPrimitive.ObjectValue = newPrimitive.ObjectValue;
+        return true;
+    }
+
+    private static object? ConvertValue(FshValue fshValue, Type targetType, ModelInspector inspector, Func<string, string>? aliasResolver, IResourceResolver canonicalResolver)
+    {
+        // Plain System.String property — e.g. Extension.Url in the Firely SDK is declared as a
+        // raw C# string rather than a FHIR PrimitiveType, so it has no string(string) constructor
+        // and CreatePrimitive returns null.  Handle it here before the FHIR-DataType switch.
+        if (targetType == typeof(string))
+        {
+            // NameValue: `$alias` used without a `#code` suffix is parsed as a name by the FSH
+            // grammar (not as a Code token).  For string targets such as Extension.Url, resolve
+            // the alias to its URL and return the resulting string directly — the raw C# string
+            // property does not need URI percent-encoding (unlike FhirUri/FhirUrl primitives).
+            if (fshValue is NameValue nameVal)
+                return aliasResolver?.Invoke(nameVal.Value) ?? nameVal.Value;
+
+            return GetStringFromFshValue(fshValue);
+        }
+
+        // Base64Binary — the Firely SDK stores binary data as byte[] and its only non-default
+        // constructor takes byte[].  A FSH string value is treated as a base64-encoded string.
+        if (targetType == typeof(Base64Binary) && fshValue is StringValue b64sv)
+        {
+            try { return new Base64Binary(Convert.FromBase64String(b64sv.Value)); }
+            catch (FormatException) { return null; }
+        }
+
+        // Instant — the Firely SDK's Instant type has no string constructor (only DateTimeOffset?).
+        // Parse the FSH string value to DateTimeOffset so the FHIR instant value can be set.
+        if (targetType == typeof(Instant) && fshValue is StringValue instSv)
+        {
+            if (System.DateTimeOffset.TryParse(instSv.Value,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind,
+                    out var dto))
+                return new Instant(dto);
+            return null;
+        }
+
         // Code<TEnum> — use EnumUtility.ParseLiteral so that FHIR kebab-case literals
         // (e.g. "is-a", "grouped-by") are resolved correctly against [EnumLiteral] attributes.
         if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Code<>))
@@ -136,24 +597,61 @@ public static class FhirCaretValueWriter
 
         return fshValue switch
         {
-            StringValue sv   => CreatePrimitive(targetType, sv.Value),
-            FshCode c        => CreatePrimitive(targetType, c.Value.TrimStart('#')),
+            StringValue sv   => CreatePrimitive(targetType, NormalizeLineEndings(sv.Value)),
+            // For FshCode: extract the code-only part (strip system and leading #) for
+            // primitive targets (FhirCode, FhirString, …).  When that fails (e.g. target is
+            // CodeableConcept), fall through to ToDataType which produces a Coding that
+            // AdaptToTargetType can then wrap in a CodeableConcept.
+            FshCode c        => CreatePrimitive(targetType, FhirValueMapper.SplitCodeValue(c.Value).Code)
+                                ?? AdaptToTargetType(FhirValueMapper.ToDataType(c, inspector, aliasResolver, canonicalResolver), targetType),
             BooleanValue bv  => targetType == typeof(FhirBoolean) ? new FhirBoolean(bv.Value) : null,
             NumberValue nv   => CreateNumericPrimitive(targetType, nv.Value),
-            _                => FhirValueMapper.ToDataType(fshValue)
+            // NameValue: `$alias` parsed as a name for non-string FHIR primitive targets
+            // (e.g. Canonical URL fields such as `definition`, `profile`, `import`).
+            // Resolve the alias and create the target primitive from the resulting URL.
+            NameValue nv2    => CreatePrimitive(targetType, aliasResolver?.Invoke(nv2.Value) ?? nv2.Value),
+            _                => AdaptToTargetType(FhirValueMapper.ToDataType(fshValue, inspector, aliasResolver, canonicalResolver), targetType)
         };
     }
+
+    // URI-backed FHIR primitive types whose values must be RFC 3986–normalised
+    // before construction so that e.g. choice-type markers like [x] serialise as %5Bx%5D.
+    private static readonly HashSet<Type> _uriTypes =
+    [
+        typeof(FhirUri), typeof(FhirUrl), typeof(Hl7.Fhir.Model.Canonical), typeof(Oid), typeof(Uuid)
+    ];
 
     /// <summary>
     /// Creates a FHIR PrimitiveType instance from a string value using the type's
     /// <c>(string)</c> constructor (handles <see cref="FhirString"/>, <see cref="Markdown"/>,
     /// <see cref="FhirUri"/>, <see cref="FhirUrl"/>, etc.).
+    /// URI-typed targets are normalised via <see cref="NormalizeUri"/> before construction.
     /// </summary>
     private static object? CreatePrimitive(Type targetType, string strValue)
     {
+        if (_uriTypes.Contains(targetType))
+            strValue = NormalizeUri(strValue);
         var ctor = targetType.GetConstructor([typeof(string)]);
         return ctor?.Invoke([strValue]);
     }
+
+    /// <summary>
+    /// Returns an RFC 3986–compliant URI string by percent-encoding characters that
+    /// are invalid unescaped in URI path segments.
+    /// <para>
+    /// <c>[</c> and <c>]</c> are the primary targets: they appear in FHIR canonical URLs
+    /// as choice-type markers (e.g. <c>versionAlgorithm[x]</c>) but are not valid
+    /// unescaped in path segments per RFC 3986.  Already-encoded sequences such as
+    /// <c>%5B</c> are left unchanged — only literal bracket characters are encoded.
+    /// </para>
+    /// <para>
+    /// <see cref="Uri.AbsoluteUri"/> is intentionally avoided here: on .NET it does not
+    /// encode <c>[</c>/<c>]</c> in paths, and it normalises bare-host URIs by appending
+    /// a trailing slash (<c>http://loinc.org</c> → <c>http://loinc.org/</c>).
+    /// </para>
+    /// </summary>
+    private static string NormalizeUri(string url) =>
+        url.Replace("[", "%5B").Replace("]", "%5D");
 
     /// <summary>
     /// Creates a numeric FHIR PrimitiveType instance
@@ -177,8 +675,67 @@ public static class FhirCaretValueWriter
     private static string? GetStringFromFshValue(FshValue fshValue) =>
         fshValue switch
         {
-            StringValue sv => sv.Value,
-            FshCode c      => c.Value.TrimStart('#'),
-            _              => null
+            StringValue sv    => NormalizeLineEndings(sv.Value),
+            // Extract code-only part (strip system prefix and leading #).
+            FshCode c         => FhirValueMapper.SplitCodeValue(c.Value).Code,
+            // Canonical references used as string targets (e.g. Extension.Url) — return the URL directly.
+            FshCanonical can  => can.Url,
+            _                 => null
         };
+
+    private static string NormalizeLineEndings(string value) =>
+        string.IsNullOrEmpty(value)
+            ? value
+            : Regex.Replace(
+                value.Replace("\r\n", "\n").Replace("\r", "\n"),
+                "(?<=\\n)[ \\t]+(?=\\n)",
+                string.Empty);
+
+    /// <summary>
+    /// Returns <paramref name="converted"/> when it is already assignment-compatible with
+    /// <paramref name="targetType"/>.  When the types differ but both are string-backed FHIR
+    /// primitive types (e.g. <see cref="Canonical"/> → <see cref="FhirUri"/>), the raw string
+    /// value is extracted and used to construct the correct target primitive.
+    /// A <see cref="Coding"/> is wrapped in a <see cref="CodeableConcept"/> when the target
+    /// type is <see cref="CodeableConcept"/>.
+    /// Returns <c>null</c> when no adaptation is possible.
+    /// </summary>
+    private static object? AdaptToTargetType(DataType? converted, Type targetType)
+    {
+        if (converted is null) return null;
+        if (targetType.IsAssignableFrom(converted.GetType())) return converted;
+
+        // Coding → CodeableConcept wrapping (FSH spec: code assigned to a CodeableConcept
+        // property creates a CodeableConcept with one Coding element).
+        if (converted is Coding coding && targetType == typeof(CodeableConcept))
+            return new CodeableConcept { Coding = [coding] };
+
+        // Quantity sub-types (Duration, Age, Distance, Count, MoneyQuantity, SimpleQuantity) —
+        // ToDataType always produces a plain Hl7.Fhir.Model.Quantity; copy its fields into a
+        // new instance of the requested concrete sub-type so that e.g. `valueDuration = 200 'a'`
+        // produces a Duration rather than a plain Quantity.
+        if (converted is Hl7.Fhir.Model.Quantity sourceQty
+            && converted.GetType().IsAssignableFrom(targetType))
+        {
+            if (Activator.CreateInstance(targetType) is Hl7.Fhir.Model.Quantity subQty)
+            {
+                subQty.Value = sourceQty.Value;
+                subQty.Comparator = sourceQty.Comparator;
+                subQty.Unit = sourceQty.Unit;
+                subQty.System = sourceQty.System;
+                subQty.Code = sourceQty.Code;
+                return subQty;
+            }
+        }
+
+        // Both sides are string-backed FHIR primitives — extract the raw value and
+        // create the correct target type (e.g. Canonical → FhirUri, FhirUrl → FhirString).
+        if (converted is PrimitiveType primitive && primitive.ObjectValue is string rawValue)
+        {
+            var ctor = targetType.GetConstructor([typeof(string)]);
+            if (ctor != null) return ctor.Invoke([rawValue]);
+        }
+
+        return null;
+    }
 }

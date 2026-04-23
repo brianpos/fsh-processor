@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Hl7.FhirShorthand.Compiler_r5</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageId>Hl7.FhirShorthand.Compiler.R5</PackageId>
+    <Title>HL7 FHIR Shorthand Compiler — R5</Title>
+    <Description>FHIR R5 (5.0.0) adapter for the Hl7.FhirShorthand.Compiler base package. Provides R5FshCompiler to compile a parsed FshDoc into FHIR R5 resources.</Description>
+    <PackageTags>FHIR;FSH;FHIRShorthand;HL7;compiler;R5</PackageTags>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hl7.Fhir.R5" Version="5.13.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE.txt" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\fsh-compiler\Hl7.FhirShorthand.Compiler.csproj" />
+  </ItemGroup>
+
+</Project>

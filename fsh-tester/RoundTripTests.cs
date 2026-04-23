@@ -1,5 +1,5 @@
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester;
@@ -119,7 +119,7 @@ Description: ""Test profile""
         Console.WriteLine(serialized);
         Console.WriteLine("=== END SERIALIZED OUTPUT ===");
 
-        // Verify key elements are present
+        // Per spec grammar, "* name 1..1 MS" is one CardRule with both card and flag.
         Assert.IsTrue(serialized.Contains("Profile: MyProfile"));
         Assert.IsTrue(serialized.Contains("Parent: Patient"));
         Assert.IsTrue(serialized.Contains("Id: my-profile"));
@@ -337,6 +337,9 @@ Characteristics: #can-be-target
         var ruleSet = reparsedDoc.Entities[0] as RuleSet;
         Assert.IsNotNull(ruleSet);
         Assert.AreEqual("CommonRules", ruleSet.Name);
+        // Per spec grammar: "* status 1..1 MS" is one CardRule (no X4 split).
+        // P-FP1 path composition: "* reference 0..1" indented under "* subject 1..1 MS" gets path "subject.reference".
+        // 3 top-level CardRules + 1 composed CardRule = 4
         Assert.AreEqual(4, ruleSet.Rules.Count);
     }
 
@@ -513,18 +516,38 @@ Id: my-observation
         var profile = reparsedDoc.Entities[0] as Profile;
         Assert.IsNotNull(profile);
 
-        // Verify all rules preserved
+        // Per spec grammar (cardRule: STAR path CARD flag*), "* status 1..1 MS" is one CardRule.
+        // 7 rules total (no X4 split).
         Assert.AreEqual(7, profile.Rules.Count);
-        
+
         // Verify specific rule types
-        Assert.IsInstanceOfType<CardRule>(profile.Rules[0]);
+        Assert.IsInstanceOfType<CardRule>(profile.Rules[0]);    // status 1..1 MS (one CardRule)
         Assert.IsInstanceOfType<ValueSetRule>(profile.Rules[1]);
-        Assert.IsInstanceOfType<CardRule>(profile.Rules[2]);
+        Assert.IsInstanceOfType<CardRule>(profile.Rules[2]);    // value[x] 0..1
         Assert.IsInstanceOfType<OnlyRule>(profile.Rules[3]);
         Assert.IsInstanceOfType<ContainsRule>(profile.Rules[4]);
     }
 
-    [TestMethod]
+
+    public static IEnumerable<string> GetSDCFshFiles()
+    {
+        var sdcPath = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC");
+        var fshFiles = Directory.GetFiles(sdcPath, "*.fsh", SearchOption.AllDirectories);
+        return fshFiles.Select(n => new FileInfo(n).Name);
+    }
+
+    [TestMethod, DynamicData(nameof(GetSDCFshFiles))]
+    public void TestRoundTripSingleSDCFile(string fshFile)
+    {
+        var failures = new List<string>();
+        int successCount = 0;
+        int failCount = 0;
+        var filename = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC", fshFile);
+        bool flowControl = RoundtripFshFile(ref successCount, ref failCount, failures, filename);
+        Assert.IsTrue(flowControl, $"Round-trip failed for {Path.GetFileName(fshFile)}: {string.Join("; ", failures)}");
+    }
+
+    // [TestMethod]
     public void TestRoundTripAllSDCFiles()
     {
         // Get all FSH files from the TestData/SDC folder shipped with the test assembly
@@ -538,49 +561,10 @@ Id: my-observation
 
         foreach (var fshFile in fshFiles)
         {
-            try
+            bool flowControl = RoundtripFshFile(ref successCount, ref failCount, failures, fshFile);
+            if (!flowControl)
             {
-                var fshText = File.ReadAllText(fshFile);
-                
-                // Parse original
-                var result = FshParser.Parse(fshText);
-                if (result is not ParseResult.Success success)
-                {
-                    var failure = (ParseResult.Failure)result;
-                    var errorMsg = failure.Errors.Count > 0 ? failure.Errors[0].Message : "Unknown error";
-                    failures.Add($"{Path.GetFileName(fshFile)}: Parse failed - {errorMsg}");
-                    failCount++;
-                    continue;
-                }
-
-                // Serialize
-                var serialized = FshSerializer.Serialize(success.Document);
-
-                // Re-parse
-                var reParseResult = FshParser.Parse(serialized);
-                if (reParseResult is not ParseResult.Success reSuccess)
-                {
-                    var failure = (ParseResult.Failure)reParseResult;
-                    var errorMsg = failure.Errors.Count > 0 ? failure.Errors[0].Message : "Unknown error";
-                    failures.Add($"{Path.GetFileName(fshFile)}: Re-parse failed - {errorMsg}");
-                    failCount++;
-                    continue;
-                }
-
-                // Verify entity count matches
-                if (success.Document.Entities.Count != reSuccess.Document.Entities.Count)
-                {
-                    failures.Add($"{Path.GetFileName(fshFile)}: Entity count mismatch - original {success.Document.Entities.Count}, re-parsed {reSuccess.Document.Entities.Count}");
-                    failCount++;
-                    continue;
-                }
-
-                successCount++;
-            }
-            catch (Exception ex)
-            {
-                failures.Add($"{Path.GetFileName(fshFile)}: Exception - {ex.Message}");
-                failCount++;
+                continue;
             }
         }
 
@@ -602,6 +586,56 @@ Id: my-observation
         // Assert overall success
         Assert.IsTrue(successCount > 0, "No files successfully round-tripped");
         Assert.AreEqual(0, failCount, $"{failCount} files failed to round-trip. See test output for details.");
+    }
+
+    private static bool RoundtripFshFile(ref int successCount, ref int failCount, List<string> failures, string fshFile)
+    {
+        try
+        {
+            var fshText = File.ReadAllText(fshFile);
+
+            // Parse original
+            var result = FshParser.Parse(fshText);
+            if (result is not ParseResult.Success success)
+            {
+                var failure = (ParseResult.Failure)result;
+                var errorMsg = failure.Errors.Count > 0 ? failure.Errors[0].Message : "Unknown error";
+                failures.Add($"{Path.GetFileName(fshFile)}: Parse failed - {errorMsg}");
+                failCount++;
+                return false;
+            }
+
+            // Serialize
+            var serialized = FshSerializer.Serialize(success.Document);
+
+            // Re-parse
+            var reParseResult = FshParser.Parse(serialized);
+            if (reParseResult is not ParseResult.Success reSuccess)
+            {
+                var failure = (ParseResult.Failure)reParseResult;
+                var errorMsg = failure.Errors.Count > 0 ? failure.Errors[0].Message : "Unknown error";
+                failures.Add($"{Path.GetFileName(fshFile)}: Re-parse failed - {errorMsg}");
+                failCount++;
+                return false;
+            }
+
+            // Verify entity count matches
+            if (success.Document.Entities.Count != reSuccess.Document.Entities.Count)
+            {
+                failures.Add($"{Path.GetFileName(fshFile)}: Entity count mismatch - original {success.Document.Entities.Count}, re-parsed {reSuccess.Document.Entities.Count}");
+                failCount++;
+                return false;
+            }
+
+            successCount++;
+        }
+        catch (Exception ex)
+        {
+            failures.Add($"{Path.GetFileName(fshFile)}: Exception - {ex.Message}");
+            failCount++;
+        }
+
+        return true;
     }
 
     [TestMethod]

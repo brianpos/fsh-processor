@@ -1,13 +1,13 @@
-using fsh_compiler;
-using fsh_compiler_r4;
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Compiler;
+using Hl7.FhirShorthand.Compiler_r4;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Model;
 using FhirResource = Hl7.Fhir.Model.Resource;
 using FhirValueSet = Hl7.Fhir.Model.ValueSet;
 using FhirCodeSystem = Hl7.Fhir.Model.CodeSystem;
 
-namespace fsh_compiler_tester_r4;
+namespace Hl7.FhirShorthand.Compiler_tester_r4;
 
 /// <summary>
 /// Shared utilities for R4 FSH compiler tests.
@@ -132,6 +132,26 @@ public static class CompilerTestHelper
             Assert.Fail($"Compile failed: {msg}");
         }
         return ((CompileResult<List<FhirResource>>.SuccessResult)compileResult).Value;
+    }
+
+    /// <summary>
+    /// Parses and compiles a FSH string using the R4 compiler.
+    /// Returns the full <see cref="CompileResult{T}"/> so that tests can inspect both the
+    /// compiled resources and any compiler warnings. Fails the test on parse errors only.
+    /// </summary>
+    public static CompileResult<List<FhirResource>> CompileDocResult(string fsh)
+    {
+        var trimmed = LeftAlign(fsh);
+        var parseResult = FshParser.Parse(trimmed);
+
+        if (parseResult is ParseResult.Failure parseFailure)
+        {
+            var msg = string.Join("; ", parseFailure.Errors.Select(e => $"Line {e.Line}: {e.Message}"));
+            Assert.Fail($"Parse failed: {msg}");
+        }
+
+        var doc = ((ParseResult.Success)parseResult).Document;
+        return R4FshCompiler.Compile(doc);
     }
 
     /// <summary>

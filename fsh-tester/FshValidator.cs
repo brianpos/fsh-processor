@@ -1,10 +1,10 @@
-using fsh_compiler;
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Compiler;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 using Hl7.Fhir.Serialization;
 using Hl7.Fhir.Utility;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using static fsh_processor.Models.ParseResult;
+using static Hl7.FhirShorthand.Serialization.Models.ParseResult;
 
 namespace fsh_tester;
 

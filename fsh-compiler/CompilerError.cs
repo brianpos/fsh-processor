@@ -1,6 +1,6 @@
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
 
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 /// <summary>
 /// Represents a compilation error for a single FSH entity.

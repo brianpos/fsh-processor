@@ -1,0 +1,40 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "temp",
+  "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/temp",
+  "name": "TemporaryCodes",
+  "title": "Temporary SDC Codes",
+  "status": "active",
+  "experimental": false,
+  "description": "Defines codes defined within the SDC implementation guide that are expected to migrate elsewhere in future releases",
+  "caseSensitive": true,
+  "content": "complete",
+  "count": 5,
+  "concept": [
+    {
+      "code": "complete-questionnaire",
+      "display": "Complete Questionnaire",
+      "definition": "Code indicating a request to complete the a questionnaire - e.g. by Task or ServiceRequest"
+    },
+    {
+      "code": "questionnaire",
+      "display": "Questionnaire",
+      "definition": "A canonical reference (possibly version-specific) to the Questionnaire to be completed"
+    },
+    {
+      "code": "questionnaire-response",
+      "display": "Questionnaire Response",
+      "definition": "A reference to the QuestionnaireResponse resulting from the requested action"
+    },
+    {
+      "code": "response-endpoint",
+      "display": "Response Endpoint",
+      "definition": "Identifies the base URL for FHIR servers to which the Questionnaire resulting from the Task should be POSTed"
+    },
+    {
+      "code": "question-library",
+      "display": "Question Library",
+      "definition": "Indicates that a Questionnaire is a library of reusable items to be referenced during modular form assembly."
+    }
+  ]
+}

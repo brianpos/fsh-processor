@@ -27,6 +27,7 @@ Alias: $version-algorithm              = http://hl7.org/fhir/version-algorithm
 Alias: $loinc          = http://loinc.org
 Alias: $m49.htm        = http://unstats.un.org/unsd/methods/m49/m49.htm
 Alias: $sct            = http://snomed.info/sct
+// Alias: SNOMED_CT       = http://snomed.info/sct
 Alias: $unitsofmeasure = http://unitsofmeasure.org
 
 // Code systems - fake

@@ -1,6 +1,9 @@
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization.Models;
+using Hl7.Fhir.Introspection;
+using Hl7.Fhir.Model;
+using Hl7.Fhir.Specification.Source;
 
-namespace fsh_compiler;
+namespace Hl7.FhirShorthand.Compiler;
 
 /// <summary>
 /// Compilation context built from one or more <see cref="FshDoc"/> instances.
@@ -24,6 +27,43 @@ public class CompilerContext
     /// <c>Severity</c> when an <c>ObeysRule</c> references an invariant by name.
     /// </summary>
     public Dictionary<string, Invariant> Invariants { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Instance name → <see cref="Instance"/> entity, collected from all <c>Instance</c> entities.
+    /// Used to resolve <c>* contained = &lt;name&gt;</c> cross-instance references, where the
+    /// named instance is embedded into the host resource's <c>contained[]</c> list.
+    /// </summary>
+    public Dictionary<string, Instance> Instances { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// StructureDefinitions compiled so far, indexed by multiple keys so that a profile-based
+    /// <c>InstanceOf</c> can be resolved to its underlying FHIR base resource type.
+    /// Keys include: the FSH entity name, the last path segment of the SD's canonical URL, and
+    /// the SD's <c>id</c> field.
+    /// </summary>
+    public Dictionary<string, StructureDefinition> CompiledStructureDefinitions { get; } =
+        new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// CodeSystem name/id → canonical URL, populated by a pre-scan of all <see cref="FshDoc"/>
+    /// entities before compilation begins.  Used by the ValueSet compiler to resolve system names
+    /// in compose components (e.g. <c>TemporaryCodes#complete-questionnaire</c> →
+    /// <c>http://hl7.org/fhir/uv/sdc/CodeSystem/temp</c>).
+    /// </summary>
+    public Dictionary<string, string> CodeSystemUrls { get; } = new([new KeyValuePair<string, string>("SNOMED_CT", "http://snomed.info/sct")], StringComparer.Ordinal);
+
+    /// <summary>
+    /// ValueSet name/id → canonical URL, populated by a pre-scan of all <see cref="FshDoc"/>
+    /// entities before compilation begins.  Used by <c>Canonical(X)</c> resolution in instance
+    /// rules to map a bare ValueSet entity name to its full canonical URL (e.g.
+    /// <c>QuestionnaireBehaviorConditions</c> → <c>http://hl7.org/fhir/uv/sdc/ValueSet/formBehaviorConditions</c>).
+    /// </summary>
+    public Dictionary<string, string> ValueSetUrls { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// resource ID to Canonical URL that were loaded from the Core Specification.zip file
+    /// </summary>
+    public Dictionary<string, string> CanonicalsFromSpecificationZip { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Non-fatal warnings accumulated during compilation.  Populated by rule processors when
@@ -51,6 +91,9 @@ public class CompilerContext
                 case Invariant inv when !string.IsNullOrEmpty(inv.Name):
                     ctx.Invariants[inv.Name] = inv;
                     break;
+                case Instance inst when !string.IsNullOrEmpty(inst.Name):
+                    ctx.Instances[inst.Name] = inst;
+                    break;
             }
         }
         return ctx;
@@ -75,6 +118,9 @@ public class CompilerContext
                 case Invariant inv when !string.IsNullOrEmpty(inv.Name):
                     Invariants.TryAdd(inv.Name, inv);
                     break;
+                case Instance inst when !string.IsNullOrEmpty(inst.Name):
+                    Instances.TryAdd(inst.Name, inst);
+                    break;
             }
         }
     }
@@ -85,4 +131,174 @@ public class CompilerContext
     /// </summary>
     public string ResolveAlias(string nameOrUrl) =>
         Aliases.TryGetValue(nameOrUrl, out var resolved) ? resolved : nameOrUrl;
+
+    /// <summary>
+    /// Looks up the canonical extension URL for an extension slice name by searching all
+    /// compiled <see cref="StructureDefinition"/>s for a differential element whose
+    /// <see cref="ElementDefinition.SliceName"/> matches <paramref name="sliceName"/> and
+    /// whose path ends with <c>.extension</c>.  Returns the first matching
+    /// <c>Type[0].Profile[0]</c> URL, or <c>null</c> when not found.
+    /// </summary>
+    /// <remarks>
+    /// This enables resolving extension slice names (e.g. <c>expansionProperty</c>) to their
+    /// canonical extension URLs (e.g.
+    /// <c>http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.property</c>)
+    /// when compiling instances whose <c>InstanceOf</c> type is a profile that declares those
+    /// extension slices via <c>contains</c> rules.
+    /// </remarks>
+    public string? FindExtensionUrlBySliceName(string sliceName)
+    {
+        if (string.IsNullOrEmpty(sliceName)) return null;
+
+        // Deduplicate search across SDs (multiple keys can point to the same SD object).
+        var visited = new HashSet<StructureDefinition>(ReferenceEqualityComparer.Instance);
+        foreach (var sd in CompiledStructureDefinitions.Values)
+        {
+            if (!visited.Add(sd)) continue;
+            var elements = sd.Differential?.Element;
+            if (elements is null) continue;
+            foreach (var elem in elements)
+            {
+                if (!string.Equals(elem.SliceName, sliceName, StringComparison.Ordinal))
+                    continue;
+                // Must be an extension slice (path ends with .extension or equals extension).
+                if (elem.Path == null) continue;
+                var lastDot = elem.Path.LastIndexOf('.');
+                var lastSeg = lastDot >= 0 ? elem.Path[(lastDot + 1)..] : elem.Path;
+                if (!string.Equals(lastSeg, "extension", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                // Return the first type profile URL.
+                var profile = elem.Type?.FirstOrDefault()?.Profile?.FirstOrDefault();
+                if (!string.IsNullOrEmpty(profile))
+                    return profile;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Registers a compiled <see cref="StructureDefinition"/> in <see cref="CompiledStructureDefinitions"/>
+    /// under multiple keys: the FSH entity name, the last path-segment of <c>sd.Url</c>, and
+    /// <c>sd.Id</c>. This enables profile-based <c>InstanceOf</c> lookup by any of these names.
+    /// </summary>
+    public void RegisterStructureDefinition(string entityName, StructureDefinition sd)
+    {
+        CompiledStructureDefinitions.TryAdd(entityName, sd);
+        if (!string.IsNullOrEmpty(sd.Url))
+        {
+            CompiledStructureDefinitions.TryAdd(sd.Url, sd);
+            var lastSlash = sd.Url.LastIndexOf('/');
+            var urlSegment = lastSlash >= 0 ? sd.Url[(lastSlash + 1)..] : sd.Url;
+            CompiledStructureDefinitions.TryAdd(urlSegment, sd);
+        }
+        if (!string.IsNullOrEmpty(sd.Id))
+            CompiledStructureDefinitions.TryAdd(sd.Id, sd);
+    }
+
+    /// <summary>
+    /// Walks the StructureDefinition chain via the resolver to find the underlying FHIR
+    /// base type name (e.g. <c>"Patient"</c>, <c>"Extension"</c>) without requiring a
+    /// version-specific <see cref="ModelInspector"/>.
+    /// Returns <c>null</c> when the type cannot be resolved or is not a recognized base type.
+    /// </summary>
+    /// <remarks>
+    /// A type is considered a "base" FHIR type when its StructureDefinition's
+    /// <c>Derivation</c> is <c>Specialization</c> (not <c>Constraint</c>), meaning
+    /// it defines a new type rather than profiling an existing one.
+    /// </remarks>
+    public string? ResolveBaseTypeFromResolver(string typeName, IResourceResolver resolver)
+    {
+        if (string.IsNullOrEmpty(typeName)) return null;
+
+        // Try to find the SD directly.
+        var sd = resolver.FindStructureDefinition(typeName);
+        if (sd is null && !typeName.Contains("://", StringComparison.Ordinal))
+            sd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + typeName);
+
+        // Track visited BaseDefinition URLs to prevent infinite loops in circular SD chains.
+        var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
+
+        while (sd is not null)
+        {
+            // A Specialization SD defines a base type; a Constraint SD is a profile.
+            if (sd.Derivation == StructureDefinition.TypeDerivationRule.Specialization
+                && !string.IsNullOrEmpty(sd.Type))
+                return sd.Type;
+
+            // For profiles, follow the chain via sd.Type first (the underlying resource type).
+            if (!string.IsNullOrEmpty(sd.Type))
+            {
+                var typeSd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + sd.Type);
+                if (typeSd?.Derivation == StructureDefinition.TypeDerivationRule.Specialization)
+                    return sd.Type;
+            }
+
+            // Walk the BaseDefinition chain; break on cycle or missing base.
+            if (string.IsNullOrEmpty(sd.BaseDefinition)) break;
+            if (!visited.Add(sd.BaseDefinition)) break;
+
+            sd = resolver.FindStructureDefinition(sd.BaseDefinition);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// When <paramref name="typeName"/> is a profile identifier rather than a bare FHIR resource
+    /// type name, walks the <see cref="CompiledStructureDefinitions"/> chain to find the underlying
+    /// FHIR base resource type, then returns the corresponding <see cref="ClassMapping"/> from
+    /// <paramref name="inspector"/>.
+    /// </summary>
+    /// <param name="typeName">The type/profile name to resolve.</param>
+    /// <param name="inspector">Version-specific model inspector.</param>
+    /// <returns>
+    /// A <see cref="ClassMapping"/> for the resolved FHIR resource type, or <c>null</c> when
+    /// the type cannot be resolved.
+    /// </returns>
+    public ClassMapping? ResolveClassMappingForProfile(string typeName, ModelInspector inspector, IResourceResolver resolver, out string? resolvedCanonicalUrl)
+    {
+        if (inspector.IsKnownResource(typeName))
+        {
+            resolvedCanonicalUrl = inspector.CanonicalUriForFhirCoreType(typeName);
+            return inspector.FindClassMapping(typeName);
+        }
+        var cmCanonical = inspector.FindClassMappingByCanonical(typeName);
+        if (cmCanonical != null)
+        {
+            resolvedCanonicalUrl = typeName;
+            return cmCanonical;
+        }
+
+        // Try the supplied name directly; if it's a bare type name (e.g. "SimpleQuantity"),
+        // also fall back to the FHIR core canonical URL form.
+        var sd = resolver.FindStructureDefinition(typeName);
+        if (sd is null && !typeName.Contains("://", StringComparison.Ordinal))
+        {
+            sd = resolver.FindStructureDefinition("http://hl7.org/fhir/StructureDefinition/" + typeName);
+        }
+        var visited = new HashSet<string>(StringComparer.Ordinal) { typeName };
+        resolvedCanonicalUrl = sd?.Url;
+
+        while (sd is not null)
+        {
+            // sd.Type is the FHIR base resource type (e.g. "Library", "ValueSet").
+            if (!string.IsNullOrEmpty(sd.Type))
+            {
+                var cm = inspector.FindClassMapping(sd.Type);
+                if (cm is not null && cm.IsResource)
+                    return cm;
+            }
+
+            // Walk the BaseDefinition chain for multi-level profile hierarchies.
+            if (string.IsNullOrEmpty(sd.BaseDefinition))
+                break;
+
+            if (!visited.Add(sd.BaseDefinition))
+                break; // cycle guard
+
+            sd = resolver.FindStructureDefinition(sd.BaseDefinition);
+        }
+
+        return null;
+    }
 }

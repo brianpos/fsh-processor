@@ -1,0 +1,40 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "questionnaire-behavior-condition",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/StructureDefinition/shareablecodesystem"
+    ]
+  },
+  "url": "http://hl7.org/fhir/uv/sdc/CodeSystem/questionnaire-behavior-condition",
+  "name": "QuestionnaireBehaviorConditionCodes",
+  "title": "Questionnaire behavior condition codes",
+  "status": "active",
+  "experimental": true,
+  "description": "Example codes used in the form behavior examples",
+  "caseSensitive": true,
+  "content": "complete",
+  "count": 4,
+  "concept": [
+    {
+      "code": "1",
+      "display": "Hypertension",
+      "definition": "Hypertension (example - do not use)"
+    },
+    {
+      "code": "2",
+      "display": "Diabetes",
+      "definition": "Diabetes (example - do not use)"
+    },
+    {
+      "code": "3",
+      "display": "Pregnancy",
+      "definition": "Pregnancy (example - do not use)"
+    },
+    {
+      "code": "4",
+      "display": "Erectile Disfunction",
+      "definition": "Erectile Disfunction (example - do not use)"
+    }
+  ]
+}

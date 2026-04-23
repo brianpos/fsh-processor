@@ -1,0 +1,94 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaire-adapt-srch",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-adapt-srch",
+  "name": "SDCQuestionnaireAdaptSearch",
+  "title": "Adaptive Questionnaire - search",
+  "status": "active",
+  "description": "Describes the elements that should be exposed in a response to a search for adaptive questionnaires.",
+  "fhirVersion": "4.0.1",
+  "mapping": [
+    {
+      "identity": "ihe-sdc",
+      "name": "IHE SDC"
+    }
+  ],
+  "kind": "resource",
+  "abstract": false,
+  "type": "Questionnaire",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-search",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Questionnaire",
+        "path": "Questionnaire",
+        "short": "Adaptive Questionnaire - search",
+        "definition": "Describes the elements that should be exposed in a response to a search for adaptive questionnaires.",
+        "constraint": [
+          {
+            "key": "sdc-adaptive-1",
+            "severity": "error",
+            "human": "If multiple types are present, all must have a value of type 'url'. If no URL is specified, the location to hit the $next-question operation is undefined but typically assumed to be the server hosting the Questionnaire.",
+            "expression": "extension('http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-questionnaireAdaptive').count()>1 implies extension('http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-questionnaireAdaptive').all(value = 'url')",
+            "xpath": "count(f:extension[@url='http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-questionnaireAdaptive'])<=1 or not(f:extension[@url='http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-questionnaireAdaptive' and f:value/@value!='url'])",
+            "source": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-adapt-srch"
+          }
+        ],
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "Form_Package"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.extension",
+        "path": "Questionnaire.extension",
+        "min": 1
+      },
+      {
+        "id": "Questionnaire.extension:questionnaireAdaptive",
+        "path": "Questionnaire.extension",
+        "sliceName": "questionnaireAdaptive",
+        "min": 1,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-questionnaireAdaptive"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.extension:submissionEndpoint",
+        "path": "Questionnaire.extension",
+        "sliceName": "submissionEndpoint",
+        "min": 0,
+        "max": "*",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-endpoint"
+            ]
+          }
+        ],
+        "mustSupport": true,
+        "mapping": [
+          {
+            "identity": "ihe-sdc",
+            "map": "administrative_package/submissionRule/destination/endpoint"
+          }
+        ]
+      },
+      {
+        "id": "Questionnaire.item",
+        "path": "Questionnaire.item",
+        "max": "0"
+      }
+    ]
+  }
+}

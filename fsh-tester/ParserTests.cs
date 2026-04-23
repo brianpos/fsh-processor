@@ -1,6 +1,6 @@
 ﻿using System.Text;
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 
 namespace fsh_tester
 {
@@ -46,7 +46,7 @@ Usage: #definition
                 string fshContent = File.ReadAllText(fshFile);
                 try
                 {
-                    var result = fsh_processor.FshParser.Parse(fshContent);
+                    var result = Hl7.FhirShorthand.Serialization.FshParser.Parse(fshContent);
                     Assert.IsNotNull(result, $"Parsed result should not be null for file: {fshFile}");
                     
                     // Check if parse was successful
@@ -118,7 +118,7 @@ Usage: #definition
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
             
             string fshContent = File.ReadAllText(fshFile);
-            var result = fsh_processor.FshParser.Parse(fshContent);
+            var result = Hl7.FhirShorthand.Serialization.FshParser.Parse(fshContent);
             
             Assert.IsNotNull(result);
             
@@ -165,7 +165,7 @@ Usage: #definition
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
 
             string fshContent = File.ReadAllText(fshFile);
-            var result = fsh_processor.FshParser.Parse(fshContent);
+            var result = Hl7.FhirShorthand.Serialization.FshParser.Parse(fshContent);
 
             Assert.IsNotNull(result);
 
@@ -226,7 +226,7 @@ Usage: #definition
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
 
             string fshContent = File.ReadAllText(fshFile);
-            var result = fsh_processor.FshParser.Parse(fshContent);
+            var result = Hl7.FhirShorthand.Serialization.FshParser.Parse(fshContent);
 
             Console.WriteLine("=== INPUT ===");
             Console.WriteLine(fshContent);
@@ -287,7 +287,7 @@ Usage: #definition
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
 
             string fshContent = File.ReadAllText(fshFile);
-            var result = fsh_processor.FshParser.Parse(fshContent);
+            var result = Hl7.FhirShorthand.Serialization.FshParser.Parse(fshContent);
 
             Assert.IsNotNull(result);
 
@@ -334,7 +334,7 @@ Usage: #definition
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
 
             string fshContent = File.ReadAllText(fshFile);
-            var result = fsh_processor.FshParser.Parse(fshContent);
+            var result = Hl7.FhirShorthand.Serialization.FshParser.Parse(fshContent);
 
             Assert.IsNotNull(result);
 
@@ -387,7 +387,7 @@ Usage: #definition
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
 
             string fshContent = File.ReadAllText(fshFile);
-            var result = fsh_processor.FshParser.Parse(fshContent);
+            var result = Hl7.FhirShorthand.Serialization.FshParser.Parse(fshContent);
 
             Assert.IsNotNull(result);
 
@@ -439,7 +439,7 @@ Usage: #definition
             Console.WriteLine(fshContent);
             Console.WriteLine("=== END SOURCE CONTENT ===");
             Console.WriteLine($"Source has {fshContent.Split('\n').Length} lines");
-            var result = fsh_processor.FshParser.Parse(fshContent);
+            var result = Hl7.FhirShorthand.Serialization.FshParser.Parse(fshContent);
             
             Assert.IsNotNull(result);
             
@@ -526,7 +526,7 @@ RuleSet: item([[linkId]], [[text]], [[type]])
 * item[=].type = #{type}
 ";
 
-            var result = fsh_processor.FshParser.Parse(fshContent);
+            var result = Hl7.FhirShorthand.Serialization.FshParser.Parse(fshContent);
             Assert.IsNotNull(result);
             
             if (result is ParseResult.Success success)
@@ -601,7 +601,7 @@ RuleSet: item([[linkId]], [[text]], [[type]])
             Assert.IsTrue(File.Exists(fshFile), $"Test file not found: {fshFile}");
             
             string fshContent = File.ReadAllText(fshFile);
-            var result = fsh_processor.FshParser.Parse(fshContent);
+            var result = Hl7.FhirShorthand.Serialization.FshParser.Parse(fshContent);
             
             Assert.IsNotNull(result);
             

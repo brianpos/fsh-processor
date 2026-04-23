@@ -1,5 +1,5 @@
 using Antlr4.Runtime;
-using fsh_processor.antlr;
+using Hl7.FhirShorthand.Serialization.antlr;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester;

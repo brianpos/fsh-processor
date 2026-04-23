@@ -1,0 +1,68 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "sdc-questionnaireresponse",
+  "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponse",
+  "name": "SDCQuestionnaireResponse",
+  "title": "SDC Standard Questionnaire Response",
+  "status": "active",
+  "description": "Defines how the questionnaire response resource is used to reflect form data within SDC for 'standard' (i.e. non-adaptive) forms.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "QuestionnaireResponse",
+  "baseDefinition": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaireresponsecommon",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "QuestionnaireResponse",
+        "path": "QuestionnaireResponse",
+        "short": "Standard Questionnaire Response"
+      },
+      {
+        "id": "QuestionnaireResponse.questionnaire",
+        "path": "QuestionnaireResponse.questionnaire",
+        "comment": "For SDC, this SHALL be the version-specific URL of the form as hosted on the Form Manager.",
+        "type": [
+          {
+            "code": "canonical",
+            "targetProfile": [
+              "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "QuestionnaireResponse.questionnaire.extension",
+        "path": "QuestionnaireResponse.questionnaire.extension",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "url"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "QuestionnaireResponse.questionnaire.extension:questionnaireDisplay",
+        "path": "QuestionnaireResponse.questionnaire.extension",
+        "sliceName": "questionnaireDisplay",
+        "comment": "This SHALL be the title of the Questionnaire at the time the QuestionnaireResponse was originally authored.",
+        "min": 0,
+        "max": "1",
+        "type": [
+          {
+            "code": "Extension",
+            "profile": [
+              "http://hl7.org/fhir/StructureDefinition/display"
+            ]
+          }
+        ],
+        "mustSupport": true
+      }
+    ]
+  }
+}

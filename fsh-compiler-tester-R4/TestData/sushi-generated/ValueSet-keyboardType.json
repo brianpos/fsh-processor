@@ -1,0 +1,17 @@
+{
+  "resourceType": "ValueSet",
+  "id": "keyboardType",
+  "url": "http://hl7.org/fhir/uv/sdc/ValueSet/keyboardType",
+  "name": "QuestionnaireItemKeyboardType",
+  "title": "Questionnaire Item Keyboard Type",
+  "status": "active",
+  "experimental": false,
+  "description": "For string or text items, indicates the 'keyboard type' that should be used by the user interface to guide entry.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://hl7.org/fhir/uv/sdc/CodeSystem/keyboardType"
+      }
+    ]
+  }
+}

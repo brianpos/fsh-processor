@@ -113,7 +113,7 @@ public override object? VisitEntityName([NotNull] FSHParser.EntityNameContext co
 ## Usage Example
 
 ```csharp
-using fsh_processor;
+using Hl7.FhirShorthand.Serialization;
 
 // Parse FSH text
 var result = FshParser.Parse(fshText);

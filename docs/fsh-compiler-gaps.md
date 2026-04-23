@@ -9,21 +9,7 @@
 
 ## Remaining open items
 
-| # | Feature | Entity / Rule | Priority |
-|---|---|---|---|
-| 12 | Ratio / CodeableReference (version-specific DataTypes) | `FhirValueMapper` | Medium |
-
-### 12. `Ratio` value type in `FhirValueMapper`
-
-**Status:** `Ratio` → `Hl7.Fhir.Model.Ratio` mapping is not implemented because
-`Hl7.Fhir.Model.Ratio` is not available in the `Hl7.Fhir.Conformance` assembly used by the
-base `fsh-compiler` project.
-
-**What's needed:**
-- Implement `Ratio` → `Hl7.Fhir.Model.Ratio` mapping in the version-specific wrappers
-  (R4, R4B, R5) via a `FhirValueMapper` override or by supplying a custom value converter
-  through `CompilerOptions`.
-- `CodeableReference` (R5-only) has the same constraint — must be handled version-specifically.
+*All tracked compiler gaps have been resolved.*
 
 ---
 
@@ -44,7 +30,7 @@ The following items from the original gap list have been implemented:
 | 9 | Code-level caret/insert rules in ValueSet (`CodeCaretValueRule`, `CodeInsertRule`) | ✅ |
 | 10 | `ContainsItem.NamedAlias` — `named` keyword in slicing | ✅ |
 | 11 | `OnlyRule` — parse `Reference(...)`, `Canonical(...)`, `CodeableReference(...)` | ✅ |
-| 12 | `RegexValue` → `FhirString` in `FhirValueMapper` | ✅ |
+| 12 | `Ratio` → version-specific `Hl7.Fhir.Model.Ratio` via `ModelInspector` in `FhirValueMapper` | ✅ |
 | 13 | Invariant severity on ObeysRule (fixed by item 2) | ✅ |
 | 14 | Multi-document `Compile(IEnumerable<FshDoc>)` overload | ✅ |
 | 15 | Compiler warnings (`CompilerWarning` type, warnings emitted for skipped rules) | ✅ |

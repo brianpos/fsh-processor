@@ -1,4 +1,4 @@
-namespace fsh_processor.Models;
+namespace Hl7.FhirShorthand.Serialization.Models;
 
 /// <summary>
 /// CodeSystem definition (CodeSystem: name)
@@ -19,6 +19,12 @@ public class CodeSystem : FshEntity
     /// Description
     /// </summary>
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Whether Description was originally a multiline (triple-quoted) string.
+    /// <c>null</c> = auto-detect; <c>true</c> = always multiline; <c>false</c> = always single-line.
+    /// </summary>
+    public bool? IsDescriptionMultiline { get; set; }
 
     /// <summary>
     /// Rules for the code system (concepts and caret values)

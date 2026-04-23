@@ -1,5 +1,5 @@
-using fsh_processor;
-using fsh_processor.Models;
+using Hl7.FhirShorthand.Serialization;
+using Hl7.FhirShorthand.Serialization.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace fsh_tester.Sushi;
@@ -57,15 +57,15 @@ public static class SushiTestHelper
     public static List<Profile> GetProfiles(FshDoc doc) =>
         doc.Entities.OfType<Profile>().ToList();
 
-    public static fsh_processor.Models.Extension GetExtension(FshDoc doc, string name)
+    public static Hl7.FhirShorthand.Serialization.Models.Extension GetExtension(FshDoc doc, string name)
     {
-        var e = doc.Entities.OfType<fsh_processor.Models.Extension>().FirstOrDefault(x => x.Name == name);
+        var e = doc.Entities.OfType<Hl7.FhirShorthand.Serialization.Models.Extension>().FirstOrDefault(x => x.Name == name);
         Assert.IsNotNull(e, $"Extension '{name}' not found");
         return e;
     }
 
-    public static List<fsh_processor.Models.Extension> GetExtensions(FshDoc doc) =>
-        doc.Entities.OfType<fsh_processor.Models.Extension>().ToList();
+    public static List<Hl7.FhirShorthand.Serialization.Models.Extension> GetExtensions(FshDoc doc) =>
+        doc.Entities.OfType<Hl7.FhirShorthand.Serialization.Models.Extension>().ToList();
 
     public static Instance GetInstance(FshDoc doc, string name)
     {
@@ -137,15 +137,15 @@ public static class SushiTestHelper
     public static List<Logical> GetLogicals(FshDoc doc) =>
         doc.Entities.OfType<Logical>().ToList();
 
-    public static fsh_processor.Models.Resource GetResource(FshDoc doc, string name)
+    public static Hl7.FhirShorthand.Serialization.Models.Resource GetResource(FshDoc doc, string name)
     {
-        var r = doc.Entities.OfType<fsh_processor.Models.Resource>().FirstOrDefault(x => x.Name == name);
+        var r = doc.Entities.OfType<Hl7.FhirShorthand.Serialization.Models.Resource>().FirstOrDefault(x => x.Name == name);
         Assert.IsNotNull(r, $"Resource '{name}' not found");
         return r;
     }
 
-    public static List<fsh_processor.Models.Resource> GetResources(FshDoc doc) =>
-        doc.Entities.OfType<fsh_processor.Models.Resource>().ToList();
+    public static List<Hl7.FhirShorthand.Serialization.Models.Resource> GetResources(FshDoc doc) =>
+        doc.Entities.OfType<Hl7.FhirShorthand.Serialization.Models.Resource>().ToList();
 
     public static Alias? GetAlias(FshDoc doc, string name) =>
         doc.Entities.OfType<Alias>().FirstOrDefault(a => a.Name == name);
