@@ -36,7 +36,7 @@ C# test needs to be added, updated, or left inconclusive due to a known behaviou
 | `FSHImporter.Context.test.ts` | _(not yet ported)_ | — | — | — | — |
 | **Total** | | **248** | **155** | **93** | **0** |
 
-> Counts last updated against SUSHI `main` branch as of 2026-03-15.
+> Counts last updated against SUSHI `main` branch as of 2026-04-23.
 
 ---
 
@@ -505,45 +505,79 @@ the TypeScript code that converts the imported FSH object model into FHIR JSON r
 equivalent layer in this repository is `fsh-compiler` (and its version-specific wrappers in
 `fsh-compiler-R4`, `fsh-compiler-R4B`, `fsh-compiler-R5`), tested by `fsh-compiler-tester-R4`.
 
-### Assessment: not ported in bulk
+A full per-test catalogue of the SUSHI exporter suite (1,138 tests across 11 files) is in
+[`sushi-exporter-test-mapping.md`](./sushi-exporter-test-mapping.md).  That file carries a
+`Ported` column for tracking progress as tests are migrated.
 
-After reviewing all 11 SUSHI exporter test files, a bulk port is **not practical** because of deep
-architectural differences between the two systems.  The handful of tests that *could* be ported are
-already covered by the 88 compiler tests in `fsh-compiler-tester-R4`.
+### Assessment (as of 2026-04-23): porting can now begin
 
-### Architectural differences preventing bulk porting
+A previous assessment flagged five architectural differences as "blockers".  With the recent
+merge of master (including `PackageResolver` plumbing, `CompilerOptions.Resolver`, and the
+Firely SDK `SnapshotGenerator` wired up in `SdcIgCompilerTests.ShouldGenerateSnapshotsForStructureDefinitions`),
+**three of those five blockers are now resolved**, and the remaining two are minor stylistic
+differences rather than hard blockers.
 
-| # | SUSHI exporter design | fsh-compiler design | Impact on portability |
+**Recommendation:** Start incrementally porting the exporter tests, beginning with the smaller
+files that exercise features we already support (Mapping, Profile, Extension), and use
+`sushi-exporter-test-mapping.md` to track progress in its `Ported` column.
+
+### Portability re-assessment
+
+| # | SUSHI exporter design | fsh-compiler design (post-merge) | Status |
 |---|---|---|---|
-| 1 | Every test loads a full FHIR base package from disk via `getTestFHIRDefinitions(true, testDefsPath('r4-definitions'))` and a `TestFisher` that resolves parent SDs by name/URL. | The compiler works from the FSH text alone; it does not load any external FHIR packages. | Parent-resolution tests (≈70 % of all exporter tests) cannot run without a Fisher. |
-| 2 | Tests build the input model programmatically (`new Profile('Foo'); profile.parent = 'Basic'`). | Tests parse FSH text strings via `FshParser.Parse()`. | The object models are structurally different; direct translation is not practical. |
-| 3 | Tests assert log messages via `loggerSpy` (`expect(loggerSpy.getLastMessage('error')).toMatch(…)`). | The compiler returns `CompilerWarning` objects; it does not emit diagnostic log messages. | All error-logging tests are Inconclusive. |
-| 4 | Tests operate at the Package level (`pkg.profiles`, `pkg.fshMap`, `exporter.deferredCaretRules`). | The compiler returns a flat `List<FhirResource>`; there is no Package abstraction. | Package-level assertions have no equivalent. |
-| 5 | Snapshot generation is driven by the Fisher (inheriting base-resource elements). | The compiler produces a differential only; snapshot generation is out of scope. | All snapshot/inherited-element tests are Inconclusive. |
+| 1 | Loads the FHIR core package via `getTestFHIRDefinitions` + `TestFisher`. | `CompilerOptions.Resolver` accepts any `IResourceResolver` — `ZipSource("specification.zip")`, `FhirPackageSource`, `InMemoryResourceResolver`, `MultiResolver`, or `CachedResolver`. Already used by `SdcIgCompilerTests`. | ✅ **Resolved** — the Firely SDK package loader is available. |
+| 2 | Builds input programmatically (`new Profile('Foo'); profile.parent = 'Basic'`). | Tests use FSH text via `CompilerTestHelper.CompileDoc()`. | ⚠️ **Stylistic** — translating each test to FSH text is straightforward for ~99 % of cases. A few tests that poke at internal state won't translate cleanly. |
+| 3 | Asserts log messages via `loggerSpy.getLastMessage('error')`. | Compiler returns `CompilerWarning` objects on `CompileResult<T>.Warnings`. | ⚠️ **Stylistic** — assert on `result.Warnings.Any(w => w.Message.Contains(...))` instead (already the pattern in `R4InstanceCompilerTests`). |
+| 4 | Operates at the `Package` level (`pkg.profiles`, `pkg.fshMap`). | Compiler returns `List<FhirResource>`. | ⚠️ **Limited** — package-orchestration tests in `Package.test.ts` and `FHIRExporter.test.ts` have no direct equivalent, but per-entity tests don't need the Package abstraction. |
+| 5 | Snapshot generation is driven by the Fisher. | Firely SDK `SnapshotGenerator` with `ZipSource("specification.zip")` is wired in (`SdcIgCompilerTests`). | ✅ **Resolved** — snapshot generation is available when `specification.zip` is present. |
 
 ### SUSHI exporter test file inventory
 
-| SUSHI source file | Approx. tests | Status | Notes |
+| SUSHI source file | Tests | Recommended approach | Current C# coverage |
 |---|---|---|---|
-| `StructureDefinitionExporter.test.ts` | ~500 | 🚫 Not ported | Core SD rules; nearly all require Fisher. Already covered in `R4ProfileCompilerTests.cs` (48 tests). |
-| `InstanceExporter.test.ts` | ~500 | 🚫 Not ported | Full instance export; requires Fisher + FHIR package model info. Covered in `R4InstanceCompilerTests.cs`. |
-| `ValueSetExporter.test.ts` | ~150 | 🚫 Not ported | VS composition rules; Fisher needed for filter validation. Covered in `R4ValueSetCompilerTests.cs`. |
-| `CodeSystemExporter.test.ts` | ~75 | 🚫 Not ported | CS concepts/properties; Fisher needed for code system lookup. Covered in `R4CodeSystemCompilerTests.cs`. |
-| `StructureDefinition.ExtensionExporter.test.ts` | 44 | 🚫 Not ported | Extension context/parent resolution requires Fisher. Covered in `R4ExtensionCompilerTests.cs`. |
-| `StructureDefinition.LogicalExporter.test.ts` | 42 | 🚫 Not ported | Logical parent resolution requires Fisher. Covered in `R4LogicalCompilerTests.cs`. |
-| `StructureDefinition.ResourceExporter.test.ts` | 28 | 🚫 Not ported | Resource parent resolution requires Fisher. Covered in `R4LogicalCompilerTests.cs`. |
-| `StructureDefinition.ProfileExporter.test.ts` | 24 | 🚫 Not ported | Profile parent resolution requires Fisher. Covered in `R4ProfileCompilerTests.cs`. |
-| `MappingExporter.test.ts` | 21 | ⚗️ Inspired | 1 inspired test added (see below); rest require Fisher or log-spy assertions. |
-| `FHIRExporter.test.ts` | ~40 | 🚫 Not ported | Package-level FHIR export orchestration; no equivalent concept. |
-| `Package.test.ts` | ~55 | 🚫 Not ported | SUSHI Package object tests; no equivalent concept. |
+| [`StructureDefinitionExporter.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/StructureDefinitionExporter.test.ts) | 376 | ⚗️ Port in phases, starting with non-slicing rules | `R4ProfileCompilerTests.cs` (58), `R4SimpleExtensionRegressionTests.cs` (10) |
+| [`InstanceExporter.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/InstanceExporter.test.ts) | 370 | ⚗️ Port by describe-block; requires a `FhirPackageSource` for R4 core models | `R4InstanceCompilerTests.cs` (21) |
+| [`ValueSetExporter.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/ValueSetExporter.test.ts) | 94 | ⚗️ Port; filter/include/exclude tests need a resolver for cross-VS/CS lookup | `R4ValueSetCompilerTests.cs` (7) |
+| [`CodeSystemExporter.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/CodeSystemExporter.test.ts) | 59 | ⚗️ Port; most tests don't need a resolver | `R4CodeSystemCompilerTests.cs` (19) |
+| [`StructureDefinition.ExtensionExporter.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/StructureDefinition.ExtensionExporter.test.ts) | 44 | ✅ **Good first candidate** — small, contained | `R4ExtensionCompilerTests.cs` (6) |
+| [`StructureDefinition.LogicalExporter.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/StructureDefinition.LogicalExporter.test.ts) | 42 | ✅ **Good first candidate** | `R4LogicalCompilerTests.cs` (6) |
+| [`StructureDefinition.ResourceExporter.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/StructureDefinition.ResourceExporter.test.ts) | 28 | ✅ **Good first candidate** | Covered in `R4LogicalCompilerTests.cs` |
+| [`StructureDefinition.ProfileExporter.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/StructureDefinition.ProfileExporter.test.ts) | 24 | ✅ **Good first candidate** | `R4ProfileCompilerTests.cs` |
+| [`MappingExporter.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/MappingExporter.test.ts) | 21 | ✅ **Best first candidate** — smallest file | `R4MappingCompilerTests.cs` (7) incl. 1 inspired test |
+| [`FHIRExporter.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/FHIRExporter.test.ts) | 25 | 🚫 Skip — tests SUSHI's package-orchestration layer (no C# equivalent) | — |
+| [`Package.test.ts`](https://github.com/FHIR/sushi/blob/main/test/export/Package.test.ts) | 55 | 🚫 Skip — tests SUSHI's `Package` class (no C# equivalent) | — |
+| **Total** | **1,138** | ~1,058 portable (excluding `FHIRExporter` / `Package`) | 134 existing C# compiler tests |
 
-### Tests inspired by (not ported from) SUSHI exporter tests
+### Suggested porting order
+
+1. **`MappingExporter.test.ts`** (21 tests) — smallest file, simplest rules, lowest risk.
+2. **`StructureDefinition.ProfileExporter.test.ts`** (24 tests) — focused metadata/parent tests.
+3. **`StructureDefinition.ResourceExporter.test.ts`** (28 tests) — companion to Profile/Logical.
+4. **`StructureDefinition.LogicalExporter.test.ts`** (42 tests).
+5. **`StructureDefinition.ExtensionExporter.test.ts`** (44 tests).
+6. **`CodeSystemExporter.test.ts`** (59 tests).
+7. **`ValueSetExporter.test.ts`** (94 tests).
+8. **`StructureDefinition.ProfileExporter`** → expand `StructureDefinitionExporter.test.ts` (376 tests) in phases.
+9. **`InstanceExporter.test.ts`** (370 tests) — last, since it exercises the most resolver-dependent paths.
+
+### Per-file porting notes
+
+- **Infrastructure needed first:** a small test helper that, when a test opts in, builds an
+  `IResourceResolver` over a `ZipSource("specification.zip")` plus an `InMemoryResourceResolver`
+  seeded with the FSH-compiled SDs, and wires it into `CompilerOptions.Resolver`.  The
+  pattern is already established in `SdcIgCompilerTests.ShouldGenerateSnapshotsForStructureDefinitions`.
+- **`loggerSpy` translation:** each `expect(loggerSpy.getLastMessage('error')).toMatch(…)` in
+  SUSHI becomes a `result.Warnings.Any(w => w.Message.Contains(…))` assertion.
+- **Programmatic model → FSH:** each SUSHI test that builds a `Profile` programmatically
+  translates to a small FSH snippet passed to `CompilerTestHelper.CompileDoc()`.
+
+### Tests inspired by (not yet ported from) SUSHI exporter tests
 
 | SUSHI test | C# method | File | Notes |
 |---|---|---|---|
 | `MappingExporter` — "should apply rules from an insert rule" | `ShouldExpandInsertRuleInMapping` | `R4MappingCompilerTests.cs` | Verified InsertRule expansion works end-to-end inside a Mapping entity. Uses FSH text input rather than SUSHI's programmatic model. |
 
-> Counts last updated against SUSHI `main` branch as of 2026-03-16.
+> Counts last updated against SUSHI `main` branch as of 2026-04-23.
 
 ---
 
@@ -568,26 +602,34 @@ already covered by the 88 compiler tests in `fsh-compiler-tester-R4`.
 
 4. **Re-run the test suite** to confirm no regressions:
    ```
-   dotnet test fsh-tester/fsh-tester.csproj
+   dotnet test fsh-tester/Hl7.FhirShorthand.Serialization.Test.csproj
    ```
 
 5. **Update the "Counts last updated" line** in the FSHImporter quick-reference table.
 
 ### Compiler / exporter tests
 
-When new SUSHI exporter tests are added or existing ones change:
+When porting SUSHI exporter tests or reacting to upstream changes:
 
-1. **Review the changed test.** Ask whether the behaviour it tests is within `fsh-compiler`'s scope
-   and does not require a Fisher/FHIRDefinitions (see the architectural differences table above).
+1. **Pick the next file** from the "Suggested porting order" list above, and open the matching
+   entry in [`sushi-exporter-test-mapping.md`](./sushi-exporter-test-mapping.md) to track
+   progress in the `Ported` column.
 
-2. **If a new behaviour IS in scope**, add a targeted test to the appropriate
-   `fsh-compiler-tester-R4/R4*CompilerTests.cs` file using FSH text as input (not SUSHI's internal
-   object model).  Add a row to the "Tests inspired by SUSHI exporter tests" table above.
+2. **Translate each `it(…)` to a `[TestMethod]`** in the matching
+   `fsh-compiler-tester-R4/R4*CompilerTests.cs` file:
+   - Replace programmatic model construction (e.g. `new Profile('Foo')`) with a FSH text snippet
+     passed to `CompilerTestHelper.CompileDoc()`.
+   - Replace `loggerSpy` assertions with assertions on `CompileResult<T>.Warnings`
+     (see existing examples in `R4InstanceCompilerTests.cs` and `R4ProfileCompilerTests.cs`).
+   - For tests that need a `FhirPackageSource` / `ZipSource` resolver, follow the pattern in
+     `SdcIgCompilerTests.ShouldGenerateSnapshotsForStructureDefinitions` and wire it up via
+     `CompilerOptions.Resolver`.
 
-3. **If the test requires Fisher or log-spy assertions**, update the approximate test count in the
-   inventory table but do not add a C# test.  The status stays `🚫 Not ported`.
+3. **Mark the row in `sushi-exporter-test-mapping.md`** with ✅ (ported), ⚠️ (ported but
+   inconclusive due to a documented difference), or 🚫 (cannot port — e.g. a `Package.test.ts`
+   test) as appropriate.
 
 4. **Run the compiler test suite** to confirm no regressions:
    ```
-   dotnet test fsh-compiler-tester-R4/fsh-compiler-tester-R4.csproj
+   dotnet test fsh-compiler-tester-R4/Hl7.FhirShorthand.Compiler.Test.R4.csproj
    ```

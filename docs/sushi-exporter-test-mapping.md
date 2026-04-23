@@ -4,11 +4,19 @@ This document catalogues every test in the SUSHI `test/export/` suite.
 Its purpose is to track which tests have been ported to the C# `fsh-compiler` layer,
 and to guide decisions about which tests to tackle next.
 
-> **Note (2026-03-16):** The Firely SDK package loader and Firely SDK snapshot generator
-> are available for use in `fsh-compiler`. This resolves two of the five previously-identified
-> portability blockers (FHIR package loading and snapshot generation).
-> The remaining blockers are: programmatic object-model input vs FSH text, log-spy error
-> assertions, and the SUSHI `Package` abstraction having no equivalent.
+> **Status (2026-04-23):** Porting has been **approved to begin**. The Firely SDK
+> `IResourceResolver` (accepted via `CompilerOptions.Resolver`) and Firely SDK
+> `SnapshotGenerator` (wired up in `SdcIgCompilerTests.ShouldGenerateSnapshotsForStructureDefinitions`)
+> resolve the two hardest architectural blockers (FHIR package loading + snapshot generation).
+> See the re-assessment in [`sushi-test-mapping.md`](./sushi-test-mapping.md#assessment-as-of-2026-04-23-porting-can-now-begin)
+> for the full rationale and suggested order.
+>
+> - Two files remain out of scope (SUSHI's `Package`/`FHIRExporter` orchestration has no C# equivalent).
+> - The remaining ~1,058 tests are portable, with `loggerSpy` assertions translated to
+>   `CompileResult<T>.Warnings` assertions.
+>
+> Fill in the **Ported** column below as each test is migrated to
+> `fsh-compiler-tester-R4/R4*CompilerTests.cs`.
 
 ---
 
