@@ -561,6 +561,8 @@ public static class FshCompiler
         if (resolver != null)
         {
             var sd = FindStructureDefinitionForType(segment, resolver);
+            if (sd?.Derivation == StructureDefinition.TypeDerivationRule.Constraint && !string.IsNullOrEmpty(sd.Type))
+                return sd.Type;
             if (sd?.Derivation == StructureDefinition.TypeDerivationRule.Specialization)
                 return segment;
         }
@@ -1464,12 +1466,21 @@ public static class FshCompiler
 
         var ed = GetOrCreateElement(valueSetRule.Path, sd);
         var vsName = context.ResolveAlias(valueSetRule.ValueSetName);
-        // Resolve bare ValueSet names to canonical URLs using the specification-zip index.
+        // Resolve bare ValueSet names to canonical URLs.
         if (!IsAbsoluteUrl(vsName))
         {
-            var specKey = $"ValueSet#{vsName}";
-            if (context.CanonicalsFromSpecificationZip.TryGetValue(specKey, out var vsCanonical))
-                vsName = vsCanonical;
+            // Prefer ValueSets defined in the current compile batch (local IG) so that
+            // local names shadow any identically-named ValueSet in the specification zip.
+            if (context.ValueSetUrls.TryGetValue(vsName, out var localVsUrl))
+            {
+                vsName = localVsUrl;
+            }
+            else
+            {
+                var specKey = $"ValueSet#{vsName}";
+                if (context.CanonicalsFromSpecificationZip.TryGetValue(specKey, out var vsCanonical))
+                    vsName = vsCanonical;
+            }
         }
 
         ed.Binding = new ElementDefinition.ElementDefinitionBindingComponent
