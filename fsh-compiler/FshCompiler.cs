@@ -3758,12 +3758,15 @@ public static class FshCompiler
         public HashSet<string> HandledSlicingParents { get; } = new(StringComparer.Ordinal);
 
         /// <summary>
-        /// Cache keyed by (current-depth FHIR type, path segment).  Value is the
-        /// detected variant (<c>choiceBase</c>, <c>typeName</c>) or <c>null</c> when
-        /// the segment is not a choice-type variant.
+        /// Cache keyed by parent FHIR type name (e.g. <c>UsageContext</c>).  Value is the
+        /// pre-computed variant lookup for that type: variant segment (e.g. <c>valueCoding</c>)
+        /// → (<c>choiceBase</c> = "value[x]", <c>typeName</c> = "Coding").  Types with no
+        /// <c>X[x]</c> properties are cached as an empty dictionary.  Built once per type
+        /// by enumerating the type SD's elements; no per-segment string splitting is ever
+        /// performed.
         /// </summary>
-        public Dictionary<(string parentType, string segment), (string ChoiceBase, string TypeName)?> VariantCache { get; }
-            = new();
+        public Dictionary<string, Dictionary<string, (string ChoiceBase, string TypeName)>> VariantMapCache { get; }
+            = new(StringComparer.Ordinal);
 
         /// <summary>
         /// Cache of type-name → SD lookups to avoid repeated resolver calls during a
@@ -3811,62 +3814,81 @@ public static class FshCompiler
 
     /// <summary>
     /// Detects whether <paramref name="segment"/> is a named choice-type variant of some
-    /// <c>&lt;base&gt;[x]</c> property on <paramref name="currentType"/>.  Uses a right-to-left
-    /// uppercase split: for each uppercase position <c>i</c> in <paramref name="segment"/>,
-    /// checks whether <c>segment[..i]</c> is the base name of an <c>X[x]</c> element on the
-    /// current type and <c>segment[i..]</c> is one of its declared types.  Returns
-    /// <c>(choiceBase, typeName)</c> on success, otherwise <c>null</c>.
+    /// <c>&lt;base&gt;[x]</c> property on <paramref name="currentType"/>.  Uses a precomputed
+    /// per-type variant lookup (built by enumerating the type's <c>X[x]</c> elements and
+    /// their declared type codes) and does an exact dictionary lookup — no base/type
+    /// name splitting is performed.  Returns <c>(choiceBase, typeName)</c> on match, else
+    /// <c>null</c>.
     /// </summary>
     private static (string ChoiceBase, string TypeName)? DetectChoiceVariant(
         string? currentType, string segment, ChoiceSliceContext? ctx)
     {
         if (ctx == null || string.IsNullOrEmpty(currentType) || string.IsNullOrEmpty(segment))
             return null;
-        if (segment.Length < 2) return null;
 
-        var key = (currentType, segment);
-        if (ctx.VariantCache.TryGetValue(key, out var cached)) return cached;
+        var map = GetOrBuildVariantMap(currentType, ctx);
+        if (map.Count == 0) return null;
+        return map.TryGetValue(segment, out var hit) ? hit : null;
+    }
 
+    /// <summary>
+    /// Returns (building and caching on first access) the variant-name lookup for
+    /// <paramref name="currentType"/>: maps each <c>&lt;base&gt;&lt;TypeCode&gt;</c> variant
+    /// name (e.g. <c>valueCoding</c>) to its <c>(&lt;base&gt;[x], TypeCode)</c> pair.  Only
+    /// <c>X[x]</c> elements that are immediate children of <paramref name="currentType"/>'s
+    /// root are considered; each declared type on the <c>X[x]</c> element contributes one
+    /// entry.  An empty map is returned (and cached) for types without any <c>[x]</c>
+    /// properties.
+    /// </summary>
+    private static Dictionary<string, (string ChoiceBase, string TypeName)> GetOrBuildVariantMap(
+        string currentType, ChoiceSliceContext ctx)
+    {
+        if (ctx.VariantMapCache.TryGetValue(currentType, out var cached)) return cached;
+
+        var map = new Dictionary<string, (string ChoiceBase, string TypeName)>(StringComparer.Ordinal);
         var typeSd = ResolveTypeSd(currentType, ctx);
-        if (typeSd == null) { ctx.VariantCache[key] = null; return null; }
+        if (typeSd == null)
+        {
+            ctx.VariantMapCache[currentType] = map;
+            return map;
+        }
 
         var elements = (IEnumerable<ElementDefinition>?)typeSd.Snapshot?.Element
                     ?? typeSd.Differential?.Element;
-        if (elements == null) { ctx.VariantCache[key] = null; return null; }
-
-        // Scan right-to-left over uppercase letters: each is a candidate split point
-        // between base name and type suffix.
-        for (int i = segment.Length - 1; i > 0; i--)
+        if (elements == null)
         {
-            if (!char.IsUpper(segment[i])) continue;
-            var baseName = segment[..i];
-            var typeSuffix = segment[i..];
-            var candidatePath = currentType + "." + baseName + "[x]";
-
-            ElementDefinition? match = null;
-            foreach (var el in elements)
-            {
-                if (el.Path == candidatePath) { match = el; break; }
-            }
-            if (match?.Type == null) continue;
-
-            foreach (var t in match.Type)
-            {
-                if (!string.IsNullOrEmpty(t.Code)
-                    && string.Equals(t.Code, typeSuffix, StringComparison.Ordinal))
-                {
-                    var result = (baseName + "[x]", typeSuffix);
-                    ctx.VariantCache[key] = result;
-                    return result;
-                }
-            }
-            // An <base>[x] element exists but doesn't declare this type suffix; no need to
-            // scan shorter split points since we have a concrete non-matching answer for
-            // this baseName.  Fall through to try earlier uppercase positions.
+            ctx.VariantMapCache[currentType] = map;
+            return map;
         }
 
-        ctx.VariantCache[key] = null;
-        return null;
+        var prefix = currentType + ".";
+        foreach (var el in elements)
+        {
+            var elPath = el.Path;
+            if (string.IsNullOrEmpty(elPath)) continue;
+            if (!elPath.EndsWith("[x]", StringComparison.Ordinal)) continue;
+            if (!elPath.StartsWith(prefix, StringComparison.Ordinal)) continue;
+
+            var relPath = elPath[prefix.Length..];
+            // Only immediate-child [x] properties (no further dots).
+            if (relPath.Contains('.')) continue;
+
+            var choiceBase = relPath;               // e.g. "value[x]"
+            var baseName = relPath[..^3];           // strip "[x]" → "value"
+
+            if (el.Type == null) continue;
+            foreach (var typeRef in el.Type)
+            {
+                var typeName = typeRef.Code;
+                if (string.IsNullOrEmpty(typeName)) continue;
+                // FHIR convention: variant name = baseName + Capitalize(typeName).
+                var variantName = baseName + char.ToUpperInvariant(typeName[0]) + typeName[1..];
+                map.TryAdd(variantName, (choiceBase, typeName));
+            }
+        }
+
+        ctx.VariantMapCache[currentType] = map;
+        return map;
     }
 
     /// <summary>
