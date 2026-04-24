@@ -2267,19 +2267,48 @@ public static class FshCompiler
         var ownCount = ed.Constraint?.Count ?? 0;
         if (absIndex < ownCount) return rule; // Index is already within own constraint list.
 
-        // Need to determine how many base constraints the parent element has.
+        // Need to determine how many base constraints the element inherits from the
+        // entire parent chain.  A single level's differential only lists constraints
+        // added at that level, so walk up the BaseDefinition chain and accumulate.
+        // When a level has a snapshot (e.g. core FHIR resources from the spec ZIP),
+        // its snapshot count is authoritative for that level and above, so stop there.
         int baseCount = 0;
-        if (context != null && opts != null && !string.IsNullOrEmpty(sd.BaseDefinition))
+        if (context != null && opts != null)
         {
-            var baseSd = ResolveStructureDefinition(sd.BaseDefinition, context, opts);
-            if (baseSd != null)
+            var currentBaseDef = sd.BaseDefinition;
+            var currentFromType = sd.Type;
+            var currentPath = ed.Path ?? string.Empty;
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            while (!string.IsNullOrEmpty(currentBaseDef) && visited.Add(currentBaseDef))
             {
-                var basePath = RewritePathRoot(ed.Path ?? string.Empty, sd.Type, baseSd.Type);
-                var source = (IEnumerable<ElementDefinition>?)baseSd.Snapshot?.Element
-                          ?? baseSd.Differential?.Element;
-                var baseEl = source?.FirstOrDefault(e =>
+                var baseSd = ResolveStructureDefinition(currentBaseDef, context, opts);
+                if (baseSd == null) break;
+
+                var basePath = RewritePathRoot(currentPath, currentFromType, baseSd.Type);
+
+                // If a snapshot is available, it already contains all inherited
+                // constraints — use it and stop walking.
+                if (baseSd.Snapshot?.Element != null)
+                {
+                    var snapEl = baseSd.Snapshot.Element.FirstOrDefault(e =>
+                        e.Path == basePath && string.IsNullOrEmpty(e.SliceName));
+                    if (snapEl != null)
+                    {
+                        baseCount += snapEl.Constraint?.Count ?? 0;
+                        break;
+                    }
+                }
+
+                // Otherwise, add whatever this level's differential contributes and
+                // continue walking up.
+                var diffEl = baseSd.Differential?.Element.FirstOrDefault(e =>
                     e.Path == basePath && string.IsNullOrEmpty(e.SliceName));
-                baseCount = baseEl?.Constraint?.Count ?? 0;
+                if (diffEl != null)
+                    baseCount += diffEl.Constraint?.Count ?? 0;
+
+                currentBaseDef = baseSd.BaseDefinition;
+                currentFromType = baseSd.Type;
+                currentPath = basePath;
             }
         }
 
