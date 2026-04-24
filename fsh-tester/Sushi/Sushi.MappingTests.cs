@@ -134,8 +134,8 @@ public class MappingTests
         var rule = (MappingMapRule)mapping.Rules[0];
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("Patient.identifier", rule.Target);
-        Assert.IsNull(rule.Language); // no comment
-        Assert.IsNull(rule.Code);     // no language code
+        Assert.IsNull(rule.Comment); // no comment
+        Assert.IsNull(rule.Language);     // no language code
     }
 
     [TestMethod]
@@ -151,8 +151,8 @@ public class MappingTests
         // SUSHI uses '' for no path; our model uses null (path? is optional in grammar)
         Assert.IsNull(rule.Path);
         Assert.AreEqual("Patient", rule.Target);
+        Assert.IsNull(rule.Comment);
         Assert.IsNull(rule.Language);
-        Assert.IsNull(rule.Code);
     }
 
     [TestMethod]
@@ -169,8 +169,8 @@ public class MappingTests
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("Patient.identifier", rule.Target);
         // In our model, Language holds the comment (second STRING token)
-        Assert.AreEqual("some comment", rule.Language);
-        Assert.IsNull(rule.Code);
+        Assert.AreEqual("some comment", rule.Comment);
+        Assert.IsNull(rule.Language);
     }
 
     [TestMethod]
@@ -186,9 +186,9 @@ public class MappingTests
         var rule = (MappingMapRule)mapping.Rules[0];
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("Patient.identifier", rule.Target);
-        Assert.IsNull(rule.Language); // no comment
+        Assert.IsNull(rule.Comment); // no comment
         // In our model, Code holds the language code (CODE token, includes '#')
-        Assert.AreEqual("#lang", rule.Code);
+        Assert.AreEqual("#lang", rule.Language);
     }
 
     [TestMethod]
@@ -203,8 +203,8 @@ public class MappingTests
         var rule = (MappingMapRule)mapping.Rules[0];
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("Patient.identifier", rule.Target);
-        Assert.AreEqual("some comment", rule.Language);
-        Assert.AreEqual("#lang", rule.Code);
+        Assert.AreEqual("some comment", rule.Comment);
+        Assert.AreEqual("#lang", rule.Language);
     }
 
     [TestMethod]
@@ -221,9 +221,9 @@ public class MappingTests
         var rule = (MappingMapRule)mapping.Rules[0];
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("Patient.identifier", rule.Target);
-        Assert.IsNull(rule.Language);
+        Assert.IsNull(rule.Comment);
         // CODE token including system prefix
-        Assert.AreEqual("sys#lang", rule.Code);
+        Assert.AreEqual("sys#lang", rule.Language);
         // Warning logging: inconclusive (semantic validation not implemented)
     }
 

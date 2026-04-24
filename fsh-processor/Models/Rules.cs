@@ -684,14 +684,14 @@ public class MappingMapRule : MappingRule
     public string Target { get; set; } = string.Empty;
 
     /// <summary>
+    /// Comment (optional)
+    /// </summary>
+    public string? Comment { get; set; }
+
+    /// <summary>
     /// Language (optional)
     /// </summary>
     public string? Language { get; set; }
-
-    /// <summary>
-    /// Code (optional)
-    /// </summary>
-    public string? Code { get; set; }
 }
 
 /// <summary>

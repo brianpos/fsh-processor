@@ -888,7 +888,8 @@ public static class FshCompiler
             };
         }
 
-        sd.Differential.Element.Add(new ElementDefinition(logicalPathPrefix) { Path = logicalPathPrefix, ElementId = logicalPathPrefix });
+        var rootElement = new ElementDefinition(logicalPathPrefix) { Path = logicalPathPrefix, ElementId = logicalPathPrefix, Short = logical.Title, Definition = logical.Description };
+        sd.Differential.Element.Add(rootElement);
 
         AttachOrderingContext(sd, context, opts);
 
@@ -2383,6 +2384,7 @@ public static class FshCompiler
         ApplyFlags(ed, addEl.Flags);
         if (!string.IsNullOrEmpty(addEl.ShortDescription)) ed.Short = addEl.ShortDescription;
         if (!string.IsNullOrEmpty(addEl.Definition)) ed.Definition = addEl.Definition;
+        else if (!string.IsNullOrEmpty(addEl.ShortDescription)) ed.Definition = addEl.ShortDescription;
         if (addEl.TargetTypes.Count > 0)
             ed.Type = addEl.TargetTypes
                 .Select(tt => new ElementDefinition.TypeRefComponent { Code = tt })
@@ -5300,12 +5302,17 @@ public static class FshCompiler
             }
 
             targetEd.Mapping ??= new List<ElementDefinition.MappingComponent>();
-            targetEd.Mapping.Add(new ElementDefinition.MappingComponent
+            var map = new ElementDefinition.MappingComponent
             {
                 Identity = identity,
-                Map = mapRule.Target,
-                Language = mapRule.Language
-            });
+                Map = mapRule.Target
+            };
+            if (mapRule.Language?.Length > 0)
+            {
+                var part = mapRule.Language.Split('#');
+                map.Language = part.Last();
+            }
+            targetEd.Mapping.Add(map);
         }
     }
 

@@ -172,17 +172,17 @@ public class RuleSetTests
         var mapRule0 = (MappingMapRule)ruleSet.Rules[0];
         Assert.AreEqual("identifier.system", mapRule0.Path);
         Assert.AreEqual("Patient.identifier.system", mapRule0.Target);
+        Assert.IsNull(mapRule0.Comment);
         Assert.IsNull(mapRule0.Language);
-        Assert.IsNull(mapRule0.Code);
 
         Assert.IsInstanceOfType<MappingMapRule>(ruleSet.Rules[1]);
         var mapRule1 = (MappingMapRule)ruleSet.Rules[1];
         Assert.AreEqual("identifier.value", mapRule1.Path);
         Assert.AreEqual("Patient.identifier.value", mapRule1.Target);
         // SUSHI 'comment' → C# MappingMapRule.Language
-        Assert.AreEqual("This is a comment", mapRule1.Language);
+        Assert.AreEqual("This is a comment", mapRule1.Comment);
         // SUSHI 'language' FshCode → C# MappingMapRule.Code (raw CODE token)
-        Assert.AreEqual("#code", mapRule1.Code);
+        Assert.AreEqual("#code", mapRule1.Language);
     }
 
     [TestMethod]

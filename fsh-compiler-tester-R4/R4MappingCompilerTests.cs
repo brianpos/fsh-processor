@@ -126,11 +126,30 @@ public class R4MappingCompilerTests
             Id: obs-map
             Source: MyObservation
             Target: ""http://hl7.org/v2""
-            * status -> ""OBX-11"" ""HL7v2 2.6""
+            * status -> ""OBX-11"" #HL7v2_2.6
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyObservation");
         var statusEd = CompilerTestHelper.GetElement(sd, "status");
         Assert.IsNotNull(statusEd.Mapping);
-        Assert.AreEqual("HL7v2 2.6", statusEd.Mapping[0].Language);
+        Assert.AreEqual("HL7v2_2.6", statusEd.Mapping[0].Language);
+    }
+
+    [TestMethod]
+    public void ShouldAddMappingLanguageWhenPresent2()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+
+            Mapping: ObsMapping
+            Id: obs-map
+            Source: MyObservation
+            Target: ""http://hl7.org/v2""
+            * status -> ""OBX-11"" #text/xpath
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyObservation");
+        var statusEd = CompilerTestHelper.GetElement(sd, "status");
+        Assert.IsNotNull(statusEd.Mapping);
+        Assert.AreEqual("text/xpath", statusEd.Mapping[0].Language);
     }
 }

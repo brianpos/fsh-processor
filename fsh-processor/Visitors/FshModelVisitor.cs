@@ -2007,17 +2007,17 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
     {
         // Grammar: mappingRule: STAR path? ARROW STRING STRING? CODE?;
         var target = ExtractString(context.STRING(0).GetText());
+        string? comment = null;
         string? language = null;
-        string? code = null;
 
         if (context.STRING().Length > 1)
         {
-            language = ExtractString(context.STRING(1).GetText());
+            comment = ExtractString(context.STRING(1).GetText());
         }
 
         if (context.CODE() != null)
         {
-            code = context.CODE().GetText();
+            language = context.CODE().GetText();
         }
 
         return new MappingMapRule
@@ -2028,8 +2028,8 @@ public class FshModelVisitor : FSHBaseVisitor<object?>
             Path = context.path()?.GetText(),
             Indent = GetRuleIndent(context.STAR()),
             Target = target,
+            Comment = comment,
             Language = language,
-            Code = code
         };
     }
 
