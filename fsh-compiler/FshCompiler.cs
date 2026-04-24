@@ -1256,6 +1256,22 @@ public static class FshCompiler
         // compound SD-level caret paths (e.g. ^context[+].type + ^context[=].expression) work.
         var caretSoftIndexState = new Dictionary<string, int>(StringComparer.Ordinal);
         var canonicalResolver = BuildMergedResolver(context, opts.Resolver);
+
+        // Mirrors the `ResolveExtensionAwareAlias` pattern used for Instance compilation:
+        // after alias resolution, fall back to the pre-scanned CodeSystem entity map so
+        // `LocalSystem#code` values on Profile/Extension/Logical/Resource rules (e.g.
+        // `* valueCodeableConcept = TemporaryCodes#question-library`) resolve the system
+        // name to the CodeSystem's canonical URL.  Bare names that are not registered as
+        // a CodeSystem are returned unchanged (so bracket/slice tokens are unaffected).
+        string resolveCodeSystemAwareAlias(string name)
+        {
+            var resolved = context.ResolveAlias(name);
+            if (resolved == name && !IsAbsoluteUrl(name) && !name.StartsWith('$')
+                && context.CodeSystemUrls.TryGetValue(name, out var csUrl))
+                return csUrl;
+            return resolved;
+        }
+
         foreach (var rule in ComposeIndentedPaths(rules))
         {
             switch (rule)
@@ -1281,7 +1297,7 @@ public static class FshCompiler
                     break;
 
                 case FixedValueRule fixedValueRule:
-                    ApplyFixedValueRule(fixedValueRule, sd, opts.Inspector, context.ResolveAlias, canonicalResolver);
+                    ApplyFixedValueRule(fixedValueRule, sd, opts.Inspector, resolveCodeSystemAwareAlias, canonicalResolver);
                     break;
 
                 case ContainsRule containsRule:
@@ -1297,7 +1313,7 @@ public static class FshCompiler
                     break;
 
                 case CaretValueRule caretValueRule:
-                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, context.ResolveAlias, canonicalResolver, caretSoftIndexState, context, opts);
+                    ApplyCaretValueRule(caretValueRule, sd, opts.Inspector, resolveCodeSystemAwareAlias, canonicalResolver, caretSoftIndexState, context, opts);
                     break;
 
                 case InsertRule insertRule:
@@ -4323,6 +4339,16 @@ public static class FshCompiler
         foreach (var ed in elements)
         {
             if (ed.Type == null || ed.Type.Count == 0) continue;
+
+            // Preserve the Type on choice-type variant slices (e.g. a `valueCodeableConcept`
+            // slice on `UsageContext.value[x]`).  For these slices the Type element is the
+            // constraint that defines which variant of the choice type the slice represents,
+            // so it must remain in the differential even when the same-named slice on the
+            // parent profile declares the same type — sushi keeps it for this reason.
+            if (!string.IsNullOrEmpty(ed.SliceName)
+                && !string.IsNullOrEmpty(ed.Path)
+                && ed.Path.EndsWith("[x]", StringComparison.Ordinal))
+                continue;
 
             List<ElementDefinition.TypeRefComponent>? baseType = null;
 

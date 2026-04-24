@@ -771,7 +771,7 @@ public class SdcIgCompilerTests
             ["SDCQuestionnaireExtractObservation.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "ihe-sdc-for-SDCQuestionnaireExtractObservation.fsh", "IsSubjectExtension.fsh", "ObservationExtractCategory.fsh", "ObservationExtractEntry.fsh", "ObservationExtractExtension.fsh", "ObservationExtractRelationship.fsh", "ObservationExtractRelationshipCodes.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
             ["SDCQuestionnaireExtractStructureMap.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "ihe-sdc-for-SDCQuestionnaireExtractStructureMap.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "TargetStructureMapExtension.fsh"],
             ["SDCQuestionnaireExtractTemplate.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "ExtractAllocateIdExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "TemplateExtractBundleExtension.fsh", "TemplateExtractContextExtension.fsh", "TemplateExtractExtension.fsh", "tev-1.fsh"],
-            ["SDCQuestionnaireLibraryUsageContext.fsh"] = ["SDCUsageContext.fsh"],
+            ["SDCQuestionnaireLibraryUsageContext.fsh"] = ["SDCUsageContext.fsh", "TemporaryCodes.fsh"],
             ["SDCQuestionnairePopulateExpression.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "CandidateExpressionExtension.fsh", "ChoiceColumnExtension.fsh", "ContextExpressionExtension.fsh", "ihe-sdc-for-SDCQuestionnairePopulateExpression.fsh", "InitialExpressionExtension.fsh", "IsSubjectExtension.fsh", "ItemPopulationContextExtension.fsh", "LaunchContext.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
             ["SDCQuestionnairePopulateObservation.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "ihe-sdc-for-SDCQuestionnairePopulateObservation.fsh", "IsSubjectExtension.fsh", "ObservationLinkPeriodExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh"],
             ["SDCQuestionnairePopulateStructureMap.fsh"] = ["AssembleExpectation.fsh", "AssembleExpectationCodes.fsh", "ihe-sdc-for-SDCQuestionnairePopulateStructureMap.fsh", "IsSubjectExtension.fsh", "LaunchContext.fsh", "LaunchContextExtension.fsh", "OptionalDisplayExtension.fsh", "PerformerTypeExtension.fsh", "QuestionnaireAssembleExpectation.fsh", "QuestionnaireLaunchContext.fsh", "QuestionnairePerformerType.fsh", "SDCBaseQuestionnaire.fsh", "SDCQuestionnaireCommon.fsh", "SourceQueriesExtension.fsh", "SourceStructureMapExtension.fsh"],
@@ -1949,6 +1949,34 @@ resources.Count, $"Should produce more than 100 resources total; got {resources.
 
                             entityDeps.Add((e.Name, typeName));
                             entitySource.TryAdd(e.Name, fa.Name);
+                        }
+                    }
+
+                    // Scan FixedValueRule / CaretValueRule values for `LocalSystem#code` references.
+                    // e.g. `* valueCodeableConcept = TemporaryCodes#question-library` on a Profile
+                    // requires TemporaryCodes CodeSystem in context so the system URL can be resolved.
+                    foreach (var fvRule in rules)
+                    {
+                        var val = fvRule switch
+                        {
+                            FixedValueRule fvr => fvr.Value,
+                            CaretValueRule cvr => cvr.Value,
+                            _ => null
+                        };
+                        if (val is Hl7.FhirShorthand.Serialization.Models.Code fshCodeValue)
+                        {
+                            var hashIdx = fshCodeValue.Value.IndexOf('#');
+                            if (hashIdx > 0)
+                            {
+                                var systemName = fshCodeValue.Value[..hashIdx];
+                                if (!systemName.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
+                                    !systemName.StartsWith("urn:", StringComparison.OrdinalIgnoreCase) &&
+                                    !systemName.StartsWith('$'))
+                                {
+                                    entityDeps.Add((e.Name, systemName));
+                                    entitySource.TryAdd(e.Name, fa.Name);
+                                }
+                            }
                         }
                     }
 
