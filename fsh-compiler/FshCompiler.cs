@@ -338,25 +338,12 @@ public static class FshCompiler
             }
         }
 
-        // Post-compilation fix-up: resolve BaseDefinition and Type for profiles-of-profiles.
-        // When a profile's parent is another compiled profile (not a core FHIR type), the
-        // BaseDefinition and Type may have been set to the parent's entity name rather than
-        // its canonical URL and underlying FHIR type.  Now that all SDs are compiled, we
-        // can walk the chain and fix these values.  Element path prefixes are updated too.
-        FixUpProfilesOfProfiles(resources.OfType<StructureDefinition>().ToList(), context, opts);
-
         // Post-compilation fix-up: resolve in-IG ValueSet binding URLs.
         // Binding rules that reference a ValueSet by entity name (e.g. "QuestionnaireLaunchContext")
         // cannot be resolved during SD compilation because the VS might not be compiled yet.
         // Now that all resources are built, walk every StructureDefinition's element bindings
         // and replace bare ValueSet names with their compiled canonical URLs.
         FixUpValueSetBindings(resources.OfType<StructureDefinition>().ToList(), resources, context, opts);
-
-        // Sort differential elements into canonical FHIR order after all post-processing is done
-        // (mappings, type fixup, etc. may add or reorder elements).  Run this last so the
-        // snapshot generator sees elements in the expected order (root first, children in schema order).
-        foreach (var compiledSd in resources.OfType<StructureDefinition>())
-            SortDifferentialElementsByCanonicalOrder(compiledSd, opts.Inspector);
 
         return errors.Count > 0
             ? CompileResult<List<FhirResource>>.FromFailure(errors, context.Warnings)
@@ -463,6 +450,8 @@ public static class FshCompiler
 
         // Root element: explicit ElementId is required for correct round-trip and validation.
         sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type, ElementId = sd.Type });
+
+        AttachOrderingContext(sd, context, opts);
 
         ApplySdRules(profile.Rules, sd, context, opts);
 
@@ -595,7 +584,7 @@ public static class FshCompiler
             Type = "Extension",
             BaseDefinition = ResolveBaseDefinitionCanonical(
                 context.ResolveAlias(ext.Parent ?? "http://hl7.org/fhir/StructureDefinition/Extension"),
-                "Extension", context),
+                "Extension", context, opts),
             Derivation = StructureDefinition.TypeDerivationRule.Constraint,
             Kind = StructureDefinition.StructureDefinitionKind.ComplexType,
             Differential = new StructureDefinition.DifferentialComponent
@@ -605,6 +594,8 @@ public static class FshCompiler
         };
 
         sd.Differential.Element.Add(new ElementDefinition("Extension") { Path = "Extension", ElementId = "Extension" });
+
+        AttachOrderingContext(sd, context, opts);
 
         // Stamp the target FHIR version from the compiler options when supplied (sushi always
         // emits fhirVersion on generated StructureDefinitions).
@@ -697,8 +688,7 @@ public static class FshCompiler
                 ElementId = "Extension.extension",
                 Max = "0"
             };
-            var insertIndex = root != null ? elements.IndexOf(root) + 1 : 0;
-            elements.Insert(insertIndex, marker);
+            InsertElementInOrder(sd, marker);
         }
 
         // Extension.url: always pinned to the canonical URL via fixedUri; strip any type
@@ -714,14 +704,7 @@ public static class FshCompiler
                     Path = "Extension.url",
                     ElementId = "Extension.url"
                 };
-
-                // Insert after the Extension.extension marker (or after root) to preserve
-                // canonical element ordering: Extension, Extension.extension, Extension.url, ...
-                var anchor =
-                    elements.FirstOrDefault(e => e.Path == "Extension.extension" && e.SliceName == null)
-                    ?? root;
-                var insertIndex = anchor != null ? elements.IndexOf(anchor) + 1 : elements.Count;
-                elements.Insert(insertIndex, urlEl);
+                InsertElementInOrder(sd, urlEl);
             }
 
             urlEl.Fixed = new FhirUri(sd.Url);
@@ -738,7 +721,7 @@ public static class FshCompiler
         //   • Extension.extension:X.extension  (max = "0") — forbids grand-children
         //   • Extension.extension:X.url        (fixedUri = X, no type constraint)
         // and adds Extension.value[x] (max = "0") at the root to forbid a direct value.
-        NormalizeSubExtensionSlices(elements, sd.Url);
+        NormalizeSubExtensionSlices(sd);
     }
 
     /// <summary>
@@ -749,8 +732,10 @@ public static class FshCompiler
     /// When any slice is present, also injects a root <c>Extension.value[x]</c> with
     /// <c>max="0"</c> so that the complex extension cannot also carry a direct value.
     /// </summary>
-    private static void NormalizeSubExtensionSlices(List<ElementDefinition> elements, string? sdUrl)
+    private static void NormalizeSubExtensionSlices(StructureDefinition sd)
     {
+        var elements = sd.Differential.Element;
+
         // Collect slice elements directly under Extension.extension.
         var sliceElements = elements
             .Where(e => e.Path == "Extension.extension" && !string.IsNullOrEmpty(e.SliceName))
@@ -773,9 +758,7 @@ public static class FshCompiler
                     ElementId = $"{sliceIdPrefix}.extension",
                     Max = "0"
                 };
-                // Insert after slice entry, before any :X.url / :X.value[x] siblings.
-                var sliceIdx = elements.IndexOf(slice);
-                elements.Insert(sliceIdx + 1, childExt);
+                InsertElementInOrder(sd, childExt);
             }
             else if (childExt.Max == null)
             {
@@ -792,9 +775,7 @@ public static class FshCompiler
                     ElementId = $"{sliceIdPrefix}.url",
                     Fixed = new FhirUri(sliceName)
                 };
-                var anchor = childExt;
-                var anchorIdx = elements.IndexOf(anchor);
-                elements.Insert(anchorIdx + 1, childUrl);
+                InsertElementInOrder(sd, childUrl);
             }
             else
             {
@@ -824,53 +805,17 @@ public static class FshCompiler
                 ElementId = "Extension.value[x]",
                 Max = "0"
             };
-            elements.Add(rootValue);
+            InsertElementInOrder(sd, rootValue);
         }
         else if (rootValue.Max == null)
         {
             rootValue.Max = "0";
         }
 
-        // 4. Reorder so that each sub-extension slice's children (:X.extension, :X.url,
-        //    :X.value[x], etc.) appear immediately after the :X slice header.  Sushi
-        //    always groups a slice with its descendants contiguously.
-        GroupSliceDescendants(elements);
-
-        // 5. Aggregate required slice minimums onto the parent Extension.extension.
+        // 4. Aggregate required slice minimums onto the parent Extension.extension.
         //    Sushi computes min on the parent as the sum of mandatory sub-extension
         //    slices (those with min >= 1) and drops the default slicing block.
         AggregateRequiredSliceMinimums(elements);
-    }
-
-    /// <summary>
-    /// Reorders <paramref name="elements"/> so that every sub-extension slice header
-    /// (<c>Extension.extension:X</c>) is immediately followed by elements whose id
-    /// starts with <c>Extension.extension:X.</c> (its descendants), preserving the
-    /// relative order of descendants.  Matches sushi's slice-grouped output order.
-    /// </summary>
-    private static void GroupSliceDescendants(List<ElementDefinition> elements)
-    {
-        // Find slice header indices (path Extension.extension with non-null SliceName).
-        var slices = elements
-            .Select((e, idx) => (e, idx))
-            .Where(p => p.e.Path == "Extension.extension" && !string.IsNullOrEmpty(p.e.SliceName))
-            .Select(p => p.e)
-            .ToList();
-
-        foreach (var slice in slices)
-        {
-            var idPrefix = $"Extension.extension:{slice.SliceName}.";
-            // Pull out descendants (in document order) and remove from the list.
-            var descendants = elements
-                .Where(e => e.ElementId != null && e.ElementId.StartsWith(idPrefix, StringComparison.Ordinal))
-                .ToList();
-            if (descendants.Count == 0) continue;
-            foreach (var d in descendants) elements.Remove(d);
-            // Re-insert immediately after the slice header (re-find index after removals).
-            var insertAt = elements.IndexOf(slice) + 1;
-            for (int i = 0; i < descendants.Count; i++)
-                elements.Insert(insertAt + i, descendants[i]);
-        }
     }
 
     /// <summary>
@@ -952,6 +897,8 @@ public static class FshCompiler
 
         sd.Differential.Element.Add(new ElementDefinition(logicalPathPrefix) { Path = logicalPathPrefix, ElementId = logicalPathPrefix });
 
+        AttachOrderingContext(sd, context, opts);
+
         // C-LG1: Emit type-characteristics extension for each Characteristics code.
         if (logical.Characteristics.Count > 0)
         {
@@ -1002,6 +949,8 @@ public static class FshCompiler
         };
 
         sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type, ElementId = sd.Type });
+
+        AttachOrderingContext(sd, context, opts);
 
         ApplySdRules(fshResource.Rules, sd, context, opts);
         RemoveRedundantCardinalityAgainstBase(sd, context, opts);
@@ -2994,7 +2943,7 @@ public static class FshCompiler
             if (elementIdSegments[^1].Contains(':'))
                 newEd.SliceName = trailingSliceName;
 
-            sd.Differential.Element.Add(newEd);
+            InsertElementInOrder(sd, newEd);
             return newEd;
         }
 
@@ -3003,18 +2952,431 @@ public static class FshCompiler
         {
             // C-EI1: Generate ElementDefinition.Id equal to the full path for non-slice elements.
             ed = new ElementDefinition(fhirPath) { Path = fhirPath, ElementId = fhirPath };
-
-            // Insert the bare (non-slice) element BEFORE any existing slices at the same path
-            // so that canonical ordering (bare before slices) is preserved in the element list.
-            // This ensures idx-based stable sorts keep bare elements before their slices.
-            var firstSliceIdx = sd.Differential.Element.FindIndex(
-                e => e.Path == fhirPath && !string.IsNullOrEmpty(e.SliceName));
-            if (firstSliceIdx >= 0)
-                sd.Differential.Element.Insert(firstSliceIdx, ed);
-            else
-                sd.Differential.Element.Add(ed);
+            InsertElementInOrder(sd, ed);
         }
         return ed;
+    }
+
+    // ─── Insertion-time differential element ordering ───────────────────────
+
+    /// <summary>
+    /// Per-SD context needed to compute insertion-time rank tuples by walking the
+    /// parent profile chain's differential lists.  Attached to each
+    /// <see cref="StructureDefinition"/> as an annotation while the SD is being compiled.
+    /// </summary>
+    private sealed class DifferentialOrderContext
+    {
+        public required CompilerContext Context { get; init; }
+        public required CompilerOptions Options { get; init; }
+
+        /// <summary>
+        /// Sticky rank allocations for locally-introduced fields and slices (names that
+        /// do not appear in any base differential).  Keyed by a string uniquely
+        /// describing the scope (<c>parentId|kind|name</c>) so recomputation returns the
+        /// same value for the same logical element.  Values start at
+        /// <see cref="LocalRankBase"/> and increment monotonically — this keeps local
+        /// elements after all base-defined ones while still giving each sibling a
+        /// distinct rank so their descendants sort contiguously.
+        /// </summary>
+        public Dictionary<string, int> LocalRanks { get; } = new(StringComparer.Ordinal);
+        public int NextLocalRank = LocalRankBase;
+    }
+
+    /// <summary>
+    /// Starting value for sticky local-rank allocations.  Must exceed any realistic
+    /// base-defined rank (children per element rarely exceed a few dozen) while
+    /// leaving ample headroom before <see cref="int.MaxValue"/>.
+    /// </summary>
+    private const int LocalRankBase = int.MaxValue / 2;
+
+    /// <summary>
+    /// Maximum base-chain walk depth used by the differential-ordering ranker.
+    /// Bounded to guard against pathological or cyclic <c>BaseDefinition</c> links;
+    /// real FHIR type hierarchies never approach this depth (typically ≤5).
+    /// </summary>
+    private const int MaxBaseChainDepth = 10;
+
+    /// <summary>
+    /// Cached rank tuple for an <see cref="ElementDefinition"/>.  Invalidated when the
+    /// element's <see cref="ElementDefinition.ElementId"/> changes.
+    /// </summary>
+    private sealed class ElementRankAnnotation
+    {
+        public required string ElementId { get; init; }
+        public required int[] Tuple { get; init; }
+    }
+
+    /// <summary>
+    /// Attaches the ordering context to <paramref name="sd"/> so that subsequent
+    /// <see cref="InsertElementInOrder"/> calls can resolve rank tuples by walking
+    /// the parent profile chain's differentials.  Safe to call multiple times.
+    /// </summary>
+    private static void AttachOrderingContext(
+        StructureDefinition sd, CompilerContext context, CompilerOptions opts)
+    {
+        if (sd.Annotation<DifferentialOrderContext>() != null) return;
+        sd.AddAnnotation(new DifferentialOrderContext { Context = context, Options = opts });
+    }
+
+    /// <summary>
+    /// Inserts <paramref name="newEd"/> into <c>sd.Differential.Element</c> at the
+    /// position determined by walking the base profile chain's differentials.
+    /// Ordering is computed per-segment of <see cref="ElementDefinition.ElementId"/>
+    /// against the closest base that defines children of each parent path.
+    /// When no ordering context is attached (e.g. early bootstrap) or when no base
+    /// defines the element, falls back to appending (preserving FSH insertion order).
+    /// The root element (differential index 0) is never displaced.
+    /// </summary>
+    private static void InsertElementInOrder(StructureDefinition sd, ElementDefinition newEd)
+    {
+        var elements = sd.Differential.Element;
+        if (elements.Count == 0)
+        {
+            elements.Add(newEd);
+            return;
+        }
+
+        var orderCtx = sd.Annotation<DifferentialOrderContext>();
+        if (orderCtx == null)
+        {
+            elements.Add(newEd);
+            return;
+        }
+
+        var newTuple = GetOrComputeTuple(newEd, sd, orderCtx);
+
+        // Forward scan from index 1 (root is pinned at 0).  Insert before the first
+        // element whose tuple is strictly greater than newTuple; ties → new goes after.
+        int insertAt = elements.Count;
+        for (int i = 1; i < elements.Count; i++)
+        {
+            var t = GetOrComputeTuple(elements[i], sd, orderCtx);
+            if (CompareTuples(newTuple, t) < 0)
+            {
+                insertAt = i;
+                break;
+            }
+        }
+        elements.Insert(insertAt, newEd);
+    }
+
+    /// <summary>
+    /// Returns the rank tuple for <paramref name="ed"/>, computing and caching it on
+    /// the element's annotations when not yet cached or when the cached value is stale
+    /// (<see cref="ElementDefinition.ElementId"/> changed since the last compute).
+    /// </summary>
+    private static int[] GetOrComputeTuple(
+        ElementDefinition ed, StructureDefinition sd, DifferentialOrderContext orderCtx)
+    {
+        var currentId = ed.ElementId ?? ed.Path ?? string.Empty;
+        var anno = ed.Annotation<ElementRankAnnotation>();
+        if (anno != null && anno.ElementId == currentId) return anno.Tuple;
+        if (anno != null) ed.RemoveAnnotations<ElementRankAnnotation>();
+
+        var tuple = ComputeRankTuple(currentId, sd, orderCtx);
+        ed.AddAnnotation(new ElementRankAnnotation { ElementId = currentId, Tuple = tuple });
+        return tuple;
+    }
+
+    /// <summary>
+    /// Computes the rank tuple for an element with <paramref name="elementId"/>.
+    /// The tuple has two integers per id-segment after the SD root type:
+    /// <c>(fieldRank, sliceRank)</c>.  <c>fieldRank</c> is the 0-based index of the
+    /// child field name among the direct children of the parent path in the closest
+    /// base differential that defines any children there, or a sticky monotonic
+    /// local-rank allocation when locally-introduced.  <c>sliceRank</c> is <c>0</c>
+    /// for the bare (un-sliced) variant, <c>1 + index</c> for a slice defined in the
+    /// base, or a sticky local-rank for a local slice — this guarantees base slices
+    /// come first in base order, then local slices in FSH insertion order, and ties
+    /// in base-defined prefixes are broken by distinct sticky values so that
+    /// descendants sort contiguously under their own parent.
+    /// </summary>
+    private static int[] ComputeRankTuple(
+        string elementId, StructureDefinition sd, DifferentialOrderContext orderCtx)
+    {
+        if (string.IsNullOrEmpty(elementId)) return [];
+        var segments = elementId.Split('.');
+        if (segments.Length <= 1) return []; // root element
+
+        var rootType = GetElementPathPrefix(sd);
+        var depth = segments.Length - 1;
+        var tuple = new int[depth * 2];
+
+        for (int k = 1; k < segments.Length; k++)
+        {
+            var (childField, childSlice) = ParseIdSegment(segments[k]);
+
+            // parentId expressed in the *current* SD's namespace — used as the
+            // sticky-rank dictionary key so local names are stable per (parent, scope).
+            var parentIdInSd = k == 1
+                ? rootType
+                : rootType + "." + string.Join('.', segments, 1, k - 1);
+
+            var (fieldRank, sliceRank) = RankInBaseChain(
+                segments, k, rootType, sd.BaseDefinition, childField, childSlice,
+                parentIdInSd, orderCtx, depth: 0);
+            tuple[(k - 1) * 2] = fieldRank;
+            tuple[(k - 1) * 2 + 1] = sliceRank;
+        }
+        return tuple;
+    }
+
+    /// <summary>
+    /// Splits an id segment into (fieldName, sliceName) — e.g.
+    /// <c>"coding:primary"</c> → <c>("coding", "primary")</c>;
+    /// <c>"value[x]"</c> → <c>("value[x]", null)</c>.
+    /// </summary>
+    private static (string fieldName, string? sliceName) ParseIdSegment(string seg)
+    {
+        var colon = seg.IndexOf(':');
+        return colon < 0 ? (seg, null) : (seg[..colon], seg[(colon + 1)..]);
+    }
+
+    /// <summary>
+    /// Walks the FULL base profile chain (depth-guarded), collecting direct children of
+    /// the parent path at every level, then assigns canonical ranks by merging those
+    /// children base-first (ultimate-ancestor first).  This correctly handles the FHIR
+    /// convention that derived profile differentials are SPARSE — inherited elements
+    /// (e.g. <c>id</c>/<c>meta</c> from <c>Resource</c>, <c>extension</c>/
+    /// <c>modifierExtension</c> from <c>DomainResource</c>) do not re-appear in the
+    /// derived differential, yet must still be ordered canonically before any type-
+    /// specific children.
+    /// </summary>
+    /// <remarks>
+    /// A field introduced by a more-ancestral base gets a lower rank than one
+    /// introduced by a more-derived profile, which matches the canonical element
+    /// ordering sushi / FHIR snapshot generation produce.  First-occurrence wins when
+    /// the same field appears at multiple levels (a derived profile re-listing an
+    /// inherited element to add constraints does not change its rank).
+    /// </remarks>
+    private static (int fieldRank, int sliceRank) RankInBaseChain(
+        string[] segments,
+        int segmentIndex,
+        string currentRoot,
+        string? baseDefinition,
+        string childField,
+        string? childSlice,
+        string parentIdInSd,
+        DifferentialOrderContext orderCtx,
+        int depth)
+    {
+        // Collect the chain (immediate base first, ultimate base last).
+        var chain = new List<(string baseRoot, IList<ElementDefinition> diff)>();
+        var curDef = baseDefinition;
+        var curRoot = currentRoot;
+        int walkDepth = depth;
+        while (!string.IsNullOrEmpty(curDef) && walkDepth <= MaxBaseChainDepth)
+        {
+            var baseSd = ResolveStructureDefinition(curDef, orderCtx.Context, orderCtx.Options);
+            if (baseSd == null) break;
+
+            var baseRoot = baseSd.Type ?? curRoot;
+            var diff = (IList<ElementDefinition>?)baseSd.Differential?.Element ?? Array.Empty<ElementDefinition>();
+            chain.Add((baseRoot, diff));
+
+            curRoot = baseRoot;
+            curDef = baseSd.BaseDefinition;
+            walkDepth++;
+        }
+
+        if (chain.Count == 0)
+        {
+            return AllocateLocal(parentIdInSd, childField, childSlice, orderCtx, fieldRankFromBase: null);
+        }
+
+        var fieldRanks = new Dictionary<string, int>(StringComparer.Ordinal);
+        var sliceRanks = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+
+        // Every non-root parent has type-inherited universal children that are not
+        // re-stated in any specific-type profile's differential.  Pre-merge those
+        // first so they receive the lowest (earliest) ranks — matching canonical
+        // FHIR element order.  The type depends on the parent's last segment:
+        //   • <c>.extension[:X]</c> and <c>.modifierExtension[:X]</c> are themselves
+        //     <c>Extension</c>-typed (recursive), so children come from Extension's
+        //     chain (id, extension, url, value[x]).
+        //   • Anything else is assumed BackboneElement-typed (covers the common
+        //     Resource-backbone case like <c>Questionnaire.item</c>) yielding
+        //     id, extension, modifierExtension from Element + BackboneElement.
+        // For primitive-typed parents the extra <c>modifierExtension</c> is
+        // harmless: nothing will reference it, so it never contributes to ordering.
+        if (segmentIndex >= 2)
+        {
+            var lastParentSeg = segments[segmentIndex - 1];
+            var colon = lastParentSeg.IndexOf(':');
+            var lastFieldName = colon < 0 ? lastParentSeg : lastParentSeg[..colon];
+
+            var inheritedTypeUrl = lastFieldName is "extension" or "modifierExtension"
+                ? "http://hl7.org/fhir/StructureDefinition/Extension"
+                : "http://hl7.org/fhir/StructureDefinition/BackboneElement";
+
+            MergeTypeCanonicalChildren(inheritedTypeUrl, fieldRanks, sliceRanks, orderCtx);
+        }
+
+        // Merge direct-children lists base-first (iterate chain in reverse) so that
+        // fields introduced by more-ancestral bases get smaller ranks — matching
+        // canonical FHIR element order.  First-occurrence wins: a derived profile
+        // re-listing an inherited element does not shift its rank.
+        int nextFieldRank = fieldRanks.Count;
+
+        for (int i = chain.Count - 1; i >= 0; i--)
+        {
+            var (baseRoot, diff) = chain[i];
+            string rewrittenParent = segmentIndex == 1
+                ? baseRoot
+                : baseRoot + "." + string.Join('.', segments, 1, segmentIndex - 1);
+            var parentPrefix = rewrittenParent + ".";
+
+            foreach (var el in diff)
+            {
+                var eid = el.ElementId ?? el.Path ?? string.Empty;
+                if (!eid.StartsWith(parentPrefix, StringComparison.Ordinal)) continue;
+                var rest = eid[parentPrefix.Length..];
+                if (rest.Length == 0 || rest.Contains('.')) continue;
+
+                var (fn, sn) = ParseIdSegment(rest);
+                if (!fieldRanks.ContainsKey(fn))
+                    fieldRanks[fn] = nextFieldRank++;
+
+                if (sn != null)
+                {
+                    if (!sliceRanks.TryGetValue(fn, out var sliceMap))
+                        sliceRanks[fn] = sliceMap = new Dictionary<string, int>(StringComparer.Ordinal);
+                    if (!sliceMap.ContainsKey(sn))
+                        sliceMap[sn] = sliceMap.Count;
+                }
+            }
+        }
+
+        int? baseFieldRank = fieldRanks.TryGetValue(childField, out var fr) ? fr : null;
+
+        if (childSlice == null)
+        {
+            // Bare (un-sliced) element at this path.
+            return baseFieldRank.HasValue
+                ? (baseFieldRank.Value, 0)
+                : AllocateLocal(parentIdInSd, childField, null, orderCtx, fieldRankFromBase: null);
+        }
+
+        // Named slice.
+        if (baseFieldRank.HasValue
+            && sliceRanks.TryGetValue(childField, out var m)
+            && m.TryGetValue(childSlice, out var baseSliceIdx))
+        {
+            return (baseFieldRank.Value, 1 + baseSliceIdx);
+        }
+
+        return AllocateLocal(parentIdInSd, childField, childSlice, orderCtx, fieldRankFromBase: baseFieldRank);
+    }
+
+    /// <summary>
+    /// Allocates (or reuses) a sticky monotonic rank for a locally-introduced field
+    /// or slice that does not appear in any base profile's differential chain.
+    /// Using a sticky value — rather than a naive <see cref="int.MaxValue"/> — ensures
+    /// distinct rank entries for sibling locally-added elements so their descendants
+    /// remain grouped contiguously under their own parent.
+    /// </summary>
+    private static (int fieldRank, int sliceRank) AllocateLocal(
+        string parentIdInSd,
+        string childField,
+        string? childSlice,
+        DifferentialOrderContext orderCtx,
+        int? fieldRankFromBase)
+    {
+        int fieldRank;
+        if (fieldRankFromBase.HasValue)
+        {
+            fieldRank = fieldRankFromBase.Value;
+        }
+        else
+        {
+            var fieldKey = parentIdInSd + "|field|" + childField;
+            if (!orderCtx.LocalRanks.TryGetValue(fieldKey, out fieldRank))
+            {
+                fieldRank = orderCtx.NextLocalRank++;
+                orderCtx.LocalRanks[fieldKey] = fieldRank;
+            }
+        }
+
+        if (childSlice == null) return (fieldRank, 0);
+
+        var sliceKey = parentIdInSd + "|slice|" + childField + ":" + childSlice;
+        if (!orderCtx.LocalRanks.TryGetValue(sliceKey, out var sliceRank))
+        {
+            sliceRank = orderCtx.NextLocalRank++;
+            orderCtx.LocalRanks[sliceKey] = sliceRank;
+        }
+        return (fieldRank, sliceRank);
+    }
+
+    /// <summary>
+    /// Walks a type's base chain (e.g. <c>Extension → Element</c>) and merges the
+    /// direct children of that type's root into <paramref name="fieldRanks"/> and
+    /// <paramref name="sliceRanks"/>, base-first.  Used as a fallback for FHIR
+    /// recursive-type references (<c>.extension</c>, <c>.modifierExtension</c>)
+    /// whose child ordering is governed by the referenced type rather than by a
+    /// path entry in any profile differential.
+    /// </summary>
+    private static void MergeTypeCanonicalChildren(
+        string typeCanonicalUrl,
+        Dictionary<string, int> fieldRanks,
+        Dictionary<string, Dictionary<string, int>> sliceRanks,
+        DifferentialOrderContext orderCtx)
+    {
+        var chain = new List<(string root, IList<ElementDefinition> diff)>();
+        var curDef = typeCanonicalUrl;
+        int d = 0;
+        while (!string.IsNullOrEmpty(curDef) && d <= MaxBaseChainDepth)
+        {
+            var baseSd = ResolveStructureDefinition(curDef, orderCtx.Context, orderCtx.Options);
+            if (baseSd == null) break;
+            var root = baseSd.Type ?? string.Empty;
+            var diff = (IList<ElementDefinition>?)baseSd.Differential?.Element ?? Array.Empty<ElementDefinition>();
+            chain.Add((root, diff));
+            curDef = baseSd.BaseDefinition;
+            d++;
+        }
+
+        int nextRank = fieldRanks.Count;
+        for (int i = chain.Count - 1; i >= 0; i--)
+        {
+            var (root, diff) = chain[i];
+            if (string.IsNullOrEmpty(root)) continue;
+            var prefix = root + ".";
+            foreach (var el in diff)
+            {
+                var eid = el.ElementId ?? el.Path ?? string.Empty;
+                if (!eid.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                var rest = eid[prefix.Length..];
+                if (rest.Length == 0 || rest.Contains('.')) continue;
+
+                var (fn, sn) = ParseIdSegment(rest);
+                if (!fieldRanks.ContainsKey(fn))
+                    fieldRanks[fn] = nextRank++;
+                if (sn != null)
+                {
+                    if (!sliceRanks.TryGetValue(fn, out var m))
+                        sliceRanks[fn] = m = new Dictionary<string, int>(StringComparer.Ordinal);
+                    if (!m.ContainsKey(sn))
+                        m[sn] = m.Count;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Compares two rank tuples lexicographically.  When tuples differ in length, the
+    /// shorter one compares less at the first position past its end (so parent paths
+    /// sort before their descendants, and siblings at the same depth are ordered
+    /// purely by their own rank entries).
+    /// </summary>
+    private static int CompareTuples(int[] a, int[] b)
+    {
+        var n = Math.Min(a.Length, b.Length);
+        for (int i = 0; i < n; i++)
+        {
+            if (a[i] != b[i]) return a[i] < b[i] ? -1 : 1;
+        }
+        return a.Length.CompareTo(b.Length);
     }
 
     /// <summary>
@@ -3084,104 +3446,6 @@ public static class FshCompiler
         }
     }
 
-    /// <summary>
-    /// Post-compilation pass that corrects <see cref="StructureDefinition.BaseDefinition"/> and
-    /// <see cref="StructureDefinition.Type"/> for profiles-of-profiles compiled in the wrong order.
-    /// When a profile's parent was another in-IG profile that had not yet been compiled at the time
-    /// the child was built, the <c>BaseDefinition</c> was stored as the bare entity name and
-    /// <c>Type</c> was set to the same name instead of the underlying FHIR type.
-    /// This pass walks all compiled SDs, resolves these values, and also rewrites element path/id
-    /// prefixes to use the correct FHIR type name.
-    /// </summary>
-    private static void FixUpProfilesOfProfiles(
-        List<StructureDefinition> allSds, CompilerContext context, CompilerOptions opts)
-    {
-        // Build a quick lookup: canonical URL → SD, for all compiled SDs.
-        var byUrl = new Dictionary<string, StructureDefinition>(StringComparer.Ordinal);
-        foreach (var sd in allSds)
-            if (!string.IsNullOrEmpty(sd.Url))
-                byUrl.TryAdd(sd.Url, sd);
-
-        foreach (var sd in allSds)
-        {
-            if (sd.Derivation != StructureDefinition.TypeDerivationRule.Constraint)
-                continue;
-
-            // 1. Fix BaseDefinition to canonical URL if it is a bare name or was constructed
-            //    using the entity name (CamelCase) instead of the id (kebab-case).
-            //    We check for both bare names and absolute URLs whose last segment is a
-            //    CamelCase entity name rather than the proper id.
-            if (!string.IsNullOrEmpty(sd.BaseDefinition))
-            {
-                var fixedBase = TryResolveBaseDefinitionFromCompiledSds(sd.BaseDefinition, context, byUrl);
-                if (fixedBase != null && fixedBase != sd.BaseDefinition)
-                    sd.BaseDefinition = fixedBase;
-                else if (!IsAbsoluteUrl(sd.BaseDefinition))
-                {
-                    var resolved = ResolveBaseDefinitionCanonical(sd.BaseDefinition, sd.BaseDefinition, context, opts);
-                    if (resolved != sd.BaseDefinition)
-                        sd.BaseDefinition = resolved;
-                }
-            }
-
-            // 2. Fix Type: walk up the BaseDefinition chain to find the underlying FHIR type.
-            // Try both sd.Type and sd.BaseDefinition for resolution (the baseDefinition URL
-            // is more reliable when the type was set to a profile name).
-            if (!string.IsNullOrEmpty(sd.Type) && !IsKnownFhirType(sd.Type, opts.Inspector))
-            {
-                // First try to resolve via the type name; then via the baseDefinition URL.
-                var resolvedType = ResolveUnderlyingFhirType(sd.Type, context, opts, byUrl, depth: 0)
-                    ?? (!string.IsNullOrEmpty(sd.BaseDefinition)
-                        ? ResolveUnderlyingFhirType(sd.BaseDefinition, context, opts, byUrl, depth: 0)
-                        : null);
-                if (resolvedType != null && resolvedType != sd.Type)
-                {
-                    // Rewrite element path/id prefixes.
-                    var oldPrefix = sd.Type;
-                    sd.Type = resolvedType;
-                    RewriteElementPathPrefixes(sd, oldPrefix, resolvedType);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Attempts to resolve <paramref name="baseDefinition"/> to the canonical URL of a
-    /// compiled StructureDefinition.  Handles both bare entity names and absolute URLs
-    /// whose last path segment is an entity name rather than an id.
-    /// Returns the resolved canonical URL or <c>null</c> when no match is found.
-    /// </summary>
-    private static string? TryResolveBaseDefinitionFromCompiledSds(
-        string baseDefinition, CompilerContext context, Dictionary<string, StructureDefinition> byUrl)
-    {
-        // Try bare entity/id lookup first.
-        if (!IsAbsoluteUrl(baseDefinition))
-        {
-            if (context.CompiledStructureDefinitions.TryGetValue(baseDefinition, out var sd)
-                && !string.IsNullOrEmpty(sd.Url))
-                return sd.Url;
-            return null;
-        }
-
-        // For absolute URLs: check whether a compiled SD's URL exactly matches, or
-        // whether the last segment is an entity name that maps to a compiled SD with a
-        // different URL (entity-name-based URL vs id-based URL).
-        if (byUrl.ContainsKey(baseDefinition)) return null; // Already correct canonical URL.
-
-        var lastSlash = baseDefinition.LastIndexOf('/');
-        if (lastSlash < 0) return null;
-        var lastSegment = baseDefinition[(lastSlash + 1)..];
-
-        // Check if the segment is a known entity name (CamelCase) that resolves to a compiled SD.
-        if (context.CompiledStructureDefinitions.TryGetValue(lastSegment, out var compiledSd)
-            && !string.IsNullOrEmpty(compiledSd.Url)
-            && compiledSd.Url != baseDefinition)
-        {
-            return compiledSd.Url;
-        }
-
-        return null;
-    }
 
     /// <summary>
     /// Post-compilation pass that resolves in-IG ValueSet names used in element bindings to
@@ -3348,210 +3612,6 @@ public static class FshCompiler
             || ed.Example?.Count > 0;
 
         return !hasMeaningfulContent;
-    }
-
-    /// <summary>
-    /// Known canonical positions of FHIR base resource elements (Resource + DomainResource)
-    /// used to ensure differential elements are sorted before extension slices.
-    /// </summary>
-    private static readonly Dictionary<string, int> _fhirBaseElementOrder =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["id"]               = 0,
-            ["meta"]             = 1,
-            ["implicitRules"]    = 2,
-            ["language"]         = 3,
-            ["text"]             = 4,
-            ["contained"]        = 5,
-            ["extension"]        = 6,
-            ["modifierExtension"]= 7,
-        };
-
-    /// <summary>
-    /// Sorts the differential elements of a profile into canonical FHIR path order.
-    /// Elements are grouped by their first-level child name relative to the SD root type
-    /// and ordered by canonical FHIR schema position (id, meta, … extension, then
-    /// resource-specific elements).  Within each group the original FSH source order is
-    /// preserved.  The root element is always kept at position 0.
-    /// </summary>
-    private static void SortDifferentialElementsByCanonicalOrder(
-        StructureDefinition sd, ModelInspector? inspector)
-    {
-        var elements = sd.Differential?.Element;
-        if (elements == null || elements.Count <= 1) return;
-
-        var sdType = sd.Type ?? string.Empty;
-        var pathPrefix = GetElementPathPrefix(sd);
-
-        // Separate the root element so it is always at position 0 after sorting.
-        var roots = elements
-            .Where(e => string.Equals(e.Path, pathPrefix, StringComparison.Ordinal)
-                        && string.IsNullOrEmpty(e.SliceName))
-            .ToList();
-        var nonRoots = elements
-            .Where(e => !(string.Equals(e.Path, pathPrefix, StringComparison.Ordinal)
-                          && string.IsNullOrEmpty(e.SliceName)))
-            .ToList();
-
-        if (roots.Count == 0)
-        {
-            // Fallback: element with no dots in path and no sliceName is the root.
-            var shortest = elements
-                .Where(e => string.IsNullOrEmpty(e.SliceName)
-                            && !string.IsNullOrEmpty(e.Path)
-                            && !e.Path.Contains('.'))
-                .FirstOrDefault();
-            if (shortest != null)
-            {
-                roots = [shortest];
-                nonRoots = elements.Where(e => !ReferenceEquals(e, shortest)).ToList();
-            }
-        }
-
-        // Build canonical index: try ModelInspector first, fall back to the known base table.
-        var canonicalIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        var classMap = inspector?.FindClassMapping(sdType);
-        if (classMap != null)
-        {
-            for (int i = 0; i < classMap.PropertyMappings.Count; i++)
-                canonicalIndex.TryAdd(classMap.PropertyMappings[i].Name, i);
-        }
-
-        // Always seed the base Resource/DomainResource entries from the known order table
-        // so that id/meta/extension are ordered correctly even when classMap is null
-        // or when sdType is a profile URL rather than a bare core FHIR type name.
-        foreach (var (name, pos) in _fhirBaseElementOrder)
-            canonicalIndex.TryAdd(name, pos);
-
-        if (canonicalIndex.Count > 0)
-        {
-            // Sort using a hierarchical tree traversal.  Each element is assigned to its
-            // deepest "ancestor" in the differential (either a named-slice parent or a path
-            // parent), then the tree is traversed pre-order: parent before children, with
-            // children sorted by the first-level canonical FHIR schema position and then by
-            // their original creation order.
-            //
-            // This ensures:
-            //  1. Named slice children appear immediately after their parent slice.
-            //  2. Path sub-elements (e.g. concept.display.extension) appear immediately
-            //     after their path parent (e.g. concept.display).
-            //  3. Top-level siblings are sorted by canonical FHIR schema position.
-
-            var indexed = nonRoots.Select((el, idx) => (el, idx)).ToList();
-            int n = indexed.Count;
-
-            // For each element, find its direct parent (deepest ancestor by match length).
-            var parentOf = new int[n];
-            var childrenOf = new Dictionary<int, List<int>>();
-            var rootElements = new List<int>();
-
-            for (int i = 0; i < n; i++) parentOf[i] = -1;
-
-            for (int i = 0; i < n; i++)
-            {
-                var (el, _) = indexed[i];
-                var elId = el.ElementId ?? el.Path ?? string.Empty;
-                var elPath = el.Path ?? string.Empty;
-                int bestParent = -1;
-                int bestLen = -1;
-
-                for (int j = 0; j < n; j++)
-                {
-                    if (j == i) continue;
-                    var (cand, _) = indexed[j];
-                    int matchLen = -1;
-
-                    // Named-slice parent: cand's slice-qualified id prefix appears in el's id.
-                    if (!string.IsNullOrEmpty(cand.SliceName) && !string.IsNullOrEmpty(cand.Path))
-                    {
-                        var sliceIdPrefix = cand.Path + ":" + cand.SliceName;
-                        if (elId.StartsWith(sliceIdPrefix + ".", StringComparison.Ordinal))
-                            matchLen = sliceIdPrefix.Length;
-                    }
-                    // Path parent: cand's path is a strict prefix of el's path (bare cand only).
-                    else if (string.IsNullOrEmpty(cand.SliceName)
-                             && !string.IsNullOrEmpty(cand.Path)
-                             && elPath.StartsWith(cand.Path + ".", StringComparison.Ordinal))
-                    {
-                        matchLen = cand.Path.Length;
-                    }
-
-                    if (matchLen > bestLen)
-                    {
-                        bestLen = matchLen;
-                        bestParent = j;
-                    }
-                }
-
-                parentOf[i] = bestParent;
-                if (bestParent >= 0)
-                {
-                    if (!childrenOf.TryGetValue(bestParent, out var kids))
-                        childrenOf[bestParent] = kids = new List<int>();
-                    kids.Add(i);
-                }
-                else
-                {
-                    rootElements.Add(i);
-                }
-            }
-
-            // Helper: canonical FHIR first-level position for an element.
-            int FirstLevelPos(ElementDefinition el)
-            {
-                var basePath = el.Path ?? string.Empty;
-                string childName;
-                if (!string.IsNullOrEmpty(sdType) && basePath.StartsWith(sdType + ".", StringComparison.Ordinal))
-                {
-                    var rest = basePath[(sdType.Length + 1)..];
-                    var dot = rest.IndexOf('.');
-                    childName = dot >= 0 ? rest[..dot] : rest;
-                }
-                else
-                {
-                    var dot = basePath.IndexOf('.');
-                    childName = dot >= 0 ? basePath[(dot + 1)..] : basePath;
-                    var innerDot = childName.IndexOf('.');
-                    if (innerDot >= 0) childName = childName[..innerDot];
-                }
-                return canonicalIndex.TryGetValue(childName, out var pos) ? pos : int.MaxValue;
-            }
-
-            // Sort root elements by canonical position, then by original index.
-            rootElements.Sort((a, b) =>
-            {
-                var pa = FirstLevelPos(indexed[a].el);
-                var pb = FirstLevelPos(indexed[b].el);
-                return pa != pb ? pa.CompareTo(pb) : indexed[a].idx.CompareTo(indexed[b].idx);
-            });
-
-            // Sort children of each parent by canonical position, then by original index.
-            foreach (var kids in childrenOf.Values)
-                kids.Sort((a, b) =>
-                {
-                    var pa = FirstLevelPos(indexed[a].el);
-                    var pb = FirstLevelPos(indexed[b].el);
-                    return pa != pb ? pa.CompareTo(pb) : indexed[a].idx.CompareTo(indexed[b].idx);
-                });
-
-            // Pre-order traversal (parent before children).
-            var result = new List<ElementDefinition>(n);
-            void Traverse(int nodeIdx)
-            {
-                result.Add(indexed[nodeIdx].el);
-                if (childrenOf.TryGetValue(nodeIdx, out var kids))
-                    foreach (var child in kids)
-                        Traverse(child);
-            }
-            foreach (var root in rootElements)
-                Traverse(root);
-
-            nonRoots = result;
-        }
-
-        elements.Clear();
-        foreach (var el in roots) elements.Add(el);
-        foreach (var el in nonRoots) elements.Add(el);
     }
 
 
@@ -4401,34 +4461,6 @@ public static class FshCompiler
     {
         var compiled = new AliasResolver(context.CompiledStructureDefinitions);
         return externalResolver == null ? compiled : new MultiResolver(compiled, externalResolver);
-    }
-
-    /// <summary>
-    /// Rewrites <see cref="ElementDefinition.Path"/> and <see cref="ElementDefinition.ElementId"/>
-    /// for all elements whose path starts with <paramref name="oldPrefix"/> followed by <c>'.'</c>
-    /// or exactly equals <paramref name="oldPrefix"/> (root element).
-    /// </summary>
-    private static void RewriteElementPathPrefixes(
-        StructureDefinition sd, string oldPrefix, string newPrefix)
-    {
-        foreach (var el in sd.Differential.Element)
-        {
-            if (el.Path != null)
-            {
-                if (el.Path == oldPrefix)
-                    el.Path = newPrefix;
-                else if (el.Path.StartsWith(oldPrefix + ".", StringComparison.Ordinal))
-                    el.Path = newPrefix + el.Path[oldPrefix.Length..];
-            }
-            if (el.ElementId != null)
-            {
-                if (el.ElementId == oldPrefix)
-                    el.ElementId = newPrefix;
-                else if (el.ElementId.StartsWith(oldPrefix + ".", StringComparison.Ordinal)
-                      || el.ElementId.StartsWith(oldPrefix + ":", StringComparison.Ordinal))
-                    el.ElementId = newPrefix + el.ElementId[oldPrefix.Length..];
-            }
-        }
     }
 
     /// <summary>
@@ -5282,8 +5314,6 @@ public static class FshCompiler
                 Language = mapRule.Language
             });
         }
-
-        ReorderDifferentialByBasePath(sd, context, opts);
     }
 
     /// <summary>
@@ -5388,51 +5418,6 @@ public static class FshCompiler
         }
 
         return null;
-    }
-
-    private static void ReorderDifferentialByBasePath(
-        StructureDefinition sd,
-        CompilerContext context,
-        CompilerOptions? opts)
-    {
-        var elements = sd.Differential?.Element;
-        if (elements == null || elements.Count <= 1) return;
-        if (string.IsNullOrEmpty(sd.BaseDefinition)) return;
-
-        var baseSd = ResolveStructureDefinition(sd.BaseDefinition, context, opts ?? new CompilerOptions());
-        if (baseSd == null) return;
-
-        var baseElements = baseSd.Snapshot?.Element ?? baseSd.Differential?.Element;
-        if (baseElements == null || baseElements.Count == 0) return;
-
-        var basePathOrder = new Dictionary<string, int>(StringComparer.Ordinal);
-        for (int i = 0; i < baseElements.Count; i++)
-        {
-            var p = baseElements[i].Path;
-            if (!string.IsNullOrEmpty(p) && !basePathOrder.ContainsKey(p))
-                basePathOrder[p] = i;
-        }
-
-        var currentRoot = sd.Type ?? string.Empty;
-        var baseRoot = baseSd.Type ?? currentRoot;
-
-        var reordered = elements
-            .Select((ed, idx) => new
-            {
-                Element = ed,
-                Index = idx,
-                BasePath = RewritePathRoot(ed.Path ?? string.Empty, currentRoot, baseRoot)
-            })
-            .OrderBy(x => basePathOrder.TryGetValue(x.BasePath, out var order) ? order : int.MaxValue)
-            .ThenBy(x => x.Index)
-            .Select(x => x.Element)
-            .ToList();
-
-        if (!reordered.SequenceEqual(elements))
-        {
-            elements.Clear();
-            elements.AddRange(reordered);
-        }
     }
 
     // ─── Rule path-prefix helper (C-RL1) ────────────────────────────────────
