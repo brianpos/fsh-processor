@@ -108,7 +108,7 @@ Usage: #definition
             }
             
             // Assert that we successfully parsed at least some files
-            Assert.IsTrue(totalFiles > 0, "Should have successfully parsed at least one file");
+            Assert.IsGreaterThan(0, totalFiles, "Should have successfully parsed at least one file");
         }
 
         [TestMethod]
@@ -144,7 +144,7 @@ Usage: #definition
                     }
                 }
                 
-                Assert.IsTrue(success.Document.Entities.Count > 0, "Should have parsed at least one entity");
+                Assert.IsNotEmpty(success.Document.Entities, "Should have parsed at least one entity");
             }
             else if (result is ParseResult.Failure failure)
             {
@@ -205,7 +205,7 @@ Usage: #definition
                     }
                 }
 
-                Assert.IsTrue(success.Document.Entities.Count > 0, "Should have parsed at least one entity");
+                Assert.IsNotEmpty(success.Document.Entities, "Should have parsed at least one entity");
             }
             else if (result is ParseResult.Failure failure)
             {
@@ -256,7 +256,7 @@ Usage: #definition
                     }
                 }
 
-                Assert.IsTrue(success.Document.Entities.Count > 0, "Should have parsed at least one entity");
+                Assert.IsNotEmpty(success.Document.Entities, "Should have parsed at least one entity");
 
                 var reserialized = FshSerializer.Serialize(success.Document);
 
@@ -313,7 +313,7 @@ Usage: #definition
                     }
                 }
 
-                Assert.IsTrue(success.Document.Entities.Count > 0, "Should have parsed at least one entity");
+                Assert.IsNotEmpty(success.Document.Entities, "Should have parsed at least one entity");
             }
             else if (result is ParseResult.Failure failure)
             {
@@ -366,7 +366,7 @@ Usage: #definition
                     }
                 }
 
-                Assert.IsTrue(success.Document.Entities.Count > 0, "Should have parsed at least one entity");
+                Assert.IsNotEmpty(success.Document.Entities, "Should have parsed at least one entity");
             }
             else if (result is ParseResult.Failure failure)
             {
@@ -413,7 +413,7 @@ Usage: #definition
                     }
                 }
 
-                Assert.IsTrue(success.Document.Entities.Count > 0, "Should have parsed at least one entity");
+                Assert.IsNotEmpty(success.Document.Entities, "Should have parsed at least one entity");
             }
             else if (result is ParseResult.Failure failure)
             {
@@ -480,7 +480,7 @@ Usage: #definition
                     }
                 }
                 
-                Assert.IsTrue(success.Document.Entities.Count > 0, "Should have parsed at least one entity");
+                Assert.IsNotEmpty(success.Document.Entities, "Should have parsed at least one entity");
                 
                 // Verify we got the Logical entity
                 var logicalEntity = success.Document.Entities.OfType<Logical>().FirstOrDefault();
@@ -492,8 +492,8 @@ Usage: #definition
                     .FirstOrDefault(r => r.Path == "gender");
                 Assert.IsNotNull(genderRule, "Should have parsed AddElementRule for gender field");
                 Assert.AreEqual("0..1", genderRule.Cardinality);
-                Assert.IsTrue(genderRule.TargetTypes.Contains("CodeableConcept"), "Should have CodeableConcept as target type");
-                Assert.IsTrue(genderRule.ShortDescription?.Contains("gender") == true, "Should have short description");
+                Assert.Contains("CodeableConcept", genderRule.TargetTypes, "Should have CodeableConcept as target type");
+                Assert.IsTrue(genderRule.ShortDescription?.Contains("gender") ?? false, "Should have short description");
             }
             else if (result is ParseResult.Failure failure)
             {
@@ -534,13 +534,13 @@ RuleSet: item([[linkId]], [[text]], [[type]])
                 Console.WriteLine($"\nParsed {success.Document.Entities.Count} parameterized rule sets:");
                 
                 var ruleSets = success.Document.Entities.OfType<RuleSet>().ToList();
-                Assert.AreEqual(2, ruleSets.Count, "Should have parsed 2 RuleSets");
+                Assert.HasCount(2, ruleSets, "Should have parsed 2 RuleSets");
                 
                 // Check first parameterized rule set
                 var parameterRuleSet = ruleSets[0];
                 Assert.IsTrue(parameterRuleSet.IsParameterized, "First RuleSet should be parameterized");
                 Assert.AreEqual("parameter", parameterRuleSet.Name, "First RuleSet name should be 'parameter'");
-                Assert.AreEqual(6, parameterRuleSet.Parameters.Count, "First RuleSet should have 6 parameters");
+                Assert.HasCount(6, parameterRuleSet.Parameters, "First RuleSet should have 6 parameters");
                 
                 Console.WriteLine($"  RuleSet: {parameterRuleSet.Name}");
                 Console.WriteLine($"    IsParameterized: {parameterRuleSet.IsParameterized}");
@@ -563,7 +563,7 @@ RuleSet: item([[linkId]], [[text]], [[type]])
                 var itemRuleSet = ruleSets[1];
                 Assert.IsTrue(itemRuleSet.IsParameterized, "Second RuleSet should be parameterized");
                 Assert.AreEqual("item", itemRuleSet.Name, "Second RuleSet name should be 'item'");
-                Assert.AreEqual(3, itemRuleSet.Parameters.Count, "Second RuleSet should have 3 parameters");
+                Assert.HasCount(3, itemRuleSet.Parameters, "Second RuleSet should have 3 parameters");
                 
                 Console.WriteLine($"\n  RuleSet: {itemRuleSet.Name}");
                 Console.WriteLine($"    IsParameterized: {itemRuleSet.IsParameterized}");
@@ -614,12 +614,12 @@ RuleSet: item([[linkId]], [[text]], [[type]])
                 Console.WriteLine($"  Regular RuleSets: {ruleSets.Count - parameterizedRuleSets.Count}");
                 Console.WriteLine($"  Parameterized RuleSets: {parameterizedRuleSets.Count}");
                 
-                Assert.IsTrue(parameterizedRuleSets.Count > 0, "Should have at least one parameterized RuleSet");
+                Assert.IsNotEmpty(parameterizedRuleSets, "Should have at least one parameterized RuleSet");
                 
                 // Check the 'parameter' ruleset
                 var parameterRuleSet = parameterizedRuleSets.FirstOrDefault(rs => rs.Name == "parameter");
                 Assert.IsNotNull(parameterRuleSet, "Should have found 'parameter' RuleSet");
-                Assert.AreEqual(6, parameterRuleSet.Parameters.Count, "parameter RuleSet should have 6 parameters");
+                Assert.HasCount(6, parameterRuleSet.Parameters, "parameter RuleSet should have 6 parameters");
                 
                 Console.WriteLine($"\n  RuleSet: {parameterRuleSet.Name}");
                 Console.WriteLine($"    Parameters: {string.Join(", ", parameterRuleSet.Parameters.Select(p => p.Value))}");
@@ -636,7 +636,7 @@ RuleSet: item([[linkId]], [[text]], [[type]])
                 // Check the 'item' ruleset  
                 var itemRuleSet = parameterizedRuleSets.FirstOrDefault(rs => rs.Name == "item");
                 Assert.IsNotNull(itemRuleSet, "Should have found 'item' RuleSet");
-                Assert.AreEqual(4, itemRuleSet.Parameters.Count, "item RuleSet should have 4 parameters");
+                Assert.HasCount(4, itemRuleSet.Parameters, "item RuleSet should have 4 parameters");
                 
                 Console.WriteLine($"\n  RuleSet: {itemRuleSet.Name}");
                 Console.WriteLine($"    Parameters: {string.Join(", ", itemRuleSet.Parameters.Select(p => p.Value))}");

@@ -68,6 +68,6 @@ Parent: Patient
         Console.WriteLine(serialized);
         Console.WriteLine("==================");
         
-        Assert.IsTrue(serialized.Contains("// name is required"), "Inline comments after rules are preserved");
+        Assert.Contains("// name is required", serialized, "Inline comments after rules are preserved");
     }
 }

@@ -23,10 +23,10 @@ public class LogicalTests
         var doc = SushiTestHelper.ParseDoc(@"
             Logical: MyModel
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetLogicals(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetLogicals(doc));
         var logical = SushiTestHelper.GetLogical(doc, "MyModel");
         Assert.AreEqual("MyModel", logical.Name);
-        Assert.AreEqual(0, logical.Rules.Count);
+        Assert.IsEmpty(logical.Rules);
     }
 
     [TestMethod]
@@ -97,7 +97,7 @@ public class LogicalTests
             Characteristics: #can-be-target
         ");
         var logical = SushiTestHelper.GetLogical(doc, "MyModel");
-        Assert.AreEqual(1, logical.Characteristics.Count);
+        Assert.HasCount(1, logical.Characteristics);
         // fsh-processor retains the "#" prefix on characteristic codes.
         Assert.AreEqual("#can-be-target", logical.Characteristics[0]);
     }
@@ -110,7 +110,7 @@ public class LogicalTests
             Characteristics: #can-be-target, #has-range
         ");
         var logical = SushiTestHelper.GetLogical(doc, "MyModel");
-        Assert.AreEqual(2, logical.Characteristics.Count);
+        Assert.HasCount(2, logical.Characteristics);
         // fsh-processor retains the "#" prefix on characteristic codes.
         Assert.AreEqual("#can-be-target", logical.Characteristics[0]);
         Assert.AreEqual("#has-range", logical.Characteristics[1]);
@@ -126,12 +126,12 @@ public class LogicalTests
             * field1 0..1 string ""A string field""
         ");
         var logical = SushiTestHelper.GetLogical(doc, "MyModel");
-        Assert.AreEqual(1, logical.Rules.Count);
+        Assert.HasCount(1, logical.Rules);
         var rule = logical.Rules[0] as AddElementRule;
         Assert.IsNotNull(rule, "Expected AddElementRule");
         Assert.AreEqual("field1", rule.Path);
         Assert.AreEqual("0..1", rule.Cardinality);
-        Assert.AreEqual(1, rule.TargetTypes.Count);
+        Assert.HasCount(1, rule.TargetTypes);
         Assert.AreEqual("string", rule.TargetTypes[0]);
         Assert.AreEqual("A string field", rule.ShortDescription);
     }
@@ -144,12 +144,12 @@ public class LogicalTests
             * field1 0..* Quantity or string ""A multi-type field""
         ");
         var logical = SushiTestHelper.GetLogical(doc, "MyModel");
-        Assert.AreEqual(1, logical.Rules.Count);
+        Assert.HasCount(1, logical.Rules);
         var rule = logical.Rules[0] as AddElementRule;
         Assert.IsNotNull(rule, "Expected AddElementRule");
         Assert.AreEqual("field1", rule.Path);
         Assert.AreEqual("0..*", rule.Cardinality);
-        Assert.AreEqual(2, rule.TargetTypes.Count);
+        Assert.HasCount(2, rule.TargetTypes);
         Assert.AreEqual("Quantity", rule.TargetTypes[0]);
         Assert.AreEqual("string", rule.TargetTypes[1]);
     }
@@ -162,7 +162,7 @@ public class LogicalTests
             * note 0..* string ""Short desc"" ""A longer definition""
         ");
         var logical = SushiTestHelper.GetLogical(doc, "MyModel");
-        Assert.AreEqual(1, logical.Rules.Count);
+        Assert.HasCount(1, logical.Rules);
         var rule = logical.Rules[0] as AddElementRule;
         Assert.IsNotNull(rule, "Expected AddElementRule");
         Assert.AreEqual("Short desc", rule.ShortDescription);
@@ -183,15 +183,15 @@ public class LogicalTests
             * field3 0..1 Quantity or Range ""Multi-type field""
         ");
         var logical = SushiTestHelper.GetLogical(doc, "MyModel");
-        Assert.AreEqual(3, logical.Rules.Count);
+        Assert.HasCount(3, logical.Rules);
         var rules = logical.Rules.OfType<AddElementRule>().ToList();
-        Assert.AreEqual(3, rules.Count, "All rules should be AddElementRules");
+        Assert.HasCount(3, rules, "All rules should be AddElementRules");
         Assert.AreEqual("field1", rules[0].Path);
         Assert.AreEqual("0..1", rules[0].Cardinality);
         Assert.AreEqual("field2", rules[1].Path);
         Assert.AreEqual("1..*", rules[1].Cardinality);
         Assert.AreEqual("field3", rules[2].Path);
-        Assert.AreEqual(2, rules[2].TargetTypes.Count);
+        Assert.HasCount(2, rules[2].TargetTypes);
     }
 
     // ─── #insertRule ─────────────────────────────────────────────────────────

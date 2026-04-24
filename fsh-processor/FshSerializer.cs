@@ -1440,19 +1440,19 @@ public static class FshSerializer
         }
         sb.Append("-> ");
         SerializeQuotedString(sb, rule.Target);
-        
+
+        if (rule.Comment != null)
+        {
+            sb.Append(" ");
+            SerializeQuotedString(sb, rule.Comment);
+        }
+
         if (rule.Language != null)
         {
             sb.Append(" ");
-            SerializeQuotedString(sb, rule.Language);
+            sb.Append(rule.Language);
         }
-        
-        if (rule.Code != null)
-        {
-            sb.Append(" ");
-            sb.Append(rule.Code);
-        }
-        
+
         OutputTrailingHiddenTokens(sb, rule);
         sb.AppendLine();
     }

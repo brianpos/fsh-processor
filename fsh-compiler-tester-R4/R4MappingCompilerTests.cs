@@ -26,7 +26,7 @@ public class R4MappingCompilerTests
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyObservation");
         Assert.IsNotNull(sd.Mapping, "StructureDefinition.mapping should not be null");
-        Assert.AreEqual(1, sd.Mapping.Count);
+        Assert.HasCount(1, sd.Mapping);
         var m = sd.Mapping[0];
         Assert.AreEqual("obs-map", m.Identity);
         Assert.AreEqual("http://hl7.org/v2", m.Uri);
@@ -51,7 +51,7 @@ public class R4MappingCompilerTests
         Assert.IsNotNull(sd.Mapping);
         var rootEd = sd.Differential.Element[0];
         Assert.IsNotNull(rootEd.Mapping, "Root element should have mapping entries");
-        Assert.AreEqual(1, rootEd.Mapping.Count);
+        Assert.HasCount(1, rootEd.Mapping);
         Assert.AreEqual("obs-map", rootEd.Mapping[0].Identity);
         Assert.AreEqual("OBX Segment", rootEd.Mapping[0].Map);
     }
@@ -72,7 +72,7 @@ public class R4MappingCompilerTests
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyObservation");
         var statusEd = CompilerTestHelper.GetElement(sd, "status");
         Assert.IsNotNull(statusEd.Mapping);
-        Assert.AreEqual(1, statusEd.Mapping.Count);
+        Assert.HasCount(1, statusEd.Mapping);
         Assert.AreEqual("obs-map", statusEd.Mapping[0].Identity);
         Assert.AreEqual("OBX-11", statusEd.Mapping[0].Map);
     }
@@ -126,12 +126,31 @@ public class R4MappingCompilerTests
             Id: obs-map
             Source: MyObservation
             Target: ""http://hl7.org/v2""
-            * status -> ""OBX-11"" ""HL7v2 2.6""
+            * status -> ""OBX-11"" #HL7v2_2.6
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyObservation");
         var statusEd = CompilerTestHelper.GetElement(sd, "status");
         Assert.IsNotNull(statusEd.Mapping);
-        Assert.AreEqual("HL7v2 2.6", statusEd.Mapping[0].Language);
+        Assert.AreEqual("HL7v2_2.6", statusEd.Mapping[0].Language);
+    }
+
+    [TestMethod]
+    public void ShouldAddMappingLanguageWhenPresent2()
+    {
+        var resources = CompilerTestHelper.CompileDoc(@"
+            Profile: MyObservation
+            Parent: Observation
+
+            Mapping: ObsMapping
+            Id: obs-map
+            Source: MyObservation
+            Target: ""http://hl7.org/v2""
+            * status -> ""OBX-11"" #text/xpath
+        ");
+        var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyObservation");
+        var statusEd = CompilerTestHelper.GetElement(sd, "status");
+        Assert.IsNotNull(statusEd.Mapping);
+        Assert.AreEqual("text/xpath", statusEd.Mapping[0].Language);
     }
 
     [TestMethod]

@@ -26,11 +26,11 @@ public class RuleSetTests
             RuleSet: OneRuleSet
             * active = true
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "OneRuleSet");
         Assert.AreEqual("OneRuleSet", ruleSet.Name);
         // Verify the single rule is a FixedValueRule assigning active = true.
-        Assert.AreEqual(1, ruleSet.Rules.Count);
+        Assert.HasCount(1, ruleSet.Rules);
         Assert.IsInstanceOfType<FixedValueRule>(ruleSet.Rules[0]);
         var rule = (FixedValueRule)ruleSet.Rules[0];
         Assert.AreEqual("active", rule.Path);
@@ -45,7 +45,7 @@ public class RuleSetTests
             RuleSet: 123
             * active = true
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "123");
         Assert.AreEqual("123", ruleSet.Name);
     }
@@ -59,10 +59,10 @@ public class RuleSetTests
             * active = true (exactly)
             * contact 1..1
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "RuleRuleSet");
         Assert.AreEqual("RuleRuleSet", ruleSet.Name);
-        Assert.AreEqual(3, ruleSet.Rules.Count);
+        Assert.HasCount(3, ruleSet.Rules);
 
         // Strength not checked: our parser stores "" for binding rules without explicit strength
         SushiTestHelper.AssertBindingRule(ruleSet.Rules[0], "gender",
@@ -87,10 +87,10 @@ public class RuleSetTests
             * insert OtherRuleSet
             * contact 1..1
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "RuleRuleSet");
         Assert.AreEqual("RuleRuleSet", ruleSet.Name);
-        Assert.AreEqual(3, ruleSet.Rules.Count);
+        Assert.HasCount(3, ruleSet.Rules);
 
         // Strength not checked: our parser stores "" for binding rules without explicit strength
         SushiTestHelper.AssertBindingRule(ruleSet.Rules[0], "gender",
@@ -108,10 +108,10 @@ public class RuleSetTests
             * contact 1..1
             * newStuff 0..* string ""short for newStuff property""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "RuleRuleSet");
         Assert.AreEqual("RuleRuleSet", ruleSet.Name);
-        Assert.AreEqual(3, ruleSet.Rules.Count);
+        Assert.HasCount(3, ruleSet.Rules);
 
         // Strength not checked: our parser stores "" for binding rules without explicit strength
         SushiTestHelper.AssertBindingRule(ruleSet.Rules[0], "gender",
@@ -137,10 +137,10 @@ public class RuleSetTests
             * contact 1..1
             * newStuff 0..3 contentReference http://example.org/StructureDefinition/Stuff#Stuff.new ""short for newStuff property""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "RuleRuleSet");
         Assert.AreEqual("RuleRuleSet", ruleSet.Name);
-        Assert.AreEqual(3, ruleSet.Rules.Count);
+        Assert.HasCount(3, ruleSet.Rules);
 
         // Strength not checked: our parser stores "" for binding rules without explicit strength
         SushiTestHelper.AssertBindingRule(ruleSet.Rules[0], "gender",
@@ -163,26 +163,26 @@ public class RuleSetTests
             * identifier.system -> ""Patient.identifier.system""
             * identifier.value -> ""Patient.identifier.value"" ""This is a comment"" #code
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "OneRuleSet");
         Assert.AreEqual("OneRuleSet", ruleSet.Name);
-        Assert.AreEqual(2, ruleSet.Rules.Count);
+        Assert.HasCount(2, ruleSet.Rules);
 
         Assert.IsInstanceOfType<MappingMapRule>(ruleSet.Rules[0]);
         var mapRule0 = (MappingMapRule)ruleSet.Rules[0];
         Assert.AreEqual("identifier.system", mapRule0.Path);
         Assert.AreEqual("Patient.identifier.system", mapRule0.Target);
+        Assert.IsNull(mapRule0.Comment);
         Assert.IsNull(mapRule0.Language);
-        Assert.IsNull(mapRule0.Code);
 
         Assert.IsInstanceOfType<MappingMapRule>(ruleSet.Rules[1]);
         var mapRule1 = (MappingMapRule)ruleSet.Rules[1];
         Assert.AreEqual("identifier.value", mapRule1.Path);
         Assert.AreEqual("Patient.identifier.value", mapRule1.Target);
         // SUSHI 'comment' → C# MappingMapRule.Language
-        Assert.AreEqual("This is a comment", mapRule1.Language);
+        Assert.AreEqual("This is a comment", mapRule1.Comment);
         // SUSHI 'language' FshCode → C# MappingMapRule.Code (raw CODE token)
-        Assert.AreEqual("#code", mapRule1.Code);
+        Assert.AreEqual("#code", mapRule1.Language);
     }
 
     [TestMethod]
@@ -195,10 +195,10 @@ public class RuleSetTests
             * #lion
             * #lion ^designation.value = ""Watch out for big cat!""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "RuleRuleSet");
         Assert.AreEqual("RuleRuleSet", ruleSet.Name);
-        Assert.AreEqual(4, ruleSet.Rules.Count);
+        Assert.HasCount(4, ruleSet.Rules);
 
         // rules[0]: binding rule (strength not checked)
         SushiTestHelper.AssertBindingRule(ruleSet.Rules[0], "gender",
@@ -261,22 +261,22 @@ public class RuleSetTests
             * ZOO#bear
             * ZOO#gator ""Alligator""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "VSRuleSet");
-        Assert.AreEqual(2, ruleSet.Rules.Count);
+        Assert.HasCount(2, ruleSet.Rules);
 
         // SUSHI assertConceptRule checks .code stripping system ('bear');
         // C# stores the full code token 'ZOO#bear'.
         Assert.IsInstanceOfType<Concept>(ruleSet.Rules[0]);
         var concept0 = (Concept)ruleSet.Rules[0];
-        Assert.AreEqual(1, concept0.Codes.Count);
+        Assert.HasCount(1, concept0.Codes);
         Assert.AreEqual("ZOO#bear", concept0.Codes[0]);
         Assert.IsNull(concept0.Display);
         Assert.IsNull(concept0.Definition);
 
         Assert.IsInstanceOfType<Concept>(ruleSet.Rules[1]);
         var concept1 = (Concept)ruleSet.Rules[1];
-        Assert.AreEqual(1, concept1.Codes.Count);
+        Assert.HasCount(1, concept1.Codes);
         Assert.AreEqual("ZOO#gator", concept1.Codes[0]);
         Assert.AreEqual("Alligator", concept1.Display);
         Assert.IsNull(concept1.Definition);

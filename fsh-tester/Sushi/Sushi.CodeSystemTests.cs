@@ -16,7 +16,7 @@ public class CodeSystemTests
         var doc = SushiTestHelper.ParseDoc(@"
         CodeSystem: ZOO
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetCodeSystems(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetCodeSystems(doc));
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
         Assert.AreEqual("ZOO", cs.Name);
         // P-CS1: SUSHI defaults Id to the entity Name when not specified.
@@ -37,7 +37,7 @@ public class CodeSystemTests
         Assert.AreEqual("zoo-codes", cs.Id);
         Assert.AreEqual("Zoo Animals", cs.Title);
         Assert.AreEqual("Animals and cryptids that may be at a zoo.", cs.Description);
-        Assert.AreEqual(0, cs.Rules.Count);
+        Assert.IsEmpty(cs.Rules);
     }
 
     [TestMethod]
@@ -74,10 +74,10 @@ public class CodeSystemTests
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
         // P-CS2: SUSHI trims the leading newline from triple-quoted strings.
         Assert.IsNotNull(cs.Description, "Description should be parsed");
-        Assert.IsFalse(cs.Description!.StartsWith("\n"),
-            "Leading newline should be trimmed from triple-quoted multiline strings");
-        Assert.IsTrue(cs.Description.Contains("Animals that may be present"),
-            "Description content should be preserved");
+        Assert.DoesNotStartWith("\n",
+cs.Description, "Leading newline should be trimmed from triple-quoted multiline strings");
+        Assert.Contains("Animals that may be present",
+cs.Description, "Description content should be preserved");
     }
 
     [TestMethod]
@@ -122,9 +122,9 @@ public class CodeSystemTests
         * #lion
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(1, cs.Rules.Count);
+        Assert.HasCount(1, cs.Rules);
         var concept = (Concept)cs.Rules[0];
-        Assert.AreEqual(1, concept.Codes.Count);
+        Assert.HasCount(1, concept.Codes);
         // fsh-processor retains the "#" prefix on concept codes; SUSHI strips it.
         Assert.AreEqual("#lion", concept.Codes[0]);
         Assert.IsNull(concept.Display);
@@ -139,7 +139,7 @@ public class CodeSystemTests
         * #tiger ""Tiger""
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(1, cs.Rules.Count);
+        Assert.HasCount(1, cs.Rules);
         var concept = (Concept)cs.Rules[0];
         // fsh-processor retains the "#" prefix on concept codes; SUSHI strips it.
         Assert.AreEqual("#tiger", concept.Codes[0]);
@@ -155,7 +155,7 @@ public class CodeSystemTests
         * #bear ""Bear"" ""A member of family Ursidae.""
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(1, cs.Rules.Count);
+        Assert.HasCount(1, cs.Rules);
         var concept = (Concept)cs.Rules[0];
         // fsh-processor retains the "#" prefix on concept codes; SUSHI strips it.
         Assert.AreEqual("#bear", concept.Codes[0]);
@@ -174,16 +174,16 @@ public class CodeSystemTests
         """"""
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(1, cs.Rules.Count);
+        Assert.HasCount(1, cs.Rules);
         var concept = (Concept)cs.Rules[0];
         Assert.AreEqual("#bear", concept.Codes[0]);
         Assert.AreEqual("Bear", concept.Display);
         // P-CS2: Leading newline should be trimmed from triple-quoted strings.
         Assert.IsNotNull(concept.Definition, "Definition should be parsed");
-        Assert.IsFalse(concept.Definition!.StartsWith("\n"),
-            "Leading newline should be trimmed from triple-quoted definition");
-        Assert.IsTrue(concept.Definition.Contains("Ursidae"),
-            "Definition content should be preserved");
+        Assert.DoesNotStartWith("\n",
+concept.Definition, "Leading newline should be trimmed from triple-quoted definition");
+        Assert.Contains("Ursidae",
+concept.Definition, "Definition content should be preserved");
     }
 
     [TestMethod]
@@ -196,7 +196,7 @@ public class CodeSystemTests
         * #bear ""Bear"" ""A member of family Ursidae.""
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(3, cs.Rules.Count);
+        Assert.HasCount(3, cs.Rules);
         var c0 = (Concept)cs.Rules[0];
         // fsh-processor retains the "#" prefix on concept codes; SUSHI strips it.
         Assert.AreEqual("#lion", c0.Codes[0]);
@@ -220,22 +220,22 @@ public class CodeSystemTests
         * #bear #sunbear #ursula ""Ursula the sun bear""
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(3, cs.Rules.Count);
+        Assert.HasCount(3, cs.Rules);
 
         var c0 = (Concept)cs.Rules[0];
-        Assert.AreEqual(1, c0.Codes.Count);
+        Assert.HasCount(1, c0.Codes);
         // fsh-processor retains the "#" prefix on concept codes; SUSHI strips it.
         Assert.AreEqual("#bear", c0.Codes[0]);
 
         var c1 = (Concept)cs.Rules[1];
-        Assert.AreEqual(2, c1.Codes.Count);
+        Assert.HasCount(2, c1.Codes);
         Assert.AreEqual("#bear", c1.Codes[0]);
         Assert.AreEqual("#sunbear", c1.Codes[1]);
         Assert.AreEqual("Sun bear", c1.Display);
         Assert.AreEqual("Helarctos malayanus", c1.Definition);
 
         var c2 = (Concept)cs.Rules[2];
-        Assert.AreEqual(3, c2.Codes.Count);
+        Assert.HasCount(3, c2.Codes);
         Assert.AreEqual("#bear", c2.Codes[0]);
         Assert.AreEqual("#sunbear", c2.Codes[1]);
         Assert.AreEqual("#ursula", c2.Codes[2]);
@@ -258,9 +258,9 @@ public class CodeSystemTests
         * ^publisher = ""Matt""
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(1, cs.Rules.Count);
+        Assert.HasCount(1, cs.Rules);
         var rule = (CsCaretValueRule)cs.Rules[0];
-        Assert.AreEqual(0, rule.Codes.Count);
+        Assert.IsEmpty(rule.Codes);
         // fsh-processor retains the "^" prefix on CaretPath; SUSHI strips it.
         Assert.AreEqual("^publisher", rule.CaretPath);
         Assert.IsInstanceOfType<StringValue>(rule.Value);
@@ -276,7 +276,7 @@ public class CodeSystemTests
         * ^publisher = ""Damon""
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(2, cs.Rules.Count);
+        Assert.HasCount(2, cs.Rules);
         var c0 = (Concept)cs.Rules[0];
         // fsh-processor retains the "#" prefix on concept codes; SUSHI strips it.
         Assert.AreEqual("#lion", c0.Codes[0]);
@@ -295,12 +295,12 @@ public class CodeSystemTests
         * #anteater ^property[0].valueString = ""Their threat pose is really cute.""
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(2, cs.Rules.Count);
+        Assert.HasCount(2, cs.Rules);
         var c0 = (Concept)cs.Rules[0];
         // fsh-processor retains the "#" prefix on concept codes; SUSHI strips it.
         Assert.AreEqual("#anteater", c0.Codes[0]);
         var rule = (CsCaretValueRule)cs.Rules[1];
-        Assert.AreEqual(1, rule.Codes.Count);
+        Assert.HasCount(1, rule.Codes);
         Assert.AreEqual("#anteater", rule.Codes[0]);
         // fsh-processor retains the "^" prefix on CaretPath; SUSHI strips it.
         Assert.AreEqual("^property[0].valueString", rule.CaretPath);
@@ -317,16 +317,16 @@ public class CodeSystemTests
         * #anteater #northern ^property[0].valueString = ""They are strong climbers.""
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(3, cs.Rules.Count);
+        Assert.HasCount(3, cs.Rules);
         var c0 = (Concept)cs.Rules[0];
         // fsh-processor retains the "#" prefix on concept codes; SUSHI strips it.
         Assert.AreEqual("#anteater", c0.Codes[0]);
         var c1 = (Concept)cs.Rules[1];
-        Assert.AreEqual(2, c1.Codes.Count);
+        Assert.HasCount(2, c1.Codes);
         Assert.AreEqual("#anteater", c1.Codes[0]);
         Assert.AreEqual("#northern", c1.Codes[1]);
         var rule = (CsCaretValueRule)cs.Rules[2];
-        Assert.AreEqual(2, rule.Codes.Count);
+        Assert.HasCount(2, rule.Codes);
         Assert.AreEqual("#anteater", rule.Codes[0]);
         Assert.AreEqual("#northern", rule.Codes[1]);
         // fsh-processor retains the "^" prefix on CaretPath; SUSHI strips it.
@@ -344,7 +344,7 @@ public class CodeSystemTests
         * #anteater ^extension[1].valueBoolean = true
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "ZOO");
-        Assert.AreEqual(3, cs.Rules.Count);
+        Assert.HasCount(3, cs.Rules);
         var r1 = (CsCaretValueRule)cs.Rules[1];
         // fsh-processor retains the "^" prefix on CaretPath; SUSHI strips it.
         Assert.AreEqual("^extension[0].valueInteger", r1.CaretPath);
@@ -366,10 +366,10 @@ public class CodeSystemTests
         * insert MyRuleSet
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "MyCS");
-        Assert.AreEqual(1, cs.Rules.Count);
+        Assert.HasCount(1, cs.Rules);
         var rule = (CsInsertRule)cs.Rules[0];
         Assert.AreEqual("MyRuleSet", rule.RuleSetReference);
-        Assert.AreEqual(0, rule.Codes.Count);
+        Assert.IsEmpty(rule.Codes);
     }
 
     [TestMethod]
@@ -381,10 +381,10 @@ public class CodeSystemTests
         * #cookie insert MyRuleSet
         ");
         var cs = SushiTestHelper.GetCodeSystem(doc, "MyCS");
-        Assert.AreEqual(2, cs.Rules.Count);
+        Assert.HasCount(2, cs.Rules);
         var rule = (CsInsertRule)cs.Rules[1];
         Assert.AreEqual("MyRuleSet", rule.RuleSetReference);
-        Assert.AreEqual(1, rule.Codes.Count);
+        Assert.HasCount(1, rule.Codes);
         Assert.AreEqual("#cookie", rule.Codes[0]);
     }
 }

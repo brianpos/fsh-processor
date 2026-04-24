@@ -36,7 +36,7 @@ public class AliasTests
             Alias: UCUM = http://unitsofmeasure.org
         ");
 
-        Assert.AreEqual(4, SushiTestHelper.GetAliases(doc).Count);
+        Assert.HasCount(4, SushiTestHelper.GetAliases(doc));
         Assert.AreEqual("http://loinc.org", SushiTestHelper.GetAlias(doc, "LOINC")?.Value);
         Assert.AreEqual("http://snomed.info/sct", SushiTestHelper.GetAlias(doc, "SCT")?.Value);
         Assert.AreEqual("http://www.nlm.nih.gov/research/umls/rxnorm", SushiTestHelper.GetAlias(doc, "RXNORM")?.Value);
@@ -51,7 +51,7 @@ public class AliasTests
             Alias: LOINC = http://loinc.org#1234
         ");
 
-        Assert.AreEqual(1, SushiTestHelper.GetAliases(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetAliases(doc));
         Assert.AreEqual("http://loinc.org#1234", SushiTestHelper.GetAlias(doc, "LOINC")?.Value);
     }
 
@@ -82,7 +82,7 @@ public class AliasTests
         ");
         // ParseDoc succeeds (no parse error). Alias is present.
         var aliases = SushiTestHelper.GetAliases(doc).Where(a => a.Name == "USCoreRace").ToList();
-        Assert.IsTrue(aliases.Count >= 1);
+        Assert.IsGreaterThanOrEqualTo(1, aliases.Count);
         Assert.AreEqual("http://hl7.org/fhir/us/core/StructureDefinition/us-core-race", aliases[0].Value);
     }
 

@@ -284,7 +284,7 @@ public class R4ProfileCompilerTests
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
         var ed = CompilerTestHelper.GetElement(sd, "value[x]");
         Assert.IsNotNull(ed.Type);
-        Assert.AreEqual(1, ed.Type.Count);
+        Assert.HasCount(1, ed.Type);
         Assert.AreEqual("Quantity", ed.Type[0].Code);
     }
 
@@ -298,12 +298,53 @@ public class R4ProfileCompilerTests
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
         var ed = CompilerTestHelper.GetElement(sd, "value[x]");
-        Assert.AreEqual(3, ed.Type.Count);
+        Assert.HasCount(3, ed.Type);
         // Primitive datatypes (lowercase-initial) sort before complex/resource types
         // to match FHIR canonical ordering and sushi output.
         CollectionAssert.AreEqual(
             new[] { "Quantity", "string", "boolean" },
             ed.Type.Select(t => t.Code).ToArray());
+    }
+
+    // ─── Named choice-type variants under inlined BackboneElement children ─────
+
+    /// <summary>
+    /// Validates that named choice-variant detection traverses into BackboneElement
+    /// children whose full element definition is inlined into the containing
+    /// resource SD (rather than defined on the BackboneElement type SD itself).
+    /// Spec reference: Language Reference §"Referring to Choice Elements in FSH Paths"
+    /// (e.g. `ingredient.itemReference` resolves to the Reference variant of the
+    /// inlined `Medication.ingredient.item[x]`).  See docs/language-reference.md §460.
+    ///
+    /// Regression for the type-walker bug where <c>AdvanceChoiceType</c> resolved the
+    /// <c>BackboneElement</c> type SD and found no <c>value[x]</c> child, silently
+    /// disabling variant detection below <c>Questionnaire.item.answerOption</c>.
+    /// Uses the multi-doc <see cref="CompilerTestHelper.CompileDocs"/> path so that a
+    /// core-type resolver is available — the bug is invisible without one because
+    /// <c>ChoiceSliceContext.CoreTypeSd</c> is <c>null</c>.
+    /// </summary>
+    [TestMethod]
+    public void ShouldDetectChoiceVariantUnderInlinedBackboneElement()
+    {
+        var doc = CompilerTestHelper.ParseDoc(@"
+            Profile: MyQuestionnaire
+            Parent: Questionnaire
+            * item.answerOption.valueCoding = #x ""Example""
+        ");
+        var resources = CompilerTestHelper.CompileDocs(doc);
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+
+        // The rule must be routed to the value[x] slicing parent (with type-discriminated
+        // slicing) and a named slice `valueCoding` — NOT to a literal path
+        // `Questionnaire.item.answerOption.valueCoding` (which would be malformed FHIR).
+        var parent = sd.Differential.Element.FirstOrDefault(e =>
+            e.Path == "Questionnaire.item.answerOption.value[x]" && string.IsNullOrEmpty(e.SliceName));
+        Assert.IsNotNull(parent, "Expected value[x] slicing parent under item.answerOption");
+        Assert.IsNotNull(parent.Slicing, "value[x] slicing parent must declare slicing");
+
+        var slice = sd.Differential.Element.FirstOrDefault(e =>
+            e.Path == "Questionnaire.item.answerOption.value[x]" && e.SliceName == "valueCoding");
+        Assert.IsNotNull(slice, "Expected slice 'valueCoding' on item.answerOption.value[x]");
     }
 
     // ─── ObeysRule ───────────────────────────────────────────────────────────
@@ -334,7 +375,7 @@ public class R4ProfileCompilerTests
         // Without path, the constraint is on the root element
         var root = sd.Differential?.Element.First();
         Assert.IsNotNull(root);
-        Assert.IsTrue(root.Constraint?.Any(c => c.Key == "obs-1") == true);
+        Assert.IsTrue(root.Constraint?.Any(c => c.Key == "obs-1") ?? false);
     }
 
     // ─── CaretValueRule ──────────────────────────────────────────────────────
@@ -517,8 +558,8 @@ public class R4ProfileCompilerTests
         // Spec is silent on newline normalization details; pin LF-only output for
         // deterministic sushi parity in strict JSON text comparison tests.
         Assert.IsNotNull(ed.Comment);
-        Assert.IsFalse(ed.Comment.Contains("\r"));
-        Assert.IsTrue(ed.Comment.Contains("\n"));
+        Assert.DoesNotContain("\r", ed.Comment);
+        Assert.Contains("\n", ed.Comment);
     }
 
     [TestMethod]
@@ -681,7 +722,7 @@ public class R4ProfileCompilerTests
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
         var ed = CompilerTestHelper.GetElement(sd, "subject");
         Assert.IsNotNull(ed.Type);
-        Assert.AreEqual(1, ed.Type.Count);
+        Assert.HasCount(1, ed.Type);
         Assert.AreEqual("Reference", ed.Type[0].Code);
         // Bare resource type names are resolved to their core FHIR canonical URL (matches sushi output).
         CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/Patient");
@@ -698,7 +739,7 @@ public class R4ProfileCompilerTests
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
         var ed = CompilerTestHelper.GetElement(sd, "subject");
         Assert.IsNotNull(ed.Type);
-        Assert.AreEqual(1, ed.Type.Count);
+        Assert.HasCount(1, ed.Type);
         Assert.AreEqual("Reference", ed.Type[0].Code);
         Assert.AreEqual(2, ed.Type[0].TargetProfile.Count());
         CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/Patient");
@@ -716,7 +757,7 @@ public class R4ProfileCompilerTests
         var sd = CompilerTestHelper.GetStructureDefinition(resources);
         var ed = CompilerTestHelper.GetElement(sd, "item.answerValueSet");
         Assert.IsNotNull(ed.Type);
-        Assert.AreEqual(1, ed.Type.Count);
+        Assert.HasCount(1, ed.Type);
         Assert.AreEqual("canonical", ed.Type[0].Code);
         CollectionAssert.Contains(ed.Type[0].TargetProfile.ToList(), "http://hl7.org/fhir/StructureDefinition/ValueSet");
     }
@@ -845,7 +886,7 @@ public class R4ProfileCompilerTests
         var sliceEd = CompilerTestHelper.GetSliceElement(sd, "extension", "myExt");
         Assert.AreEqual("myExt", sliceEd.SliceName);
         Assert.IsNotNull(sliceEd.Type, "Slice element should have Type set");
-        Assert.AreEqual(1, sliceEd.Type.Count);
+        Assert.HasCount(1, sliceEd.Type);
         // Per FHIR: a profiled extension slice uses type.code = "Extension" with the
         // extension's canonical URL carried in type.profile.
         Assert.AreEqual("Extension", sliceEd.Type[0].Code);
@@ -907,7 +948,7 @@ public class R4ProfileCompilerTests
 
         var result = Hl7.FhirShorthand.Compiler_r4.R4FshCompiler.Compile(fshDoc);
         Assert.IsTrue(result.IsSuccess, "Should succeed despite unresolved rule set");
-        Assert.IsTrue(result.Warnings.Count > 0, "Should emit at least one warning");
+        Assert.IsNotEmpty(result.Warnings, "Should emit at least one warning");
         Assert.IsTrue(result.Warnings.Any(w => w.Message.Contains("NonExistentRuleSet")),
             "Warning should mention the missing rule set name");
     }

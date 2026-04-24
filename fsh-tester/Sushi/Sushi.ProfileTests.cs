@@ -26,7 +26,7 @@ public class ProfileTests
             Profile: MyPatient
             Parent: Patient
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetProfiles(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetProfiles(doc));
         var profile = SushiTestHelper.GetProfile(doc, "MyPatient");
         Assert.AreEqual("MyPatient", profile.Name);
         Assert.AreEqual("Patient", profile.Parent?.Value);
@@ -117,7 +117,7 @@ public class ProfileTests
             Profile: MyObservation
             Parent: Observation
         ");
-        Assert.AreEqual(2, SushiTestHelper.GetProfiles(doc).Count);
+        Assert.HasCount(2, SushiTestHelper.GetProfiles(doc));
         var p1 = SushiTestHelper.GetProfile(doc, "MyPatient");
         Assert.AreEqual("Patient", p1.Parent?.Value);
         var p2 = SushiTestHelper.GetProfile(doc, "MyObservation");
@@ -136,7 +136,7 @@ public class ProfileTests
             * code 1..1
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(2, profile.Rules.Count);
+        Assert.HasCount(2, profile.Rules);
         SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
         SushiTestHelper.AssertCardRule(profile.Rules[1], "code", "1..1");
     }
@@ -153,7 +153,7 @@ public class ProfileTests
             * status 1..1 MS
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         var cardRule = SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
         CollectionAssert.AreEqual(new[] { "MS" }, cardRule.Flags.ToArray());
     }
@@ -169,7 +169,7 @@ public class ProfileTests
             * status MS
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertFlagRule(profile.Rules[0], "status", "MS");
     }
 
@@ -182,7 +182,7 @@ public class ProfileTests
             * status MS SU
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertFlagRule(profile.Rules[0], "status", "MS", "SU");
     }
 
@@ -197,7 +197,7 @@ public class ProfileTests
             * status from http://hl7.org/fhir/ValueSet/observation-status (required)
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertBindingRule(profile.Rules[0], "status",
             "http://hl7.org/fhir/ValueSet/observation-status", "required");
     }
@@ -211,7 +211,7 @@ public class ProfileTests
             * status from ObservationStatusVS
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertBindingRule(profile.Rules[0], "status", "ObservationStatusVS");
     }
 
@@ -226,7 +226,7 @@ public class ProfileTests
             * category.text = ""Vital Signs""
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         var rule = SushiTestHelper.AssertFixedValueRule(profile.Rules[0], "category.text");
         Assert.IsInstanceOfType<StringValue>(rule.Value);
         Assert.AreEqual("Vital Signs", ((StringValue)rule.Value!).Value);
@@ -242,7 +242,7 @@ public class ProfileTests
             * category.text = ""Vital Signs"" (exactly)
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         var rule = SushiTestHelper.AssertFixedValueRule(profile.Rules[0], "category.text");
         Assert.IsInstanceOfType<StringValue>(rule.Value);
         Assert.AreEqual("Vital Signs", ((StringValue)rule.Value!).Value);
@@ -258,7 +258,7 @@ public class ProfileTests
             * component.valueBoolean = true
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         var rule = SushiTestHelper.AssertFixedValueRule(profile.Rules[0], "component.valueBoolean");
         Assert.IsInstanceOfType<BooleanValue>(rule.Value);
         Assert.IsTrue(((BooleanValue)rule.Value!).Value);
@@ -274,7 +274,7 @@ public class ProfileTests
             * status = #final
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         var rule = SushiTestHelper.AssertFixedValueRule(profile.Rules[0], "status");
         Assert.IsInstanceOfType<Code>(rule.Value);
         // fsh-processor retains the "#" prefix on code values.
@@ -292,7 +292,7 @@ public class ProfileTests
             * value[x] only Quantity
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertOnlyRule(profile.Rules[0], "value[x]", "Quantity");
     }
 
@@ -305,7 +305,7 @@ public class ProfileTests
             * value[x] only Quantity or string or boolean
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertOnlyRule(profile.Rules[0], "value[x]", "Quantity", "string", "boolean");
     }
 
@@ -322,7 +322,7 @@ public class ProfileTests
             * component contains bpSystolic 1..1
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         var rule = SushiTestHelper.AssertContainsRule(profile.Rules[0], "component", "bpSystolic");
         Assert.AreEqual("1..1", rule.Items[0].Cardinality);
     }
@@ -338,7 +338,7 @@ public class ProfileTests
             * status ^short = ""Status""
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         var rule = SushiTestHelper.AssertCaretValueRule(profile.Rules[0], "status", "short");
         Assert.IsInstanceOfType<StringValue>(rule.Value);
         Assert.AreEqual("Status", ((StringValue)rule.Value!).Value);
@@ -353,7 +353,7 @@ public class ProfileTests
             * ^publisher = ""HL7""
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         var rule = SushiTestHelper.AssertCaretValueRule(profile.Rules[0], "", "publisher");
         Assert.IsInstanceOfType<StringValue>(rule.Value);
         Assert.AreEqual("HL7", ((StringValue)rule.Value!).Value);
@@ -370,7 +370,7 @@ public class ProfileTests
             * value[x] obeys obs-1
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertObeysRule(profile.Rules[0], "value[x]", "obs-1");
     }
 
@@ -383,7 +383,7 @@ public class ProfileTests
             * obeys obs-1
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1");
     }
 
@@ -399,7 +399,7 @@ public class ProfileTests
             * obeys obs-1 and obs-2
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertObeysRule(profile.Rules[0], "", "obs-1", "obs-2");
     }
 
@@ -415,7 +415,7 @@ public class ProfileTests
             * component.code 1..1
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(2, profile.Rules.Count);
+        Assert.HasCount(2, profile.Rules);
         SushiTestHelper.AssertPathRule(profile.Rules[0], "component");
         SushiTestHelper.AssertCardRule(profile.Rules[1], "component.code", "1..1");
     }
@@ -431,7 +431,7 @@ public class ProfileTests
             * insert MyRuleSet
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertInsertRule(profile.Rules[0], "", "MyRuleSet");
     }
 
@@ -444,7 +444,7 @@ public class ProfileTests
             * component insert MyRuleSet
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.AreEqual(1, profile.Rules.Count);
+        Assert.HasCount(1, profile.Rules);
         SushiTestHelper.AssertInsertRule(profile.Rules[0], "component", "MyRuleSet");
     }
 
@@ -462,7 +462,7 @@ public class ProfileTests
             * valueQuantity.system = ""http://unitsofmeasure.org""
         ");
         var profile = SushiTestHelper.GetProfile(doc, "MyObservation");
-        Assert.IsTrue(profile.Rules.Count >= 3, "Expected at least 3 rules");
+        Assert.IsGreaterThanOrEqualTo(3, profile.Rules.Count, "Expected at least 3 rules");
         SushiTestHelper.AssertCardRule(profile.Rules[0], "status", "1..1");
     }
 }

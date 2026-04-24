@@ -18,7 +18,7 @@ public class FshFeatureAnalyticsTests
         var sdcPath = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC");
         var fshFiles = Directory.GetFiles(sdcPath, "*.fsh", SearchOption.AllDirectories);
         
-        Assert.IsTrue(fshFiles.Length > 0, $"No FSH files found in {sdcPath}");
+        Assert.IsNotEmpty(fshFiles, $"No FSH files found in {sdcPath}");
 
         // Initialize counters
         var analytics = new FshFeatureAnalytics();
@@ -59,8 +59,8 @@ public class FshFeatureAnalyticsTests
 
         // Assert we parsed most files successfully
         var successRate = ((double)(fshFiles.Length - parseFailures.Count) / fshFiles.Length) * 100;
-        Assert.IsTrue(successRate >= 90, 
-            $"Success rate {successRate:F1}% is below 90%. Failed files: {string.Join(", ", parseFailures.Take(5))}");
+        Assert.IsGreaterThanOrEqualTo(90,
+            successRate, $"Success rate {successRate:F1}% is below 90%. Failed files: {string.Join(", ", parseFailures.Take(5))}");
     }
 }
 

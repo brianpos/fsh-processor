@@ -16,7 +16,7 @@ public class ExtensionTests
         var doc = SushiTestHelper.ParseDoc(@"
         Extension: SomeExtension
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetExtensions(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetExtensions(doc));
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
         Assert.AreEqual("SomeExtension", ext.Name);
         // P-EX1/P-EX2: SUSHI defaults Parent to "Extension" and Id to the entity Name.
@@ -35,14 +35,14 @@ public class ExtensionTests
         Description: ""An extension on something""
         Context: ""some.fhirpath()""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetExtensions(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetExtensions(doc));
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
         Assert.AreEqual("SomeExtension", ext.Name);
         Assert.AreEqual("ParentExtension", ext.Parent);
         Assert.AreEqual("some-extension", ext.Id);
         Assert.AreEqual("Some Extension", ext.Title);
         Assert.AreEqual("An extension on something", ext.Description);
-        Assert.AreEqual(1, ext.Contexts.Count);
+        Assert.HasCount(1, ext.Contexts);
         Assert.AreEqual("some.fhirpath()", ext.Contexts[0].Value);
         Assert.IsTrue(ext.Contexts[0].IsQuoted);
         Assert.AreEqual(ContextItemType.Fhirpath, ext.Contexts[0].Type);
@@ -56,7 +56,7 @@ public class ExtensionTests
         Parent: 456
         Id: 789
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetExtensions(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetExtensions(doc));
         var ext = SushiTestHelper.GetExtension(doc, "123");
         Assert.AreEqual("123", ext.Name);
         Assert.AreEqual("456", ext.Parent);
@@ -74,7 +74,7 @@ public class ExtensionTests
                  ""another.fhirpath(var, 0)""
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(4, ext.Contexts.Count);
+        Assert.HasCount(4, ext.Contexts);
         Assert.AreEqual("some.fhirpath()", ext.Contexts[0].Value);
         Assert.IsTrue(ext.Contexts[0].IsQuoted);
         Assert.AreEqual(ContextItemType.Fhirpath, ext.Contexts[0].Type);
@@ -138,7 +138,7 @@ public class ExtensionTests
         * value[x] 1..1
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(2, ext.Rules.Count);
+        Assert.HasCount(2, ext.Rules);
         SushiTestHelper.AssertCardRule(ext.Rules[0], "extension", "0..0");
         SushiTestHelper.AssertCardRule(ext.Rules[1], "value[x]", "1..1");
     }
@@ -154,7 +154,7 @@ public class ExtensionTests
         * value[x] 1..1 MS N
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(2, ext.Rules.Count);
+        Assert.HasCount(2, ext.Rules);
         SushiTestHelper.AssertCardRule(ext.Rules[0], "extension", "0..0");
         var cardRule = SushiTestHelper.AssertCardRule(ext.Rules[1], "value[x]", "1..1");
         CollectionAssert.AreEqual(new[] { "MS", "N" }, cardRule.Flags.ToArray());
@@ -170,7 +170,7 @@ public class ExtensionTests
         * extension MS
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(1, ext.Rules.Count);
+        Assert.HasCount(1, ext.Rules);
         SushiTestHelper.AssertFlagRule(ext.Rules[0], "extension", "MS");
     }
 
@@ -185,7 +185,7 @@ public class ExtensionTests
         * valueCodeableConcept from ExtensionValueSet (extensible)
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(1, ext.Rules.Count);
+        Assert.HasCount(1, ext.Rules);
         SushiTestHelper.AssertBindingRule(ext.Rules[0], "valueCodeableConcept", "ExtensionValueSet", "extensible");
     }
 
@@ -199,7 +199,7 @@ public class ExtensionTests
         * value[x] = true
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(1, ext.Rules.Count);
+        Assert.HasCount(1, ext.Rules);
         var rule = SushiTestHelper.AssertFixedValueRule(ext.Rules[0], "value[x]");
         Assert.IsInstanceOfType<BooleanValue>(rule.Value);
         Assert.IsTrue(((BooleanValue)rule.Value!).Value);
@@ -214,7 +214,7 @@ public class ExtensionTests
         * value[x] = false (exactly)
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(1, ext.Rules.Count);
+        Assert.HasCount(1, ext.Rules);
         var rule = SushiTestHelper.AssertFixedValueRule(ext.Rules[0], "value[x]");
         Assert.IsInstanceOfType<BooleanValue>(rule.Value);
         Assert.IsFalse(((BooleanValue)rule.Value!).Value);
@@ -231,7 +231,7 @@ public class ExtensionTests
         * value[x] only Quantity
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(1, ext.Rules.Count);
+        Assert.HasCount(1, ext.Rules);
         SushiTestHelper.AssertOnlyRule(ext.Rules[0], "value[x]", "Quantity");
     }
 
@@ -248,7 +248,7 @@ public class ExtensionTests
         * extension contains foo 1..1
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(2, ext.Rules.Count);
+        Assert.HasCount(2, ext.Rules);
         var rule = SushiTestHelper.AssertContainsRule(ext.Rules[1], "extension", "foo");
         Assert.AreEqual("1..1", rule.Items[0].Cardinality);
     }
@@ -264,7 +264,7 @@ public class ExtensionTests
         * extension contains code 1..1
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(2, ext.Rules.Count);
+        Assert.HasCount(2, ext.Rules);
         var rule = SushiTestHelper.AssertContainsRule(ext.Rules[1], "extension", "code");
         Assert.AreEqual("1..1", rule.Items[0].Cardinality);
     }
@@ -280,7 +280,7 @@ public class ExtensionTests
         * extension contains MaxSizeExtension named max 1..1
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(2, ext.Rules.Count);
+        Assert.HasCount(2, ext.Rules);
         var rule = SushiTestHelper.AssertContainsRule(ext.Rules[1], "extension", "MaxSizeExtension");
         Assert.AreEqual("max", rule.Items[0].NamedAlias);
         Assert.AreEqual("1..1", rule.Items[0].Cardinality);
@@ -296,7 +296,7 @@ public class ExtensionTests
         * id ^short = ""foo""
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(1, ext.Rules.Count);
+        Assert.HasCount(1, ext.Rules);
         var rule = SushiTestHelper.AssertCaretValueRule(ext.Rules[0], "id", "short");
         Assert.IsInstanceOfType<StringValue>(rule.Value);
         Assert.AreEqual("foo", ((StringValue)rule.Value!).Value);
@@ -314,7 +314,7 @@ public class ExtensionTests
         * extension obeys inv-1 and inv-2
         ");
         var ext = SushiTestHelper.GetExtension(doc, "SomeExtension");
-        Assert.AreEqual(1, ext.Rules.Count);
+        Assert.HasCount(1, ext.Rules);
         SushiTestHelper.AssertObeysRule(ext.Rules[0], "extension", "inv-1", "inv-2");
     }
 
@@ -328,7 +328,7 @@ public class ExtensionTests
         * insert MyRuleSet
         ");
         var ext = SushiTestHelper.GetExtension(doc, "MyExtension");
-        Assert.AreEqual(1, ext.Rules.Count);
+        Assert.HasCount(1, ext.Rules);
         SushiTestHelper.AssertInsertRule(ext.Rules[0], "", "MyRuleSet");
     }
 }

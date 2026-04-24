@@ -30,7 +30,7 @@ public class InvariantTests
             Severity: #error
             Description: ""This does not actually require anything.""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInvariants(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInvariants(doc));
         var invariant = SushiTestHelper.GetInvariant(doc, "emp-1");
         Assert.AreEqual("emp-1", invariant.Name);
         // Our parser stores the raw CODE token including '#'
@@ -47,7 +47,7 @@ public class InvariantTests
             Severity: #error
             Description: ""This does not actually require anything.""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInvariants(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInvariants(doc));
         var invariant = SushiTestHelper.GetInvariant(doc, "123");
         Assert.AreEqual("123", invariant.Name);
     }
@@ -62,7 +62,7 @@ public class InvariantTests
             XPath: ""exists(f:cage) and exists(f:aquarium)""
             Severity: #error
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInvariants(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInvariants(doc));
         var invariant = SushiTestHelper.GetInvariant(doc, "full-1");
         Assert.AreEqual("full-1", invariant.Name);
         Assert.AreEqual("This resource must define a cage and aquarium.", invariant.Description);
@@ -132,12 +132,12 @@ public class InvariantTests
             * requirements = ""This invariant exists because I willed it so.""
             * expression = ""name.exists()""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInvariants(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInvariants(doc));
         var invariant = SushiTestHelper.GetInvariant(doc, "rules-1");
         Assert.AreEqual("rules-1", invariant.Name);
         Assert.AreEqual("#error", invariant.Severity);
         Assert.AreEqual("This has some rules.", invariant.Description);
-        Assert.AreEqual(2, invariant.Rules.Count);
+        Assert.HasCount(2, invariant.Rules);
 
         var rule0 = (InvariantFixedValueRule)invariant.Rules[0];
         Assert.AreEqual("requirements", rule0.Path);
@@ -161,9 +161,9 @@ public class InvariantTests
             Description: ""This has a rule.""
             * source = SOURCE
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInvariants(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInvariants(doc));
         var invariant = SushiTestHelper.GetInvariant(doc, "rules-2");
-        Assert.AreEqual(1, invariant.Rules.Count);
+        Assert.HasCount(1, invariant.Rules);
         var rule = (InvariantFixedValueRule)invariant.Rules[0];
         Assert.AreEqual("source", rule.Path);
         // Alias not resolved; raw name token stored as NameValue
@@ -185,10 +185,10 @@ public class InvariantTests
             Description: ""This has a rule.""
             * requirements
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInvariants(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInvariants(doc));
         var invariant = SushiTestHelper.GetInvariant(doc, "rules-3");
         // Our parser keeps the path rule (SUSHI discards it)
-        Assert.AreEqual(1, invariant.Rules.Count);
+        Assert.HasCount(1, invariant.Rules);
         Assert.IsInstanceOfType<InvariantPathRule>(invariant.Rules[0]);
         Assert.AreEqual("requirements", invariant.Rules[0].Path);
     }
@@ -208,7 +208,7 @@ public class InvariantTests
         ");
         var invariant = SushiTestHelper.GetInvariant(doc, "inv-path");
         // PathRule sets context; FixedValueRule gets composed path.
-        Assert.AreEqual(2, invariant.Rules.Count);
+        Assert.HasCount(2, invariant.Rules);
         Assert.IsInstanceOfType<InvariantPathRule>(invariant.Rules[0]);
         Assert.AreEqual("component", invariant.Rules[0].Path);
         Assert.IsInstanceOfType<InvariantFixedValueRule>(invariant.Rules[1]);
@@ -233,7 +233,7 @@ public class InvariantTests
         ");
         var invariant = SushiTestHelper.GetInvariant(doc, "inv-soft");
         // 6 rules: 2 PathRules + 4 FixedValueRules
-        Assert.AreEqual(6, invariant.Rules.Count);
+        Assert.HasCount(6, invariant.Rules);
         // First [+] → identifier[0]
         Assert.AreEqual("identifier[0]", invariant.Rules[0].Path);
         Assert.AreEqual("identifier[0].system", invariant.Rules[1].Path);
@@ -257,9 +257,9 @@ public class InvariantTests
             Description: ""This has a rule.""
             * insert MyRuleSet
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInvariants(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInvariants(doc));
         var invariant = SushiTestHelper.GetInvariant(doc, "rules-4");
-        Assert.AreEqual(1, invariant.Rules.Count);
+        Assert.HasCount(1, invariant.Rules);
         var rule = (InvariantInsertRule)invariant.Rules[0];
         // SUSHI assertInsertRule uses path='' for no path; our model uses null
         Assert.IsNull(rule.Path);

@@ -55,7 +55,7 @@ public class DebugQuoteTests
             Console.WriteLine("=== SERIALIZED CONTENT (first 50 lines) ===");
             for (int i = 0; i < Math.Min(50, lines.Length); i++)
             {
-                Console.WriteLine($"{i+1:D3}: {lines[i]}");
+                Console.WriteLine($"{i + 1:D3}: {lines[i]}");
             }
         }
         
@@ -103,7 +103,7 @@ public class DebugQuoteTests
             Console.WriteLine("=== SERIALIZED CONTENT (first 50 lines) ===");
             for (int i = 0; i < Math.Min(50, lines.Length); i++)
             {
-                Console.WriteLine($"{i+1:D3}: {lines[i]}");
+                Console.WriteLine($"{i + 1:D3}: {lines[i]}");
             }
         }
         
