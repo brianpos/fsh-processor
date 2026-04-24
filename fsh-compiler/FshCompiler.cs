@@ -461,6 +461,7 @@ public static class FshCompiler
         RemoveRedundantCardinalityAgainstBase(sd, context, opts);
         RemoveRedundantTypeConstraints(sd, context, opts);
         RemoveRedundantSlicingAgainstBase(sd, context, opts);
+        RemoveRedundantExtensionSlicingOnChoiceValue(sd, context, opts);
         RemoveNoOpScaffoldElements(sd);
         return sd;
     }
@@ -2928,16 +2929,32 @@ public static class FshCompiler
 
         var segments = path.Split('.');
         var fhirPathSegments = new List<string>(segments.Length);
+        var hasSliceInPath = false;
 
         foreach (var seg in segments)
         {
             var colon = seg.IndexOf(':');
+            if (colon >= 0) hasSliceInPath = true;
             fhirPathSegments.Add(colon < 0 ? seg : seg[..colon]);
         }
 
         var fhirPath = string.IsNullOrEmpty(type)
             ? string.Join('.', fhirPathSegments)
             : $"{type}.{string.Join('.', fhirPathSegments)}";
+
+        // When the path references one or more named slice ancestors (e.g.
+        // `extension:itemMaxOccurs.value[x].extension`), multiple elements may share the
+        // same FHIR Path while residing under different slice branches.  Match by
+        // ElementId so the bare element for the correct slice ancestry is returned
+        // (see ApplyContainsRule which relies on this to avoid re-using another slice's
+        // slicing parent).
+        if (hasSliceInPath)
+        {
+            var elementId = string.IsNullOrEmpty(type)
+                ? string.Join('.', segments)
+                : $"{type}.{string.Join('.', segments)}";
+            return sd.Differential.Element.FirstOrDefault(e => e.ElementId == elementId && e.SliceName == null);
+        }
 
         return sd.Differential.Element.FirstOrDefault(e => e.Path == fhirPath && e.SliceName == null);
     }
@@ -4404,6 +4421,119 @@ public static class FshCompiler
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Removes a bare slicing-only element at a <c>.value[x].extension</c> path when the
+    /// containing named-extension slice's profile resolves to a <c>value[x]</c> whose type
+    /// is either multi-valued (choice over several types) or a complex (non-primitive)
+    /// FHIR type (e.g. <c>Quantity</c>, <c>Coding</c>).  In those situations sushi does
+    /// not emit the bare slicing element in the differential — only the named slice itself
+    /// appears — so matching sushi requires pruning the redundant parent here.  The
+    /// slicing discriminator is <c>value</c>/<c>url</c> (the standard extension
+    /// discriminator) and carries no other constraints, so removal is safe.
+    /// </summary>
+    private static void RemoveRedundantExtensionSlicingOnChoiceValue(
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        var elements = sd.Differential?.Element;
+        if (elements == null || elements.Count == 0) return;
+
+        // Snapshot to a list we can safely mutate from.
+        var toRemove = new List<ElementDefinition>();
+        foreach (var ed in elements)
+        {
+            if (ed.Path == null) continue;
+            if (!ed.Path.EndsWith(".value[x].extension", StringComparison.Ordinal)) continue;
+            if (!string.IsNullOrEmpty(ed.SliceName)) continue;
+            if (ed.Slicing == null) continue;
+
+            // Only consider bare slicing-only elements — if there's other meaningful content
+            // we should keep them (rare, but be conservative).
+            if (HasMeaningfulContentBeyondSlicing(ed)) continue;
+
+            if (!ContainingExtensionValueXIsChoiceOrComplex(ed, sd, context, opts)) continue;
+
+            toRemove.Add(ed);
+        }
+
+        foreach (var ed in toRemove)
+            elements.Remove(ed);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the element at <paramref name="ed"/> (whose path ends
+    /// with <c>.value[x].extension</c>) resides under a named extension slice whose
+    /// referenced extension definition declares a <c>value[x]</c> with either multiple
+    /// allowed types or a complex (non-primitive) type.
+    /// </summary>
+    private static bool ContainingExtensionValueXIsChoiceOrComplex(
+        ElementDefinition ed,
+        StructureDefinition sd,
+        CompilerContext context,
+        CompilerOptions opts)
+    {
+        // ed.ElementId shape: "<root>.<...>extension:<slice>.value[x].extension"
+        // Locate the last ":<slice>.value[x].extension" suffix and resolve <slice>'s profile.
+        var id = ed.ElementId;
+        if (string.IsNullOrEmpty(id)) return false;
+
+        const string suffix = ".value[x].extension";
+        if (!id.EndsWith(suffix, StringComparison.Ordinal)) return false;
+
+        var head = id[..^suffix.Length];                     // ends with ":<slice>" or "<seg>"
+        var lastColon = head.LastIndexOf(':');
+        if (lastColon < 0) return false;                     // no containing named slice
+
+        var containingSliceId = head;                        // full id of the named slice element
+        var sliceEl = sd.Differential.Element.FirstOrDefault(e => e.ElementId == containingSliceId);
+        var profileUrl = sliceEl?.Type?.FirstOrDefault()?.Profile?.FirstOrDefault();
+        if (string.IsNullOrEmpty(profileUrl)) return false;
+
+        var extSd = ResolveStructureDefinition(profileUrl, context, opts);
+        if (extSd == null) return false;
+
+        var valueX = extSd.Snapshot?.Element?.FirstOrDefault(e => e.Path == "Extension.value[x]")
+                  ?? extSd.Differential?.Element?.FirstOrDefault(e => e.Path == "Extension.value[x]");
+        var types = valueX?.Type;
+        if (types == null || types.Count == 0) return false;
+
+        // Multi-typed value[x] → choice → sushi does not emit the bare slicing parent.
+        if (types.Count > 1) return true;
+
+        // Single-typed value[x] — treat as complex when the type name is an uppercase
+        // FHIR type (primitives always start with a lowercase letter).
+        var typeName = types[0].Code;
+        return !string.IsNullOrEmpty(typeName) && char.IsUpper(typeName[0]);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="ed"/> carries differential content beyond
+    /// its <see cref="ElementDefinition.Slicing"/> component.  Used to guard pruning of
+    /// slicing-only elements: if anything else is set, the element must be kept.
+    /// </summary>
+    private static bool HasMeaningfulContentBeyondSlicing(ElementDefinition ed)
+    {
+        return !string.IsNullOrEmpty(ed.Short)
+            || !string.IsNullOrEmpty(ed.Definition)
+            || !string.IsNullOrEmpty(ed.Comment)
+            || !string.IsNullOrEmpty(ed.Requirements)
+            || ed.Binding != null
+            || ed.Type?.Count > 0
+            || ed.Constraint?.Count > 0
+            || ed.Mapping?.Count > 0
+            || ed.Extension?.Count > 0
+            || ed.MinElement != null
+            || ed.MaxElement != null
+            || ed.MustSupportElement != null
+            || ed.IsModifierElement != null
+            || ed.IsSummaryElement != null
+            || ed.Fixed != null
+            || ed.Pattern != null
+            || ed.DefaultValue != null
+            || ed.Example?.Count > 0;
     }
 
     /// <summary>
