@@ -2934,7 +2934,15 @@ public static class FshCompiler
         bool hasSliceInPath = false;
 
         var choiceCtx = sd.Annotation<ChoiceSliceContext>();
-        string? currentType = sd.Type;
+        // Track the current walk position as a (containingSd, elementId, typeName) triple
+        // so that inlined child elements on the core type SD (e.g. the inlined
+        // `Questionnaire.item.answer.value[x]` under the BackboneElement-typed `item.answer`)
+        // are detected before falling back to the declared type's own SD.
+        TypeLocation? currentLoc = choiceCtx?.CoreTypeSd != null && !string.IsNullOrEmpty(sd.Type)
+            ? new TypeLocation(choiceCtx.CoreTypeSd, sd.Type, sd.Type)
+            : !string.IsNullOrEmpty(sd.Type)
+                ? new TypeLocation(null, sd.Type, sd.Type)
+                : (TypeLocation?)null;
         string? terminalVariantName = null;
         string? terminalVariantType = null;
         List<(string fullChoicePath, string typeName)>? slicingParentsToEmit = null;
@@ -2955,13 +2963,13 @@ public static class FshCompiler
                 trailingSliceName = isTerminal ? sliceName : null;
 
                 // Advance type across this segment using the field (base) name.
-                currentType = AdvanceChoiceType(currentType, baseName, choiceCtx);
+                currentLoc = AdvanceChoiceType(currentLoc, baseName, choiceCtx);
                 continue;
             }
 
             // Try inline choice-type variant detection: does `seg` match `<base>X`
             // where the current type defines `<base>[x]` with `X` as one of its types?
-            var variant = DetectChoiceVariant(currentType, seg, choiceCtx);
+            var variant = DetectChoiceVariant(currentLoc, seg, choiceCtx);
             if (variant != null)
             {
                 var (choiceBase, typeName) = variant.Value;
@@ -2987,16 +2995,19 @@ public static class FshCompiler
                     terminalVariantType = typeName;
                 }
 
-                // Advance type to the variant type (e.g. CodeableConcept) so sub-segments
-                // below a choice-variant slice resolve under the chosen concrete type.
-                currentType = typeName;
+                // Advance into the variant's concrete type.  The containing SD's inlined
+                // snapshot rarely has children under `X[x]` variant slices, so switch to
+                // the variant type's SD for subsequent walk steps.
+                currentLoc = choiceCtx != null
+                    ? new TypeLocation(ResolveTypeSd(typeName, choiceCtx), typeName, typeName)
+                    : null;
             }
             else
             {
                 fhirPathSegments.Add(seg);
                 elementIdSegments.Add(seg);
                 trailingSliceName = null;
-                currentType = AdvanceChoiceType(currentType, seg, choiceCtx);
+                currentLoc = AdvanceChoiceType(currentLoc, seg, choiceCtx);
             }
         }
 
@@ -3758,12 +3769,20 @@ public static class FshCompiler
         public HashSet<string> HandledSlicingParents { get; } = new(StringComparer.Ordinal);
 
         /// <summary>
-        /// Cache keyed by parent FHIR type name (e.g. <c>UsageContext</c>).  Value is the
-        /// pre-computed variant lookup for that type: variant segment (e.g. <c>valueCoding</c>)
-        /// → (<c>choiceBase</c> = "value[x]", <c>typeName</c> = "Coding").  Types with no
-        /// <c>X[x]</c> properties are cached as an empty dictionary.  Built once per type
-        /// by enumerating the type SD's elements; no per-segment string splitting is ever
-        /// performed.
+        /// Cache of pre-computed variant lookups.  Keys use a two-space format to
+        /// distinguish the two sources of <c>X[x]</c> children:
+        /// <list type="bullet">
+        ///   <item><c>"id:{elementId}"</c> — variants gathered by scanning forward from
+        ///     <c>{elementId}</c> in a containing SD's element list (picks up inlined
+        ///     BackboneElement children, e.g. <c>Questionnaire.item.answer.value[x]</c>).</item>
+        ///   <item><c>"type:{typeName}"</c> — variants gathered from the root of the
+        ///     named type's SD (fallback used when the containing SD has no inlined
+        ///     children at the current position, e.g. walking through a named complex
+        ///     type like <c>Quantity</c>).</item>
+        /// </list>
+        /// Value is the variant lookup: variant segment (e.g. <c>valueCoding</c>)
+        /// → (<c>choiceBase</c> = "value[x]", <c>typeName</c> = "Coding").  Empty maps
+        /// are cached for locations with no <c>X[x]</c> properties.
         /// </summary>
         public Dictionary<string, Dictionary<string, (string ChoiceBase, string TypeName)>> VariantMapCache { get; }
             = new(StringComparer.Ordinal);
@@ -3820,68 +3839,136 @@ public static class FshCompiler
     }
 
     /// <summary>
+    /// Represents a navigation position during FSH path-walk type resolution.  Carries:
+    /// <list type="bullet">
+    ///   <item><see cref="ContainingSd"/> — the SD whose element list is currently being
+    ///     scanned for inlined children (typically the core type SD for the root of the
+    ///     SD being compiled, or a data-type SD once the walk descends into a named
+    ///     complex type).  May be <c>null</c> if unresolvable.</item>
+    ///   <item><see cref="ElementId"/> — the <c>ElementDefinition.ElementId</c> of the
+    ///     current position inside <see cref="ContainingSd"/>.  Used to locate inlined
+    ///     children by prefix match on subsequent elements' ElementIds.</item>
+    ///   <item><see cref="TypeName"/> — the declared FHIR type code at the current
+    ///     position; used as a fallback when the containing SD has no inlined children
+    ///     at this location (e.g. traversing into a named complex type whose children
+    ///     are not inlined into the outer snapshot).</item>
+    /// </list>
+    /// </summary>
+    private readonly record struct TypeLocation(
+        StructureDefinition? ContainingSd,
+        string ElementId,
+        string TypeName);
+
+    /// <summary>
     /// Detects whether <paramref name="segment"/> is a named choice-type variant of some
-    /// <c>&lt;base&gt;[x]</c> property on <paramref name="currentType"/>.  Uses a precomputed
-    /// per-type variant lookup (built by enumerating the type's <c>X[x]</c> elements and
-    /// their declared type codes) and does an exact dictionary lookup — no base/type
-    /// name splitting is performed.  Returns <c>(choiceBase, typeName)</c> on match, else
-    /// <c>null</c>.
+    /// <c>&lt;base&gt;[x]</c> property at <paramref name="location"/>.  Variants are looked
+    /// up first against inlined children of the current element (elements whose
+    /// <c>ElementId</c> starts with <paramref name="location"/>.<see cref="TypeLocation.ElementId"/>
+    /// + <c>'.'</c>) and only fall back to the declared type's SD when no inlined
+    /// children exist.  Returns <c>(choiceBase, typeName)</c> on match, else <c>null</c>.
     /// </summary>
     private static (string ChoiceBase, string TypeName)? DetectChoiceVariant(
-        string? currentType, string segment, ChoiceSliceContext? ctx)
+        TypeLocation? location, string segment, ChoiceSliceContext? ctx)
     {
-        if (ctx == null || string.IsNullOrEmpty(currentType) || string.IsNullOrEmpty(segment))
+        if (ctx == null || location is null || string.IsNullOrEmpty(segment))
             return null;
 
-        var map = GetOrBuildVariantMap(currentType, ctx);
+        var map = GetOrBuildVariantMap(location.Value, ctx);
         if (map.Count == 0) return null;
         return map.TryGetValue(segment, out var hit) ? hit : null;
     }
 
     /// <summary>
-    /// Returns (building and caching on first access) the variant-name lookup for
-    /// <paramref name="currentType"/>: maps each <c>&lt;base&gt;&lt;TypeCode&gt;</c> variant
-    /// name (e.g. <c>valueCoding</c>) to its <c>(&lt;base&gt;[x], TypeCode)</c> pair.  Only
-    /// <c>X[x]</c> elements that are immediate children of <paramref name="currentType"/>'s
-    /// root are considered; each declared type on the <c>X[x]</c> element contributes one
-    /// entry.  An empty map is returned (and cached) for types without any <c>[x]</c>
-    /// properties.
+    /// Returns (building and caching on first access) the variant-name lookup for the
+    /// children of <paramref name="location"/>.  Prefers inlined children in
+    /// <see cref="TypeLocation.ContainingSd"/> (gathered by scanning forward from the
+    /// current <see cref="TypeLocation.ElementId"/> until an element's id no longer has
+    /// that prefix) — this is what picks up backbone-element children like
+    /// <c>Questionnaire.item.answer.value[x]</c> that live on the containing SD, not on
+    /// the <c>BackboneElement</c> type SD.  Falls back to the declared
+    /// <see cref="TypeLocation.TypeName"/>'s own root elements when no inlined children
+    /// exist.  Maps each <c>&lt;base&gt;&lt;TypeCode&gt;</c> variant name (e.g.
+    /// <c>valueCoding</c>) to its <c>(&lt;base&gt;[x], TypeCode)</c> pair.  Only immediate
+    /// (one-segment-deep) <c>X[x]</c> children are considered; each declared type on the
+    /// <c>X[x]</c> element contributes one entry.
     /// </summary>
     private static Dictionary<string, (string ChoiceBase, string TypeName)> GetOrBuildVariantMap(
-        string currentType, ChoiceSliceContext ctx)
+        TypeLocation location, ChoiceSliceContext ctx)
     {
-        if (ctx.VariantMapCache.TryGetValue(currentType, out var cached)) return cached;
+        // 1) Preferred source: inlined children of the current element in the containing SD.
+        if (location.ContainingSd != null && !string.IsNullOrEmpty(location.ElementId))
+        {
+            var inlineKey = "id:" + location.ElementId;
+            if (ctx.VariantMapCache.TryGetValue(inlineKey, out var cachedInline)) return cachedInline;
 
+            var inlineMap = BuildVariantMapFromInlineChildren(location.ContainingSd, location.ElementId);
+            if (inlineMap.Count > 0)
+            {
+                ctx.VariantMapCache[inlineKey] = inlineMap;
+                return inlineMap;
+            }
+            // Cache the empty result under the inline key so we don't re-scan, but still
+            // consult the type-SD fallback below for this call.
+            ctx.VariantMapCache[inlineKey] = inlineMap;
+        }
+
+        // 2) Fallback: root elements of the declared type's SD.
+        if (string.IsNullOrEmpty(location.TypeName))
+            return new Dictionary<string, (string ChoiceBase, string TypeName)>(StringComparer.Ordinal);
+
+        var typeKey = "type:" + location.TypeName;
+        if (ctx.VariantMapCache.TryGetValue(typeKey, out var cachedType)) return cachedType;
+
+        var typeSd = ResolveTypeSd(location.TypeName, ctx);
+        var typeMap = typeSd == null
+            ? new Dictionary<string, (string ChoiceBase, string TypeName)>(StringComparer.Ordinal)
+            : BuildVariantMapFromInlineChildren(typeSd, location.TypeName);
+        ctx.VariantMapCache[typeKey] = typeMap;
+        return typeMap;
+    }
+
+    /// <summary>
+    /// Builds a variant map by scanning <paramref name="sd"/>'s element list (snapshot
+    /// preferred, differential as fallback) forward from the element with ElementId
+    /// <paramref name="parentElementId"/> and collecting its immediate <c>X[x]</c>
+    /// children.  The scan short-circuits as soon as an element is found whose ElementId
+    /// no longer starts with <c>parentElementId + "."</c>, making it efficient even for
+    /// very large snapshots.
+    /// </summary>
+    private static Dictionary<string, (string ChoiceBase, string TypeName)>
+        BuildVariantMapFromInlineChildren(StructureDefinition sd, string parentElementId)
+    {
         var map = new Dictionary<string, (string ChoiceBase, string TypeName)>(StringComparer.Ordinal);
-        var typeSd = ResolveTypeSd(currentType, ctx);
-        if (typeSd == null)
-        {
-            ctx.VariantMapCache[currentType] = map;
-            return map;
-        }
+        var elements = (IEnumerable<ElementDefinition>?)sd.Snapshot?.Element
+                    ?? sd.Differential?.Element;
+        if (elements == null) return map;
 
-        var elements = (IEnumerable<ElementDefinition>?)typeSd.Snapshot?.Element
-                    ?? typeSd.Differential?.Element;
-        if (elements == null)
-        {
-            ctx.VariantMapCache[currentType] = map;
-            return map;
-        }
-
-        var prefix = currentType + ".";
+        var prefix = parentElementId + ".";
+        bool seenParent = false;
         foreach (var el in elements)
         {
-            var elPath = el.Path;
-            if (string.IsNullOrEmpty(elPath)) continue;
-            if (!elPath.EndsWith("[x]", StringComparison.Ordinal)) continue;
-            if (!elPath.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            var elId = el.ElementId;
+            if (string.IsNullOrEmpty(elId)) continue;
 
-            var relPath = elPath[prefix.Length..];
-            // Only immediate-child [x] properties (no further dots).
-            if (relPath.Contains('.')) continue;
+            if (!seenParent)
+            {
+                if (elId == parentElementId) seenParent = true;
+                continue;
+            }
 
-            var choiceBase = relPath;               // e.g. "value[x]"
-            var baseName = relPath[..^3];           // strip "[x]" → "value"
+            // Stop at the first element outside the parent's subtree.
+            if (!elId.StartsWith(prefix, StringComparison.Ordinal)) break;
+
+            var rel = elId[prefix.Length..];
+            // Only immediate-child [x] properties (no further '.' in the relative id).
+            if (rel.Contains('.')) continue;
+            // Strip any slice-name suffix (e.g. "value[x]:valueCoding") before shape-matching.
+            var colonIdx = rel.IndexOf(':');
+            if (colonIdx >= 0) rel = rel[..colonIdx];
+            if (!rel.EndsWith("[x]", StringComparison.Ordinal)) continue;
+
+            var choiceBase = rel;                   // e.g. "value[x]"
+            var baseName = rel[..^3];               // strip "[x]" → "value"
 
             if (el.Type == null) continue;
             foreach (var typeRef in el.Type)
@@ -3894,30 +3981,135 @@ public static class FshCompiler
             }
         }
 
-        ctx.VariantMapCache[currentType] = map;
+        // If we never encountered the parent element (e.g. scanning a type SD whose root
+        // id differs from parentElementId), do a second pass treating the first element
+        // as the implicit root.  This keeps the original type-SD behavior intact.
+        if (!seenParent && elements.Any())
+        {
+            var firstId = elements.First().ElementId;
+            if (!string.IsNullOrEmpty(firstId))
+            {
+                var altPrefix = firstId + ".";
+                foreach (var el in elements)
+                {
+                    var elId = el.ElementId;
+                    if (string.IsNullOrEmpty(elId) || !elId.StartsWith(altPrefix, StringComparison.Ordinal)) continue;
+                    var rel = elId[altPrefix.Length..];
+                    if (rel.Contains('.')) continue;
+                    var colonIdx = rel.IndexOf(':');
+                    if (colonIdx >= 0) rel = rel[..colonIdx];
+                    if (!rel.EndsWith("[x]", StringComparison.Ordinal)) continue;
+
+                    var choiceBase = rel;
+                    var baseName = rel[..^3];
+                    if (el.Type == null) continue;
+                    foreach (var typeRef in el.Type)
+                    {
+                        var typeName = typeRef.Code;
+                        if (string.IsNullOrEmpty(typeName)) continue;
+                        var variantName = baseName + char.ToUpperInvariant(typeName[0]) + typeName[1..];
+                        map.TryAdd(variantName, (choiceBase, typeName));
+                    }
+                }
+            }
+        }
+
         return map;
     }
 
     /// <summary>
-    /// Advances the "current FHIR type" across a non-variant path segment by looking up
-    /// <paramref name="fieldName"/> on <paramref name="currentType"/>'s SD and returning
-    /// the first declared type code.  Returns <c>null</c> when the field or the current
-    /// type cannot be resolved — callers tolerate <c>null</c> by skipping further variant
-    /// detection at deeper segments.
+    /// Advances <paramref name="location"/> across a non-variant path segment.  Looks
+    /// first for an inlined child of the current element in the containing SD (the child
+    /// whose ElementId is <c>location.ElementId + "." + fieldName</c>, or with a
+    /// <c>"[x]"</c> suffix).  Falls back to resolving the declared type's SD and looking
+    /// up <c>typeName + "." + fieldName</c> when no inlined child exists.  Returns
+    /// <c>null</c> when the field cannot be resolved — callers tolerate this by skipping
+    /// further variant detection at deeper segments.
     /// </summary>
-    private static string? AdvanceChoiceType(string? currentType, string fieldName, ChoiceSliceContext? ctx)
+    private static TypeLocation? AdvanceChoiceType(
+        TypeLocation? location, string fieldName, ChoiceSliceContext? ctx)
     {
-        if (ctx == null || string.IsNullOrEmpty(currentType) || string.IsNullOrEmpty(fieldName)) return null;
-        var typeSd = ResolveTypeSd(currentType, ctx);
+        if (ctx == null || location is null || string.IsNullOrEmpty(fieldName)) return null;
+        var loc = location.Value;
+
+        // 1) Preferred: find an inlined child in the containing SD.
+        if (loc.ContainingSd != null && !string.IsNullOrEmpty(loc.ElementId))
+        {
+            var hit = FindInlineChild(loc.ContainingSd, loc.ElementId, fieldName);
+            if (hit != null)
+            {
+                var (childId, childType) = hit.Value;
+                return new TypeLocation(loc.ContainingSd, childId, childType ?? string.Empty);
+            }
+        }
+
+        // 2) Fallback: resolve the declared type's SD and look up the child there.
+        if (string.IsNullOrEmpty(loc.TypeName)) return null;
+        var typeSd = ResolveTypeSd(loc.TypeName, ctx);
         if (typeSd == null) return null;
-        var elements = (IEnumerable<ElementDefinition>?)typeSd.Snapshot?.Element
-                    ?? typeSd.Differential?.Element;
+
+        var rootId = loc.TypeName;
+        var fallbackHit = FindInlineChild(typeSd, rootId, fieldName);
+        if (fallbackHit == null) return null;
+        var (fallbackChildId, fallbackChildType) = fallbackHit.Value;
+        return new TypeLocation(typeSd, fallbackChildId, fallbackChildType ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Scans <paramref name="sd"/>'s element list (snapshot preferred, differential as
+    /// fallback) for a direct child of the element identified by
+    /// <paramref name="parentElementId"/> whose relative id is either <paramref name="fieldName"/>
+    /// or <paramref name="fieldName"/> + <c>"[x]"</c>.  Returns the matching element's
+    /// ElementId and first declared type code, or <c>null</c> if no such child exists.
+    /// The scan short-circuits as soon as an element is encountered whose id does not
+    /// start with <c>parentElementId + "."</c>.
+    /// </summary>
+    private static (string ChildElementId, string? ChildTypeCode)? FindInlineChild(
+        StructureDefinition sd, string parentElementId, string fieldName)
+    {
+        var elements = (IEnumerable<ElementDefinition>?)sd.Snapshot?.Element
+                    ?? sd.Differential?.Element;
         if (elements == null) return null;
-        var targetPath = currentType + "." + fieldName;
+
+        var prefix = parentElementId + ".";
+        var targetPlain = fieldName;
+        var targetChoice = fieldName + "[x]";
+
+        bool seenParent = false;
         foreach (var el in elements)
         {
-            if (el.Path == targetPath)
-                return el.Type?.FirstOrDefault()?.Code;
+            var elId = el.ElementId;
+            if (string.IsNullOrEmpty(elId)) continue;
+
+            if (!seenParent)
+            {
+                if (elId == parentElementId) seenParent = true;
+                continue;
+            }
+
+            if (!elId.StartsWith(prefix, StringComparison.Ordinal)) break;
+
+            var rel = elId[prefix.Length..];
+            // Strip any slice-name suffix before matching.
+            var colonIdx = rel.IndexOf(':');
+            if (colonIdx >= 0) rel = rel[..colonIdx];
+            if (rel.Contains('.')) continue;
+
+            if (rel == targetPlain || rel == targetChoice)
+                return (elId, el.Type?.FirstOrDefault()?.Code);
+        }
+
+        // If we never saw parentElementId (e.g. the SD's root uses Path/typeName instead
+        // of an exact ElementId match), fall back to path-based matching against the
+        // first element's id prefix.  Preserves prior behavior when walking type SDs.
+        if (!seenParent)
+        {
+            foreach (var el in elements)
+            {
+                if (el.Path == parentElementId + "." + fieldName
+                    || el.Path == parentElementId + "." + fieldName + "[x]")
+                    return (el.ElementId ?? el.Path, el.Type?.FirstOrDefault()?.Code);
+            }
         }
         return null;
     }
