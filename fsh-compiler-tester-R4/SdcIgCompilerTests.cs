@@ -1963,12 +1963,12 @@ resources.Count, $"Should produce more than 100 resources total; got {resources.
                             CaretValueRule cvr => cvr.Value,
                             _ => null
                         };
-                        if (val is Hl7.FhirShorthand.Serialization.Models.Code sdCodeVal)
+                        if (val is Hl7.FhirShorthand.Serialization.Models.Code fshCodeValue)
                         {
-                            var hashIdx = sdCodeVal.Value.IndexOf('#');
+                            var hashIdx = fshCodeValue.Value.IndexOf('#');
                             if (hashIdx > 0)
                             {
-                                var systemName = sdCodeVal.Value[..hashIdx];
+                                var systemName = fshCodeValue.Value[..hashIdx];
                                 if (!systemName.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
                                     !systemName.StartsWith("urn:", StringComparison.OrdinalIgnoreCase) &&
                                     !systemName.StartsWith('$'))
