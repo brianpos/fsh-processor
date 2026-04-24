@@ -2938,11 +2938,9 @@ public static class FshCompiler
         // so that inlined child elements on the core type SD (e.g. the inlined
         // `Questionnaire.item.answer.value[x]` under the BackboneElement-typed `item.answer`)
         // are detected before falling back to the declared type's own SD.
-        TypeLocation? currentLoc = choiceCtx?.CoreTypeSd != null && !string.IsNullOrEmpty(sd.Type)
-            ? new TypeLocation(choiceCtx.CoreTypeSd, sd.Type, sd.Type)
-            : !string.IsNullOrEmpty(sd.Type)
-                ? new TypeLocation(null, sd.Type, sd.Type)
-                : (TypeLocation?)null;
+        TypeLocation? currentLoc = string.IsNullOrEmpty(sd.Type)
+            ? null
+            : new TypeLocation(choiceCtx?.CoreTypeSd, sd.Type, sd.Type);
         string? terminalVariantName = null;
         string? terminalVariantType = null;
         List<(string fullChoicePath, string typeName)>? slicingParentsToEmit = null;
@@ -3943,78 +3941,85 @@ public static class FshCompiler
                     ?? sd.Differential?.Element;
         if (elements == null) return map;
 
-        var prefix = parentElementId + ".";
+        // Resolve the effective prefix to match against.  Prefer an exact ElementId
+        // anchor (parentElementId) when present; fall back to the SD's root element id
+        // + '.' for the type-SD case where the caller passed a bare type name that
+        // doesn't match the root's full ElementId.
+        string? prefix = null;
+        string? fallbackPrefix = null;
+        string? rootId = null;
+        foreach (var el in elements)
+        {
+            rootId = el.ElementId;
+            break;
+        }
+        if (!string.IsNullOrEmpty(rootId) && rootId != parentElementId)
+            fallbackPrefix = rootId + ".";
+        var primaryPrefix = parentElementId + ".";
+
         bool seenParent = false;
+        bool stopped = false;
         foreach (var el in elements)
         {
             var elId = el.ElementId;
             if (string.IsNullOrEmpty(elId)) continue;
 
+            // Phase 1: find parentElementId exactly and scan its direct-[x] descendants.
             if (!seenParent)
             {
-                if (elId == parentElementId) seenParent = true;
+                if (elId == parentElementId)
+                {
+                    seenParent = true;
+                    prefix = primaryPrefix;
+                }
                 continue;
             }
 
             // Stop at the first element outside the parent's subtree.
-            if (!elId.StartsWith(prefix, StringComparison.Ordinal)) break;
+            if (!elId.StartsWith(prefix!, StringComparison.Ordinal)) { stopped = true; break; }
 
-            var rel = elId[prefix.Length..];
+            AddVariantFromRelativeId(elId[prefix!.Length..], el, map);
+        }
+
+        // Phase 2 fallback: never found an exact ElementId match (e.g. scanning a type
+        // SD whose root id differs from parentElementId).  Scan using the root's id as
+        // the implicit parent prefix.  Preserves prior type-SD behavior.
+        if (!seenParent && !stopped && fallbackPrefix != null)
+        {
+            foreach (var el in elements)
+            {
+                var elId = el.ElementId;
+                if (string.IsNullOrEmpty(elId) || !elId.StartsWith(fallbackPrefix, StringComparison.Ordinal)) continue;
+                AddVariantFromRelativeId(elId[fallbackPrefix.Length..], el, map);
+            }
+        }
+
+        return map;
+
+        static void AddVariantFromRelativeId(
+            string rel, ElementDefinition el,
+            Dictionary<string, (string ChoiceBase, string TypeName)> into)
+        {
             // Only immediate-child [x] properties (no further '.' in the relative id).
-            if (rel.Contains('.')) continue;
+            if (rel.Contains('.')) return;
             // Strip any slice-name suffix (e.g. "value[x]:valueCoding") before shape-matching.
             var colonIdx = rel.IndexOf(':');
             if (colonIdx >= 0) rel = rel[..colonIdx];
-            if (!rel.EndsWith("[x]", StringComparison.Ordinal)) continue;
+            if (!rel.EndsWith("[x]", StringComparison.Ordinal)) return;
 
             var choiceBase = rel;                   // e.g. "value[x]"
             var baseName = rel[..^3];               // strip "[x]" → "value"
 
-            if (el.Type == null) continue;
+            if (el.Type == null) return;
             foreach (var typeRef in el.Type)
             {
                 var typeName = typeRef.Code;
                 if (string.IsNullOrEmpty(typeName)) continue;
                 // FHIR convention: variant name = baseName + Capitalize(typeName).
                 var variantName = baseName + char.ToUpperInvariant(typeName[0]) + typeName[1..];
-                map.TryAdd(variantName, (choiceBase, typeName));
+                into.TryAdd(variantName, (choiceBase, typeName));
             }
         }
-
-        // If we never encountered the parent element (e.g. scanning a type SD whose root
-        // id differs from parentElementId), do a second pass treating the first element
-        // as the implicit root.  This keeps the original type-SD behavior intact.
-        if (!seenParent && elements.Any())
-        {
-            var firstId = elements.First().ElementId;
-            if (!string.IsNullOrEmpty(firstId))
-            {
-                var altPrefix = firstId + ".";
-                foreach (var el in elements)
-                {
-                    var elId = el.ElementId;
-                    if (string.IsNullOrEmpty(elId) || !elId.StartsWith(altPrefix, StringComparison.Ordinal)) continue;
-                    var rel = elId[altPrefix.Length..];
-                    if (rel.Contains('.')) continue;
-                    var colonIdx = rel.IndexOf(':');
-                    if (colonIdx >= 0) rel = rel[..colonIdx];
-                    if (!rel.EndsWith("[x]", StringComparison.Ordinal)) continue;
-
-                    var choiceBase = rel;
-                    var baseName = rel[..^3];
-                    if (el.Type == null) continue;
-                    foreach (var typeRef in el.Type)
-                    {
-                        var typeName = typeRef.Code;
-                        if (string.IsNullOrEmpty(typeName)) continue;
-                        var variantName = baseName + char.ToUpperInvariant(typeName[0]) + typeName[1..];
-                        map.TryAdd(variantName, (choiceBase, typeName));
-                    }
-                }
-            }
-        }
-
-        return map;
     }
 
     /// <summary>
@@ -4074,11 +4079,26 @@ public static class FshCompiler
         var prefix = parentElementId + ".";
         var targetPlain = fieldName;
         var targetChoice = fieldName + "[x]";
+        var targetPlainPath = parentElementId + "." + fieldName;
+        var targetChoicePath = parentElementId + "." + fieldName + "[x]";
 
         bool seenParent = false;
+        ElementDefinition? pathFallbackMatch = null;
         foreach (var el in elements)
         {
             var elId = el.ElementId;
+
+            // Opportunistic path-based fallback for the case where parentElementId
+            // is never seen as an exact ElementId (e.g. walking a type SD whose root
+            // uses a bare type name as its id).  Captured during the same iteration
+            // so we don't re-enumerate if the primary phase fails.
+            if (!seenParent
+                && pathFallbackMatch == null
+                && (el.Path == targetPlainPath || el.Path == targetChoicePath))
+            {
+                pathFallbackMatch = el;
+            }
+
             if (string.IsNullOrEmpty(elId)) continue;
 
             if (!seenParent)
@@ -4099,18 +4119,11 @@ public static class FshCompiler
                 return (elId, el.Type?.FirstOrDefault()?.Code);
         }
 
-        // If we never saw parentElementId (e.g. the SD's root uses Path/typeName instead
-        // of an exact ElementId match), fall back to path-based matching against the
-        // first element's id prefix.  Preserves prior behavior when walking type SDs.
-        if (!seenParent)
-        {
-            foreach (var el in elements)
-            {
-                if (el.Path == parentElementId + "." + fieldName
-                    || el.Path == parentElementId + "." + fieldName + "[x]")
-                    return (el.ElementId ?? el.Path, el.Type?.FirstOrDefault()?.Code);
-            }
-        }
+        // Primary phase didn't find the parent's subtree — use the path-based match
+        // we captured above (preserves prior behavior when walking type SDs).
+        if (!seenParent && pathFallbackMatch != null)
+            return (pathFallbackMatch.ElementId ?? pathFallbackMatch.Path, pathFallbackMatch.Type?.FirstOrDefault()?.Code);
+
         return null;
     }
 
