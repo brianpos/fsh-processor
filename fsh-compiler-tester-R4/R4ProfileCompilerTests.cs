@@ -306,6 +306,47 @@ public class R4ProfileCompilerTests
             ed.Type.Select(t => t.Code).ToArray());
     }
 
+    // ─── Named choice-type variants under inlined BackboneElement children ─────
+
+    /// <summary>
+    /// Validates that named choice-variant detection traverses into BackboneElement
+    /// children whose full element definition is inlined into the containing
+    /// resource SD (rather than defined on the BackboneElement type SD itself).
+    /// Spec reference: Language Reference §"Referring to Choice Elements in FSH Paths"
+    /// (e.g. `ingredient.itemReference` resolves to the Reference variant of the
+    /// inlined `Medication.ingredient.item[x]`).  See docs/language-reference.md §460.
+    ///
+    /// Regression for the type-walker bug where <c>AdvanceChoiceType</c> resolved the
+    /// <c>BackboneElement</c> type SD and found no <c>value[x]</c> child, silently
+    /// disabling variant detection below <c>Questionnaire.item.answerOption</c>.
+    /// Uses the multi-doc <see cref="CompilerTestHelper.CompileDocs"/> path so that a
+    /// core-type resolver is available — the bug is invisible without one because
+    /// <c>ChoiceSliceContext.CoreTypeSd</c> is <c>null</c>.
+    /// </summary>
+    [TestMethod]
+    public void ShouldDetectChoiceVariantUnderInlinedBackboneElement()
+    {
+        var doc = CompilerTestHelper.ParseDoc(@"
+            Profile: MyQuestionnaire
+            Parent: Questionnaire
+            * item.answerOption.valueCoding = #x ""Example""
+        ");
+        var resources = CompilerTestHelper.CompileDocs(doc);
+        var sd = CompilerTestHelper.GetStructureDefinition(resources);
+
+        // The rule must be routed to the value[x] slicing parent (with type-discriminated
+        // slicing) and a named slice `valueCoding` — NOT to a literal path
+        // `Questionnaire.item.answerOption.valueCoding` (which would be malformed FHIR).
+        var parent = sd.Differential.Element.FirstOrDefault(e =>
+            e.Path == "Questionnaire.item.answerOption.value[x]" && string.IsNullOrEmpty(e.SliceName));
+        Assert.IsNotNull(parent, "Expected value[x] slicing parent under item.answerOption");
+        Assert.IsNotNull(parent.Slicing, "value[x] slicing parent must declare slicing");
+
+        var slice = sd.Differential.Element.FirstOrDefault(e =>
+            e.Path == "Questionnaire.item.answerOption.value[x]" && e.SliceName == "valueCoding");
+        Assert.IsNotNull(slice, "Expected slice 'valueCoding' on item.answerOption.value[x]");
+    }
+
     // ─── ObeysRule ───────────────────────────────────────────────────────────
 
     [TestMethod]
