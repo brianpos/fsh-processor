@@ -3803,10 +3803,17 @@ public static class FshCompiler
     private static StructureDefinition? ResolveTypeSd(string typeName, ChoiceSliceContext ctx)
     {
         if (string.IsNullOrEmpty(typeName)) return null;
+        if (ctx.TypeSdCache.TryGetValue(typeName, out var cached)) return cached;
+
+        // Prime the cache with CoreTypeSd on first miss so subsequent lookups go straight
+        // through the dictionary fast path.
         if (ctx.CoreTypeSd != null
             && string.Equals(ctx.CoreTypeSd.Type, typeName, StringComparison.Ordinal))
+        {
+            ctx.TypeSdCache[typeName] = ctx.CoreTypeSd;
             return ctx.CoreTypeSd;
-        if (ctx.TypeSdCache.TryGetValue(typeName, out var cached)) return cached;
+        }
+
         var sd = FindStructureDefinitionForType(typeName, ctx.Resolver);
         ctx.TypeSdCache[typeName] = sd;
         return sd;
@@ -3979,10 +3986,10 @@ public static class FshCompiler
     private static DataType? WrapChoiceValue(DataType? value, string typeName)
     {
         if (value == null) return null;
-        if (string.Equals(value.TypeName, typeName, StringComparison.OrdinalIgnoreCase)) return value;
+        if (string.Equals(value.TypeName, typeName, StringComparison.Ordinal)) return value;
 
         // Coding inside CodeableConcept: wrap in a CodeableConcept with .coding = [pattern].
-        if (string.Equals(typeName, "CodeableConcept", StringComparison.OrdinalIgnoreCase)
+        if (string.Equals(typeName, "CodeableConcept", StringComparison.Ordinal)
             && value is Hl7.Fhir.Model.Coding coding)
         {
             return new Hl7.Fhir.Model.CodeableConcept
