@@ -2990,6 +2990,13 @@ public static class FshCompiler
     private const int LocalRankBase = int.MaxValue / 2;
 
     /// <summary>
+    /// Maximum base-chain walk depth used by the differential-ordering ranker.
+    /// Bounded to guard against pathological or cyclic <c>BaseDefinition</c> links;
+    /// real FHIR type hierarchies never approach this depth (typically ≤5).
+    /// </summary>
+    private const int MaxBaseChainDepth = 10;
+
+    /// <summary>
     /// Cached rank tuple for an <see cref="ElementDefinition"/>.  Invalidated when the
     /// element's <see cref="ElementDefinition.ElementId"/> changes.
     /// </summary>
@@ -3158,7 +3165,7 @@ public static class FshCompiler
         var curDef = baseDefinition;
         var curRoot = currentRoot;
         int walkDepth = depth;
-        while (!string.IsNullOrEmpty(curDef) && walkDepth <= 10)
+        while (!string.IsNullOrEmpty(curDef) && walkDepth <= MaxBaseChainDepth)
         {
             var baseSd = ResolveStructureDefinition(curDef, orderCtx.Context, orderCtx.Options);
             if (baseSd == null) break;
@@ -3177,13 +3184,39 @@ public static class FshCompiler
             return AllocateLocal(parentIdInSd, childField, childSlice, orderCtx, fieldRankFromBase: null);
         }
 
+        var fieldRanks = new Dictionary<string, int>(StringComparer.Ordinal);
+        var sliceRanks = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+
+        // Every non-root parent has type-inherited universal children that are not
+        // re-stated in any specific-type profile's differential.  Pre-merge those
+        // first so they receive the lowest (earliest) ranks — matching canonical
+        // FHIR element order.  The type depends on the parent's last segment:
+        //   • <c>.extension[:X]</c> and <c>.modifierExtension[:X]</c> are themselves
+        //     <c>Extension</c>-typed (recursive), so children come from Extension's
+        //     chain (id, extension, url, value[x]).
+        //   • Anything else is assumed BackboneElement-typed (covers the common
+        //     Resource-backbone case like <c>Questionnaire.item</c>) yielding
+        //     id, extension, modifierExtension from Element + BackboneElement.
+        // For primitive-typed parents the extra <c>modifierExtension</c> is
+        // harmless: nothing will reference it, so it never contributes to ordering.
+        if (segmentIndex >= 2)
+        {
+            var lastParentSeg = segments[segmentIndex - 1];
+            var colon = lastParentSeg.IndexOf(':');
+            var lastFieldName = colon < 0 ? lastParentSeg : lastParentSeg[..colon];
+
+            var inheritedTypeUrl = lastFieldName is "extension" or "modifierExtension"
+                ? "http://hl7.org/fhir/StructureDefinition/Extension"
+                : "http://hl7.org/fhir/StructureDefinition/BackboneElement";
+
+            MergeTypeCanonicalChildren(inheritedTypeUrl, fieldRanks, sliceRanks, orderCtx);
+        }
+
         // Merge direct-children lists base-first (iterate chain in reverse) so that
         // fields introduced by more-ancestral bases get smaller ranks — matching
         // canonical FHIR element order.  First-occurrence wins: a derived profile
         // re-listing an inherited element does not shift its rank.
-        var fieldRanks = new Dictionary<string, int>(StringComparer.Ordinal);
-        var sliceRanks = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
-        int nextFieldRank = 0;
+        int nextFieldRank = fieldRanks.Count;
 
         for (int i = chain.Count - 1; i >= 0; i--)
         {
@@ -3211,25 +3244,6 @@ public static class FshCompiler
                     if (!sliceMap.ContainsKey(sn))
                         sliceMap[sn] = sliceMap.Count;
                 }
-            }
-        }
-
-        // Fallback for recursive FHIR extension references: `Foo.extension[:X]` and
-        // `Foo.modifierExtension[:X]` elements are themselves typed as `Extension`, so
-        // their children follow Extension's own canonical order (id, extension, url,
-        // value[x]) — which is NOT re-stated in any parent profile's differential
-        // because it is implicit in the type.  When our profile-chain walk finds no
-        // children under such a parent, merge Extension's canonical children in.
-        if (fieldRanks.Count == 0 && segmentIndex >= 2)
-        {
-            var lastParentSeg = segments[segmentIndex - 1];
-            var colonIdx = lastParentSeg.IndexOf(':');
-            var lastFieldName = colonIdx < 0 ? lastParentSeg : lastParentSeg[..colonIdx];
-            if (lastFieldName == "extension" || lastFieldName == "modifierExtension")
-            {
-                MergeTypeCanonicalChildren(
-                    "http://hl7.org/fhir/StructureDefinition/Extension",
-                    fieldRanks, sliceRanks, orderCtx);
             }
         }
 
@@ -3311,7 +3325,7 @@ public static class FshCompiler
         var chain = new List<(string root, IList<ElementDefinition> diff)>();
         var curDef = typeCanonicalUrl;
         int d = 0;
-        while (!string.IsNullOrEmpty(curDef) && d <= 10)
+        while (!string.IsNullOrEmpty(curDef) && d <= MaxBaseChainDepth)
         {
             var baseSd = ResolveStructureDefinition(curDef, orderCtx.Context, orderCtx.Options);
             if (baseSd == null) break;
