@@ -387,17 +387,11 @@ public static class FshCompiler
         var typeValue = ExtractBareTypeName(resolvedParent, parentTypeName, opts.Inspector, mergedResolver);
         if (!IsKnownFhirType(typeValue, opts.Inspector, mergedResolver))
         {
-            // Try resolver-based profile chain walk first (no inspector required).
+            // Try resolver-based profile chain walk first
             var resolvedFromSd = context.ResolveBaseTypeFromResolver(resolvedParent, mergedResolver);
             if (!string.IsNullOrEmpty(resolvedFromSd))
             {
                 typeValue = resolvedFromSd;
-            }
-            else if (opts.Inspector != null)
-            {
-                var classMap = context.ResolveClassMappingForProfile(resolvedParent, opts.Inspector, mergedResolver, out _);
-                if (classMap != null)
-                    typeValue = classMap.Name;
             }
 
             var byUrl = context.CompiledStructureDefinitions
