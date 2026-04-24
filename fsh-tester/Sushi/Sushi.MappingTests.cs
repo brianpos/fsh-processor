@@ -29,7 +29,7 @@ public class MappingTests
         var doc = SushiTestHelper.ParseDoc(@"
             Mapping: MyMapping
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetMappings(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetMappings(doc));
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
         Assert.AreEqual("MyMapping", mapping.Name);
         // SUSHI defaults id to name; our parser leaves Id as null
@@ -47,7 +47,7 @@ public class MappingTests
             Description: ""This is a description""
             Title: ""This is a title""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetMappings(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetMappings(doc));
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
         Assert.AreEqual("MyMapping", mapping.Name);
         Assert.AreEqual("my-map", mapping.Id);
@@ -66,7 +66,7 @@ public class MappingTests
             Id: 456
             Source: 789
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetMappings(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetMappings(doc));
         var mapping = SushiTestHelper.GetMapping(doc, "123");
         Assert.AreEqual("123", mapping.Name);
         Assert.AreEqual("456", mapping.Id);
@@ -98,7 +98,7 @@ public class MappingTests
             Mapping: MyMapping
             Source: OBS
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetMappings(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetMappings(doc));
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
         Assert.AreEqual("MyMapping", mapping.Name);
         // Alias not resolved; our parser stores the raw name
@@ -130,7 +130,7 @@ public class MappingTests
             * identifier -> ""Patient.identifier""
         ");
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
-        Assert.AreEqual(1, mapping.Rules.Count);
+        Assert.HasCount(1, mapping.Rules);
         var rule = (MappingMapRule)mapping.Rules[0];
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("Patient.identifier", rule.Target);
@@ -146,7 +146,7 @@ public class MappingTests
             * -> ""Patient""
         ");
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
-        Assert.AreEqual(1, mapping.Rules.Count);
+        Assert.HasCount(1, mapping.Rules);
         var rule = (MappingMapRule)mapping.Rules[0];
         // SUSHI uses '' for no path; our model uses null (path? is optional in grammar)
         Assert.IsNull(rule.Path);
@@ -164,7 +164,7 @@ public class MappingTests
             * identifier -> ""Patient.identifier"" ""some comment""
         ");
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
-        Assert.AreEqual(1, mapping.Rules.Count);
+        Assert.HasCount(1, mapping.Rules);
         var rule = (MappingMapRule)mapping.Rules[0];
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("Patient.identifier", rule.Target);
@@ -182,7 +182,7 @@ public class MappingTests
             * identifier -> ""Patient.identifier"" #lang
         ");
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
-        Assert.AreEqual(1, mapping.Rules.Count);
+        Assert.HasCount(1, mapping.Rules);
         var rule = (MappingMapRule)mapping.Rules[0];
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("Patient.identifier", rule.Target);
@@ -199,7 +199,7 @@ public class MappingTests
             * identifier -> ""Patient.identifier"" ""some comment"" #lang
         ");
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
-        Assert.AreEqual(1, mapping.Rules.Count);
+        Assert.HasCount(1, mapping.Rules);
         var rule = (MappingMapRule)mapping.Rules[0];
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("Patient.identifier", rule.Target);
@@ -217,7 +217,7 @@ public class MappingTests
             * identifier -> ""Patient.identifier"" sys#lang
         ");
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
-        Assert.AreEqual(1, mapping.Rules.Count);
+        Assert.HasCount(1, mapping.Rules);
         var rule = (MappingMapRule)mapping.Rules[0];
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("Patient.identifier", rule.Target);
@@ -252,7 +252,7 @@ public class MappingTests
             * insert MyRuleSet
         ");
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
-        Assert.AreEqual(1, mapping.Rules.Count);
+        Assert.HasCount(1, mapping.Rules);
         var rule = (MappingInsertRule)mapping.Rules[0];
         // SUSHI assertInsertRule uses path='' for no path; our model uses null
         Assert.IsNull(rule.Path);
@@ -275,7 +275,7 @@ public class MappingTests
         ");
         var mapping = SushiTestHelper.GetMapping(doc, "MyMapping");
         // Our parser keeps the path rule (SUSHI discards it, expecting 0 rules)
-        Assert.AreEqual(1, mapping.Rules.Count);
+        Assert.HasCount(1, mapping.Rules);
         Assert.IsInstanceOfType<MappingPathRule>(mapping.Rules[0]);
         Assert.AreEqual("name", mapping.Rules[0].Path);
     }

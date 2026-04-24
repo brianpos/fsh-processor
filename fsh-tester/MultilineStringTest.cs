@@ -22,15 +22,15 @@ description""""""
         Assert.IsInstanceOfType<ParseResult.Success>(result, "Parse should succeed");
         
         var doc = ((ParseResult.Success)result).Document;
-        Assert.AreEqual(1, doc.Entities.Count, "Should have one entity");
+        Assert.HasCount(1, doc.Entities, "Should have one entity");
         
         var profile = doc.Entities[0] as Profile;
         Assert.IsNotNull(profile, "Entity should be a Profile");
         
         // The description should NOT contain the triple quotes
         Assert.IsNotNull(profile.Description, "Description should not be null");
-        Assert.IsFalse(profile.Description.Value.StartsWith("\"\"\""), "Description should not start with triple quotes");
-        Assert.IsFalse(profile.Description.Value.EndsWith("\"\"\""), "Description should not end with triple quotes");
+        Assert.DoesNotStartWith("\"\"\"", profile.Description.Value, "Description should not start with triple quotes");
+        Assert.DoesNotEndWith("\"\"\"", profile.Description.Value, "Description should not end with triple quotes");
         
         // Normalize line endings for comparison (Windows uses \r\n)
         var normalizedDescription = profile.Description.Value.Replace("\r\n", "\n");
@@ -50,15 +50,15 @@ Description: ""This is a single line description""
         Assert.IsInstanceOfType<ParseResult.Success>(result, "Parse should succeed");
         
         var doc = ((ParseResult.Success)result).Document;
-        Assert.AreEqual(1, doc.Entities.Count, "Should have one entity");
+        Assert.HasCount(1, doc.Entities, "Should have one entity");
         
         var profile = doc.Entities[0] as Profile;
         Assert.IsNotNull(profile, "Entity should be a Profile");
         
         // The description should NOT contain the quotes
         Assert.IsNotNull(profile.Description, "Description should not be null");
-        Assert.IsFalse(profile.Description.Value.StartsWith("\""), "Description should not start with quote");
-        Assert.IsFalse(profile.Description.Value.EndsWith("\""), "Description should not end with quote");
+        Assert.DoesNotStartWith("\"", profile.Description.Value, "Description should not start with quote");
+        Assert.DoesNotEndWith("\"", profile.Description.Value, "Description should not end with quote");
         Assert.AreEqual("This is a single line description", profile.Description.Value, "Description should be extracted correctly");
     }
 
@@ -113,8 +113,8 @@ description""""""
         Console.WriteLine(serialized);
 
         // The serialized output should contain triple-quoted string, not escaped single-quoted
-        Assert.IsTrue(serialized.Contains("\"\"\"This is a"), "Serialized output should preserve triple-quote format");
-        Assert.IsFalse(serialized.Contains("\\n"), "Serialized multiline string should not contain escaped newlines");
+        Assert.Contains("\"\"\"This is a", serialized, "Serialized output should preserve triple-quote format");
+        Assert.DoesNotContain("\\n", serialized, "Serialized multiline string should not contain escaped newlines");
 
         // Round-trip: re-parse and verify
         var reParseResult = FshParser.Parse(serialized);
@@ -143,8 +143,8 @@ description""""""
         var serialized = FshSerializer.Serialize(doc);
 
         // Should NOT contain triple quotes
-        Assert.IsFalse(serialized.Contains("\"\"\""), "Single-line string should not become triple-quoted");
-        Assert.IsTrue(serialized.Contains("\"A simple description\""), "Should contain regular quoted string");
+        Assert.DoesNotContain("\"\"\"", serialized, "Single-line string should not become triple-quoted");
+        Assert.Contains("\"A simple description\"", serialized, "Should contain regular quoted string");
     }
 
     [TestMethod]
@@ -162,7 +162,7 @@ description""""""
         Console.WriteLine(serialized);
 
         // Should contain triple quotes in the output
-        Assert.IsTrue(serialized.Contains("\"\"\"Line one"), "Should preserve multiline value format");
+        Assert.Contains("\"\"\"Line one", serialized, "Should preserve multiline value format");
 
         // Round-trip re-parse
         var reParseResult = FshParser.Parse(serialized);

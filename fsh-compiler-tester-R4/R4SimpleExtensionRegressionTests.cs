@@ -96,7 +96,7 @@ public class R4SimpleExtensionRegressionTests
         var sd = CompileAnswerExpressionExtension();
         var paths = sd.Differential.Element.Select(e => (e.Path, e.SliceName)).ToList();
 
-        Assert.AreEqual(4, paths.Count,
+        Assert.HasCount(4, paths,
             $"Expected 4 differential elements, got {paths.Count}: " +
             string.Join(", ", paths.Select(p => p.Path + (p.SliceName is null ? "" : $":{p.SliceName}"))));
 
@@ -260,7 +260,7 @@ public class R4SimpleExtensionRegressionTests
         var sd = CompileEndpointExtension();
         var paths = sd.Differential.Element.Select(e => (e.Path, e.SliceName)).ToList();
 
-        Assert.AreEqual(4, paths.Count,
+        Assert.HasCount(4, paths,
             $"Expected 4 differential elements, got {paths.Count}: " +
             string.Join(", ", paths.Select(p => p.Path + (p.SliceName is null ? "" : $":{p.SliceName}"))));
 
@@ -280,7 +280,7 @@ public class R4SimpleExtensionRegressionTests
 
         var valueEl = sd.Differential.Element.First(e => e.Path == "Extension.value[x]");
         Assert.IsNotNull(valueEl.Type);
-        Assert.AreEqual(1, valueEl.Type.Count);
+        Assert.HasCount(1, valueEl.Type);
         Assert.AreEqual("uri", valueEl.Type[0].Code);
     }
 

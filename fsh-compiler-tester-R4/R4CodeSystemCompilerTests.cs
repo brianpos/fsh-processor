@@ -35,7 +35,7 @@ public class R4CodeSystemCompilerTests
         ");
         var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
         Assert.IsNotNull(cs.Concept);
-        Assert.AreEqual(2, cs.Concept.Count);
+        Assert.HasCount(2, cs.Concept);
 
         var active = cs.Concept.First(c => c.Code == "active");
         Assert.AreEqual("Active", active.Display);
@@ -181,7 +181,7 @@ public class R4CodeSystemCompilerTests
         ");
         var cs = CompilerTestHelper.GetCodeSystem(resources, "StatusCodes");
         Assert.IsNotNull(cs, "CodeSystem should compile");
-        Assert.AreEqual(2, cs.Concept.Count, "Should have 2 concepts");
+        Assert.HasCount(2, cs.Concept, "Should have 2 concepts");
         var active = cs.Concept.FirstOrDefault(c => c.Code == "active");
         Assert.IsNotNull(active, "#active concept should exist");
         Assert.AreEqual("The active status", active.Definition,
@@ -206,7 +206,7 @@ public class R4CodeSystemCompilerTests
         ");
         var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
         Assert.IsNotNull(cs.Concept);
-        Assert.AreEqual(2, cs.Concept.Count);
+        Assert.HasCount(2, cs.Concept);
         Assert.IsTrue(cs.Concept.Any(c => c.Code == "More than half the days"),
             "Code should be 'More than half the days' without extra quotes");
         Assert.IsTrue(cs.Concept.Any(c => c.Code == "Nearly every day"),
@@ -242,7 +242,7 @@ public class R4CodeSystemCompilerTests
         ");
         var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
         Assert.IsNotNull(cs.Property, "property list should be set");
-        Assert.AreEqual(1, cs.Property.Count, "Should have exactly one property definition");
+        Assert.HasCount(1, cs.Property, "Should have exactly one property definition");
         var prop = cs.Property[0];
         Assert.AreEqual("itemWeight", prop.Code, "property.code should be 'itemWeight'");
         Assert.AreEqual("http://hl7.org/fhir/concept-properties#itemWeight", prop.Uri,
@@ -266,18 +266,18 @@ public class R4CodeSystemCompilerTests
               * ^property[=].valueDecimal = 1.0
         ");
         var cs = CompilerTestHelper.GetCodeSystem(resources, "MyCS");
-        Assert.AreEqual(2, cs.Concept.Count);
+        Assert.HasCount(2, cs.Concept);
 
         var c0 = cs.Concept.First(c => c.Code == "not-at-all");
         Assert.IsNotNull(c0.Property, "not-at-all should have property values");
-        Assert.AreEqual(1, c0.Property.Count);
+        Assert.HasCount(1, c0.Property);
         Assert.AreEqual("itemWeight", c0.Property[0].Code);
         Assert.AreEqual(0m, ((FhirDecimal)c0.Property[0].Value).Value,
             "valueDecimal should be 0.0");
 
         var c1 = cs.Concept.First(c => c.Code == "several-days");
         Assert.IsNotNull(c1.Property, "several-days should have property values");
-        Assert.AreEqual(1, c1.Property.Count);
+        Assert.HasCount(1, c1.Property);
         Assert.AreEqual("itemWeight", c1.Property[0].Code);
         Assert.AreEqual(1m, ((FhirDecimal)c1.Property[0].Value).Value,
             "valueDecimal should be 1.0");
@@ -323,8 +323,8 @@ public class R4CodeSystemCompilerTests
 
         // top-level scalar fields from caret rules
         Assert.AreEqual(PublicationStatus.Active, cs.Status);
-        Assert.IsTrue(cs.Experimental == true);
-        Assert.IsTrue(cs.CaseSensitive == true);
+        Assert.IsTrue(cs.Experimental);
+        Assert.IsTrue(cs.CaseSensitive);
         Assert.AreEqual(CodeSystemContentMode.Complete, cs.Content);
 
         // property definition
@@ -336,7 +336,7 @@ public class R4CodeSystemCompilerTests
 
         // concept count
         Assert.AreEqual(4, cs.Count);
-        Assert.AreEqual(4, cs.Concept.Count);
+        Assert.HasCount(4, cs.Concept);
 
         // quoted codes should have NO surrounding double-quotes
         Assert.IsTrue(cs.Concept.Any(c => c.Code == "More than half the days"),
@@ -375,9 +375,9 @@ public class R4CodeSystemCompilerTests
         var cs = (FhirCodeSystem)((Hl7.FhirShorthand.Compiler.CompileResult<System.Collections.Generic.List<Hl7.Fhir.Model.Resource>>.SuccessResult)result).Value[0];
 
         Assert.IsNotNull(cs.Jurisdiction, "jurisdiction should be set");
-        Assert.AreEqual(1, cs.Jurisdiction.Count, "Should have one jurisdiction entry");
+        Assert.HasCount(1, cs.Jurisdiction, "Should have one jurisdiction entry");
         var cc = cs.Jurisdiction[0];
-        Assert.AreEqual(1, cc.Coding.Count, "CodeableConcept should have one Coding");
+        Assert.HasCount(1, cc.Coding, "CodeableConcept should have one Coding");
         var coding = cc.Coding[0];
         Assert.AreEqual("http://unstats.un.org/unsd/methods/m49/m49.htm", coding.System,
             "Alias should be resolved to the canonical URL");
@@ -401,7 +401,7 @@ public class R4CodeSystemCompilerTests
         );
         var cs = CompilerTestHelper.GetCodeSystem(resources, "CHFCodes");
         Assert.IsNotNull(cs.Jurisdiction, "jurisdiction should be set");
-        Assert.AreEqual(1, cs.Jurisdiction.Count);
+        Assert.HasCount(1, cs.Jurisdiction);
         var coding = cs.Jurisdiction[0].Coding[0];
         Assert.AreEqual("http://unstats.un.org/unsd/methods/m49/m49.htm", coding.System);
         Assert.AreEqual("001", coding.Code);

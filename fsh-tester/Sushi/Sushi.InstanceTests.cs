@@ -30,13 +30,13 @@ public class InstanceTests
             Instance: MyObservation
             InstanceOf: Observation
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInstances(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInstances(doc));
         var instance = SushiTestHelper.GetInstance(doc, "MyObservation");
         Assert.AreEqual("MyObservation", instance.Name);
         Assert.AreEqual("Observation", instance.InstanceOf);
         Assert.IsNull(instance.Title);
         Assert.IsNull(instance.Description);
-        Assert.AreEqual(0, instance.Rules.Count);
+        Assert.IsEmpty(instance.Rules);
     }
 
     [TestMethod]
@@ -47,7 +47,7 @@ public class InstanceTests
             Instance: 123
             InstanceOf: 456
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInstances(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInstances(doc));
         var instance = SushiTestHelper.GetInstance(doc, "123");
         Assert.AreEqual("123", instance.Name);
         Assert.AreEqual("456", instance.InstanceOf);
@@ -63,7 +63,7 @@ public class InstanceTests
             Instance: MyObservation
             InstanceOf: obs
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInstances(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInstances(doc));
         var instance = SushiTestHelper.GetInstance(doc, "MyObservation");
         // Our parser stores the alias name verbatim (not resolved)
         Assert.AreEqual("obs", instance.InstanceOf);
@@ -79,7 +79,7 @@ public class InstanceTests
         ");
         var instances = SushiTestHelper.GetInstances(doc);
         // fsh-processor retains the instance even without InstanceOf
-        Assert.AreEqual(1, instances.Count);
+        Assert.HasCount(1, instances);
         Assert.AreEqual("MyObservation", instances[0].Name);
         Assert.IsNull(instances[0].InstanceOf);
     }
@@ -94,7 +94,7 @@ public class InstanceTests
             InstanceOf: Observation
             Title: ""My Important Observation""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInstances(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInstances(doc));
         var instance = SushiTestHelper.GetInstance(doc, "MyObservation");
         Assert.AreEqual("MyObservation", instance.Name);
         Assert.AreEqual("Observation", instance.InstanceOf);
@@ -111,7 +111,7 @@ public class InstanceTests
             InstanceOf: Observation
             Description: ""Shows an example of an Observation""
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInstances(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInstances(doc));
         var instance = SushiTestHelper.GetInstance(doc, "MyObservation");
         Assert.AreEqual("MyObservation", instance.Name);
         Assert.AreEqual("Observation", instance.InstanceOf);
@@ -128,7 +128,7 @@ public class InstanceTests
             InstanceOf: Observation
             Usage: #example
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInstances(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInstances(doc));
         var instance = SushiTestHelper.GetInstance(doc, "MyObservation");
         Assert.AreEqual("MyObservation", instance.Name);
         Assert.AreEqual("Observation", instance.InstanceOf);
@@ -185,13 +185,13 @@ public class InstanceTests
             * name[0].given[0] = ""Manos""
             * gender = #other
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInstances(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInstances(doc));
         var instance = SushiTestHelper.GetInstance(doc, "SamplePatient");
         Assert.AreEqual("Patient", instance.InstanceOf);
         Assert.AreEqual("Georgio Manos", instance.Title);
         Assert.AreEqual("An example of a fictional patient named Georgio Manos", instance.Description);
         Assert.AreEqual("#example", instance.Usage);
-        Assert.AreEqual(3, instance.Rules.Count);
+        Assert.HasCount(3, instance.Rules);
 
         // rules[0]: name[0].family = "Georgio"
         Assert.IsInstanceOfType<InstanceFixedValueRule>(instance.Rules[0]);
@@ -227,9 +227,9 @@ public class InstanceTests
             InstanceOf: Patient
             * identifier[0].system = EXAMPLE
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInstances(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInstances(doc));
         var instance = SushiTestHelper.GetInstance(doc, "PatientExample");
-        Assert.AreEqual(1, instance.Rules.Count);
+        Assert.HasCount(1, instance.Rules);
         Assert.AreEqual("Patient", instance.InstanceOf);
         // Our parser stores the alias name verbatim (as NameValue), not resolved
         Assert.IsInstanceOfType<InstanceFixedValueRule>(instance.Rules[0]);
@@ -251,12 +251,12 @@ public class InstanceTests
             Description: ""An example of a fictional patient named Georgio Manos""
             * contained[0] = SomeInstance
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetInstances(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetInstances(doc));
         var instance = SushiTestHelper.GetInstance(doc, "SamplePatient");
         Assert.AreEqual("Patient", instance.InstanceOf);
         Assert.AreEqual("Georgio Manos", instance.Title);
         Assert.AreEqual("An example of a fictional patient named Georgio Manos", instance.Description);
-        Assert.AreEqual(1, instance.Rules.Count);
+        Assert.HasCount(1, instance.Rules);
 
         Assert.IsInstanceOfType<InstanceFixedValueRule>(instance.Rules[0]);
         var rule = (InstanceFixedValueRule)instance.Rules[0];
@@ -277,7 +277,7 @@ public class InstanceTests
             * name
         ");
         var instance = SushiTestHelper.GetInstance(doc, "PatientProfile");
-        Assert.AreEqual(1, instance.Rules.Count);
+        Assert.HasCount(1, instance.Rules);
         Assert.IsInstanceOfType<InstancePathRule>(instance.Rules[0]);
         Assert.AreEqual("name", instance.Rules[0].Path);
     }
@@ -293,7 +293,7 @@ public class InstanceTests
             * insert MyRuleSet
         ");
         var instance = SushiTestHelper.GetInstance(doc, "MyPatient");
-        Assert.AreEqual(1, instance.Rules.Count);
+        Assert.HasCount(1, instance.Rules);
         Assert.IsInstanceOfType<InstanceInsertRule>(instance.Rules[0]);
         var insertRule = (InstanceInsertRule)instance.Rules[0];
         // Insert rules without a path store null (not empty string)

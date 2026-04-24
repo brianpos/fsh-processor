@@ -24,10 +24,10 @@ public class ValueSetTests
         var doc = SushiTestHelper.ParseDoc(@"
             ValueSet: MyVS
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetValueSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetValueSets(doc));
         var vs = SushiTestHelper.GetValueSet(doc, "MyVS");
         Assert.AreEqual("MyVS", vs.Name);
-        Assert.AreEqual(0, vs.Rules.Count);
+        Assert.IsEmpty(vs.Rules);
     }
 
     [TestMethod]
@@ -100,12 +100,12 @@ public class ValueSetTests
             * include codes from system http://loinc.org
         ");
         var vs = SushiTestHelper.GetValueSet(doc, "MyVS");
-        Assert.AreEqual(1, vs.Rules.Count);
+        Assert.HasCount(1, vs.Rules);
         var rule = (VsComponentRule)vs.Rules[0];
         Assert.IsTrue(rule.IsInclude ?? false, "Expected IsInclude=true");
         Assert.AreEqual("http://loinc.org", rule.FromSystem);
-        Assert.AreEqual(0, rule.FromValueSets.Count);
-        Assert.AreEqual(0, rule.Filters.Count);
+        Assert.IsEmpty(rule.FromValueSets);
+        Assert.IsEmpty(rule.Filters);
     }
 
     [TestMethod]
@@ -116,7 +116,7 @@ public class ValueSetTests
             * exclude codes from system http://loinc.org
         ");
         var vs = SushiTestHelper.GetValueSet(doc, "MyVS");
-        Assert.AreEqual(1, vs.Rules.Count);
+        Assert.HasCount(1, vs.Rules);
         var rule = (VsComponentRule)vs.Rules[0];
         Assert.IsFalse(rule.IsInclude ?? true, "Expected IsInclude=false");
         Assert.AreEqual("http://loinc.org", rule.FromSystem);
@@ -130,11 +130,11 @@ public class ValueSetTests
             * include codes from valueset OtherVS
         ");
         var vs = SushiTestHelper.GetValueSet(doc, "MyVS");
-        Assert.AreEqual(1, vs.Rules.Count);
+        Assert.HasCount(1, vs.Rules);
         var rule = (VsComponentRule)vs.Rules[0];
         Assert.IsTrue(rule.IsInclude ?? false, "Expected IsInclude=true");
         Assert.IsNull(rule.FromSystem);
-        Assert.AreEqual(1, rule.FromValueSets.Count);
+        Assert.HasCount(1, rule.FromValueSets);
         Assert.AreEqual("OtherVS", rule.FromValueSets[0]);
     }
 
@@ -146,7 +146,7 @@ public class ValueSetTests
             * http://loinc.org#1234-5
         ");
         var vs = SushiTestHelper.GetValueSet(doc, "MyVS");
-        Assert.AreEqual(1, vs.Rules.Count);
+        Assert.HasCount(1, vs.Rules);
         var rule = (VsComponentRule)vs.Rules[0];
         Assert.IsTrue(rule.IsConceptComponent, "Expected IsConceptComponent=true");
         Assert.IsNotNull(rule.ConceptCode);
@@ -161,7 +161,7 @@ public class ValueSetTests
             * exclude codes from system http://snomed.info/sct
         ");
         var vs = SushiTestHelper.GetValueSet(doc, "MyVS");
-        Assert.AreEqual(2, vs.Rules.Count);
+        Assert.HasCount(2, vs.Rules);
         var r0 = (VsComponentRule)vs.Rules[0];
         Assert.IsTrue(r0.IsInclude ?? false);
         Assert.AreEqual("http://loinc.org", r0.FromSystem);
@@ -180,11 +180,11 @@ public class ValueSetTests
             * codes from system http://snomed.info/sct where concept is-a #387207008
         ");
         var vs = SushiTestHelper.GetValueSet(doc, "MyVS");
-        Assert.AreEqual(1, vs.Rules.Count);
+        Assert.HasCount(1, vs.Rules);
         var rule = (VsComponentRule)vs.Rules[0];
         Assert.IsFalse(rule.IsConceptComponent, "Expected filter component");
         Assert.AreEqual("http://snomed.info/sct", rule.FromSystem);
-        Assert.AreEqual(1, rule.Filters.Count);
+        Assert.HasCount(1, rule.Filters);
         Assert.AreEqual("concept", rule.Filters[0].Property);
         Assert.AreEqual("is-a", rule.Filters[0].Operator);
     }
@@ -199,7 +199,7 @@ public class ValueSetTests
             * ^copyright = ""Copyright info""
         ");
         var vs = SushiTestHelper.GetValueSet(doc, "MyVS");
-        Assert.AreEqual(1, vs.Rules.Count);
+        Assert.HasCount(1, vs.Rules);
         var rule = vs.Rules[0] as VsCaretValueRule;
         Assert.IsNotNull(rule, "Expected VsCaretValueRule");
         // fsh-processor retains the "^" prefix on CaretPath; SUSHI strips it.
@@ -218,7 +218,7 @@ public class ValueSetTests
             * insert CommonVSRules
         ");
         var vs = SushiTestHelper.GetValueSet(doc, "MyVS");
-        Assert.AreEqual(1, vs.Rules.Count);
+        Assert.HasCount(1, vs.Rules);
         var rule = vs.Rules[0] as VsInsertRule;
         Assert.IsNotNull(rule, "Expected VsInsertRule");
         Assert.AreEqual("CommonVSRules", rule.RuleSetReference);
@@ -236,7 +236,7 @@ public class ValueSetTests
             ValueSet: VS2
             Id: vs2
         ");
-        Assert.AreEqual(2, SushiTestHelper.GetValueSets(doc).Count);
+        Assert.HasCount(2, SushiTestHelper.GetValueSets(doc));
         Assert.AreEqual("vs1", SushiTestHelper.GetValueSet(doc, "VS1").Id);
         Assert.AreEqual("vs2", SushiTestHelper.GetValueSet(doc, "VS2").Id);
     }

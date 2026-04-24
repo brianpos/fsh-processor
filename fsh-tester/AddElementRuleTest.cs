@@ -26,7 +26,7 @@ Description: ""This is a test logical model""
         Assert.IsInstanceOfType<ParseResult.Success>(result, "Parse should succeed");
         
         var doc = ((ParseResult.Success)result).Document;
-        Assert.AreEqual(1, doc.Entities.Count, "Should have one entity");
+        Assert.HasCount(1, doc.Entities, "Should have one entity");
         
         var logical = doc.Entities[0] as Logical;
         Assert.IsNotNull(logical, "Entity should be a Logical");
@@ -37,15 +37,15 @@ Description: ""This is a test logical model""
         Assert.AreEqual("This is a test logical model", logical.Description);
         
         // Check that we have 3 AddElementRules
-        Assert.AreEqual(3, logical.Rules.Count, "Should have 3 rules");
+        Assert.HasCount(3, logical.Rules, "Should have 3 rules");
         var addElementRules = logical.Rules.OfType<AddElementRule>().ToList();
-        Assert.AreEqual(3, addElementRules.Count, "All rules should be AddElementRules");
+        Assert.HasCount(3, addElementRules, "All rules should be AddElementRules");
         
         // Verify first rule
         var rule1 = addElementRules[0];
         Assert.AreEqual("element1", rule1.Path);
         Assert.AreEqual("0..1", rule1.Cardinality);
-        Assert.AreEqual(1, rule1.TargetTypes.Count);
+        Assert.HasCount(1, rule1.TargetTypes);
         Assert.AreEqual("string", rule1.TargetTypes[0]);
         Assert.AreEqual("Short description", rule1.ShortDescription);
         Assert.AreEqual("Long definition text", rule1.Definition);
@@ -54,7 +54,7 @@ Description: ""This is a test logical model""
         var rule2 = addElementRules[1];
         Assert.AreEqual("element2", rule2.Path);
         Assert.AreEqual("1..*", rule2.Cardinality);
-        Assert.AreEqual(1, rule2.TargetTypes.Count);
+        Assert.HasCount(1, rule2.TargetTypes);
         Assert.AreEqual("CodeableConcept", rule2.TargetTypes[0]);
         Assert.AreEqual("Another element", rule2.ShortDescription);
         Assert.IsNull(rule2.Definition);
@@ -63,7 +63,7 @@ Description: ""This is a test logical model""
         var rule3 = addElementRules[2];
         Assert.AreEqual("element3", rule3.Path);
         Assert.AreEqual("0..1", rule3.Cardinality);
-        Assert.AreEqual(2, rule3.TargetTypes.Count);
+        Assert.HasCount(2, rule3.TargetTypes);
         Assert.AreEqual("Quantity", rule3.TargetTypes[0]);
         Assert.AreEqual("Range", rule3.TargetTypes[1]);
         Assert.AreEqual("Element with multiple types", rule3.ShortDescription);

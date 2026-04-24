@@ -25,10 +25,10 @@ public class ResourceTests
         var doc = SushiTestHelper.ParseDoc(@"
             Resource: MyResource
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetResources(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetResources(doc));
         var resource = SushiTestHelper.GetResource(doc, "MyResource");
         Assert.AreEqual("MyResource", resource.Name);
-        Assert.AreEqual(0, resource.Rules.Count);
+        Assert.IsEmpty(resource.Rules);
     }
 
     [TestMethod]
@@ -105,12 +105,12 @@ public class ResourceTests
             * identifier 0..* Identifier ""Patient identifier""
         ");
         var resource = SushiTestHelper.GetResource(doc, "MyResource");
-        Assert.AreEqual(1, resource.Rules.Count);
+        Assert.HasCount(1, resource.Rules);
         var rule = resource.Rules[0] as AddElementRule;
         Assert.IsNotNull(rule, "Expected AddElementRule");
         Assert.AreEqual("identifier", rule.Path);
         Assert.AreEqual("0..*", rule.Cardinality);
-        Assert.AreEqual(1, rule.TargetTypes.Count);
+        Assert.HasCount(1, rule.TargetTypes);
         Assert.AreEqual("Identifier", rule.TargetTypes[0]);
         Assert.AreEqual("Patient identifier", rule.ShortDescription);
     }
@@ -123,12 +123,12 @@ public class ResourceTests
             * value 0..1 string or integer ""A value""
         ");
         var resource = SushiTestHelper.GetResource(doc, "MyResource");
-        Assert.AreEqual(1, resource.Rules.Count);
+        Assert.HasCount(1, resource.Rules);
         var rule = resource.Rules[0] as AddElementRule;
         Assert.IsNotNull(rule, "Expected AddElementRule");
         Assert.AreEqual("value", rule.Path);
         Assert.AreEqual("0..1", rule.Cardinality);
-        Assert.AreEqual(2, rule.TargetTypes.Count);
+        Assert.HasCount(2, rule.TargetTypes);
         Assert.AreEqual("string", rule.TargetTypes[0]);
         Assert.AreEqual("integer", rule.TargetTypes[1]);
         Assert.AreEqual("A value", rule.ShortDescription);
@@ -142,7 +142,7 @@ public class ResourceTests
             * note 0..* string ""Short note"" ""A longer definition of the note element""
         ");
         var resource = SushiTestHelper.GetResource(doc, "MyResource");
-        Assert.AreEqual(1, resource.Rules.Count);
+        Assert.HasCount(1, resource.Rules);
         var rule = resource.Rules[0] as AddElementRule;
         Assert.IsNotNull(rule, "Expected AddElementRule");
         Assert.AreEqual("note", rule.Path);
@@ -160,7 +160,7 @@ public class ResourceTests
             * active 1..1 MS boolean ""Active flag""
         ");
         var resource = SushiTestHelper.GetResource(doc, "MyResource");
-        Assert.AreEqual(1, resource.Rules.Count);
+        Assert.HasCount(1, resource.Rules);
         var rule = resource.Rules[0] as AddElementRule;
         Assert.IsNotNull(rule, "Expected AddElementRule");
         Assert.AreEqual("active", rule.Path);
@@ -179,7 +179,7 @@ public class ResourceTests
             * meta 0..1
         ");
         var resource = SushiTestHelper.GetResource(doc, "MyResource");
-        Assert.AreEqual(1, resource.Rules.Count);
+        Assert.HasCount(1, resource.Rules);
         // For Resource, cardinality rules on existing elements use LrCardRule
         var rule = resource.Rules[0];
         Assert.IsInstanceOfType<LrCardRule>(rule);

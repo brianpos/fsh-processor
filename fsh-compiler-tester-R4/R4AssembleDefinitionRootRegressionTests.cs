@@ -106,7 +106,7 @@ public class R4AssembleDefinitionRootRegressionTests
 
         Assert.IsNotNull(valueEl, "Expected Extension.value[x] element in the differential.");
         Assert.IsNotNull(valueEl!.Type);
-        Assert.AreEqual(2, valueEl.Type.Count,
+        Assert.HasCount(2, valueEl.Type,
             $"Expected 2 types, got: [{string.Join(",", valueEl.Type.Select(t => t.Code))}]");
         Assert.AreEqual("boolean", valueEl.Type[0].Code,
             $"Expected boolean first; got [{string.Join(",", valueEl.Type.Select(t => t.Code))}]");

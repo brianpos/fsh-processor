@@ -30,7 +30,7 @@ Description: ""A simple patient profile for testing""
         
         var doc = ((ParseResult.Success)result).Document;
         Assert.IsNotNull(doc);
-        Assert.AreEqual(2, doc.Entities.Count);
+        Assert.HasCount(2, doc.Entities);
 
         // Serialize back to FSH
         var serialized = FshSerializer.Serialize(doc);
@@ -49,7 +49,7 @@ Description: ""A simple patient profile for testing""
         Assert.IsNotNull(reparsedDoc);
         
         // Verify structure preserved
-        Assert.AreEqual(doc.Entities.Count, reparsedDoc.Entities.Count);
+        Assert.HasCount(doc.Entities.Count, reparsedDoc.Entities);
         
         // Verify alias
         var alias = doc.Entities[0] as Alias;
@@ -69,7 +69,7 @@ Description: ""A simple patient profile for testing""
         Assert.AreEqual(profile.Id.Value, reparsedProfile.Id.Value);
         Assert.AreEqual(profile.Title.Value, reparsedProfile.Title.Value);
         Assert.AreEqual(profile.Description.Value, reparsedProfile.Description.Value);
-        Assert.AreEqual(profile.Rules.Count, reparsedProfile.Rules.Count);
+        Assert.HasCount(profile.Rules.Count, reparsedProfile.Rules);
     }
 
     [TestMethod]
@@ -89,7 +89,7 @@ Description: ""A simple patient profile for testing""
         Console.WriteLine("=== END SERIALIZED OUTPUT ===");
 
         // Verify the alias is properly formatted
-        Assert.IsTrue(serialized.Contains("Alias: $SCT = http://snomed.info/sct"));
+        Assert.Contains("Alias: $SCT = http://snomed.info/sct", serialized);
 
         // Now assert that the actual strings are identical, that's our ultimate goal here!
         Assert.AreEqual(fshText.TrimEnd(), serialized.TrimEnd(), "Raw text is the same");
@@ -120,13 +120,13 @@ Description: ""Test profile""
         Console.WriteLine("=== END SERIALIZED OUTPUT ===");
 
         // Per spec grammar, "* name 1..1 MS" is one CardRule with both card and flag.
-        Assert.IsTrue(serialized.Contains("Profile: MyProfile"));
-        Assert.IsTrue(serialized.Contains("Parent: Patient"));
-        Assert.IsTrue(serialized.Contains("Id: my-profile"));
-        Assert.IsTrue(serialized.Contains("Title: \"My Profile\""));
-        Assert.IsTrue(serialized.Contains("Description: \"Test profile\""));
-        Assert.IsTrue(serialized.Contains("* name 1..1 MS"));
-        Assert.IsTrue(serialized.Contains("* identifier 0..* MS"));
+        Assert.Contains("Profile: MyProfile", serialized);
+        Assert.Contains("Parent: Patient", serialized);
+        Assert.Contains("Id: my-profile", serialized);
+        Assert.Contains("Title: \"My Profile\"", serialized);
+        Assert.Contains("Description: \"Test profile\"", serialized);
+        Assert.Contains("* name 1..1 MS", serialized);
+        Assert.Contains("* identifier 0..* MS", serialized);
     }
 
     [TestMethod]
@@ -263,7 +263,7 @@ Title: ""My CodeSystem""
         var cs = reparsedDoc.Entities[0] as CodeSystem;
         Assert.IsNotNull(cs);
         Assert.AreEqual("MyCodeSystem", cs.Name);
-        Assert.AreEqual(3, cs.Rules.Count);
+        Assert.HasCount(3, cs.Rules);
     }
 
     [TestMethod]
@@ -340,7 +340,7 @@ Characteristics: #can-be-target
         // Per spec grammar: "* status 1..1 MS" is one CardRule (no X4 split).
         // P-FP1 path composition: "* reference 0..1" indented under "* subject 1..1 MS" gets path "subject.reference".
         // 3 top-level CardRules + 1 composed CardRule = 4
-        Assert.AreEqual(4, ruleSet.Rules.Count);
+        Assert.HasCount(4, ruleSet.Rules);
     }
 
     [TestMethod]
@@ -465,9 +465,9 @@ Parent: Patient
         Console.WriteLine(serialized);
         Console.WriteLine("=== END SERIALIZED OUTPUT ===");
 
-        Assert.IsTrue(serialized.Contains("// Header comment"));
-        Assert.IsTrue(serialized.Contains("// inline comment"));
-        Assert.IsTrue(serialized.Contains("// Profile comment"));
+        Assert.Contains("// Header comment", serialized);
+        Assert.Contains("// inline comment", serialized);
+        Assert.Contains("// Profile comment", serialized);
     }
 
     [TestMethod]
@@ -518,7 +518,7 @@ Id: my-observation
 
         // Per spec grammar (cardRule: STAR path CARD flag*), "* status 1..1 MS" is one CardRule.
         // 7 rules total (no X4 split).
-        Assert.AreEqual(7, profile.Rules.Count);
+        Assert.HasCount(7, profile.Rules);
 
         // Verify specific rule types
         Assert.IsInstanceOfType<CardRule>(profile.Rules[0]);    // status 1..1 MS (one CardRule)
@@ -553,7 +553,7 @@ Id: my-observation
         // Get all FSH files from the TestData/SDC folder shipped with the test assembly
         var sdcPath = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC");
         var fshFiles = Directory.GetFiles(sdcPath, "*.fsh", SearchOption.AllDirectories);
-        Assert.IsTrue(fshFiles.Length > 0, "No FSH files found in SDC IG");
+        Assert.IsNotEmpty(fshFiles, "No FSH files found in SDC IG");
 
         int successCount = 0;
         int failCount = 0;
@@ -584,7 +584,7 @@ Id: my-observation
         }
 
         // Assert overall success
-        Assert.IsTrue(successCount > 0, "No files successfully round-tripped");
+        Assert.IsGreaterThan(0, successCount, "No files successfully round-tripped");
         Assert.AreEqual(0, failCount, $"{failCount} files failed to round-trip. See test output for details.");
     }
 
@@ -711,7 +711,7 @@ Parent: Patient // test 2
         var serialized = FshSerializer.Serialize(doc);
         
         Assert.IsNotNull(serialized);
-        Assert.IsTrue(serialized.Length > 0);
+        Assert.IsGreaterThan(0, serialized.Length);
     }
 
     #region Helper Methods

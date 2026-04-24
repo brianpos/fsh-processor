@@ -43,7 +43,7 @@ public class R4ExtensionCompilerTests
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyExtension");
         Assert.IsNotNull(sd.Context, "Extension should have a Context");
-        Assert.AreEqual(1, sd.Context.Count);
+        Assert.HasCount(1, sd.Context);
         Assert.AreEqual("Patient", sd.Context[0].Expression);
         Assert.AreEqual(StructureDefinition.ExtensionContextType.Element, sd.Context[0].Type);
     }
@@ -84,7 +84,7 @@ public class R4ExtensionCompilerTests
         ");
         var sd = CompilerTestHelper.GetStructureDefinition(resources, "MyExtension");
         Assert.IsNotNull(sd.ContextInvariantElement, "ContextInvariantElement should not be null");
-        Assert.AreEqual(1, sd.ContextInvariantElement.Count, "Expected exactly one contextInvariant");
+        Assert.HasCount(1, sd.ContextInvariantElement, "Expected exactly one contextInvariant");
         Assert.AreEqual("initial.exists().not()", sd.ContextInvariantElement[0].Value);
     }
 

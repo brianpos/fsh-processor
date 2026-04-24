@@ -17,7 +17,7 @@ public class FshValidationTests
         // Get all FSH files from the TestData/SDC folder shipped with the test assembly
         var sdcPath = Path.Combine(AppContext.BaseDirectory, "TestData", "SDC");
         var fshFiles = Directory.GetFiles(sdcPath, "*.fsh", SearchOption.AllDirectories);
-        Assert.IsTrue(fshFiles.Length > 0, "No FSH files found in SDC IG");
+        Assert.IsNotEmpty(fshFiles, "No FSH files found in SDC IG");
 
         int successCount = 0;
         int failCount = 0;
@@ -70,7 +70,7 @@ public class FshValidationTests
         }
 
         // Assert overall success
-        Assert.IsTrue(successCount > 0, "No files successfully round-tripped");
+        Assert.IsGreaterThan(0, successCount, "No files successfully round-tripped");
         Assert.AreEqual(0, failCount, $"{failCount} files failed to round-trip. See test output for details.");
 
         // Now we have all the FSH files loaded, lets start actually processing the content

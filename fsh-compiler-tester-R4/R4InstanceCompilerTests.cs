@@ -51,7 +51,7 @@ public class R4InstanceCompilerTests
         ");
         var patient = resources.OfType<Patient>().FirstOrDefault();
         Assert.IsNotNull(patient);
-        Assert.IsTrue(patient.Name.Count > 0, "Name list should have entries");
+        Assert.IsNotEmpty(patient.Name, "Name list should have entries");
         Assert.AreEqual("Smith", patient.Name[0].Family);
     }
 
@@ -65,8 +65,8 @@ public class R4InstanceCompilerTests
         ");
         var patient = resources.OfType<Patient>().FirstOrDefault();
         Assert.IsNotNull(patient);
-        Assert.IsTrue(patient.Name.Count > 0);
-        Assert.IsTrue(patient.Name[0].GivenElement.Count > 0);
+        Assert.IsNotEmpty(patient.Name);
+        Assert.IsNotEmpty(patient.Name[0].GivenElement);
         Assert.AreEqual("Jane", patient.Name[0].Given.First());
     }
 
@@ -113,7 +113,7 @@ public class R4InstanceCompilerTests
             * id = ""patient-b""
         ");
         var patients = resources.OfType<Patient>().ToList();
-        Assert.AreEqual(2, patients.Count);
+        Assert.HasCount(2, patients);
     }
 
     [TestMethod]
@@ -228,7 +228,7 @@ public class R4InstanceCompilerTests
             Parent: Patient
         ");
         var patients = resources.OfType<Patient>().ToList();
-        Assert.AreEqual(0, patients.Count, "#inline instance should not be emitted");
+        Assert.IsEmpty(patients, "#inline instance should not be emitted");
         Assert.AreEqual(1, resources.OfType<StructureDefinition>().Count(),
             "Profile should still compile");
     }
@@ -248,10 +248,10 @@ public class R4InstanceCompilerTests
         var patient = resources.OfType<Patient>().FirstOrDefault();
         Assert.IsNotNull(patient, "Patient instance should compile");
         // [+] on name → name[0], [=] on name → still name[0], [+] on name again → name[1]
-        Assert.IsTrue(patient.Name.Count >= 2, "Should have at least 2 name entries");
+        Assert.IsGreaterThanOrEqualTo(2, patient.Name.Count, "Should have at least 2 name entries");
         Assert.AreEqual("Smith", patient.Name[0].Family, "First name.family should be Smith");
         Assert.AreEqual("Jones", patient.Name[1].Family, "Second name.family should be Jones");
-        Assert.IsTrue(patient.Name[0].GivenElement.Count > 0,
+        Assert.IsNotEmpty(patient.Name[0].GivenElement,
             "First name should have given element set by [=]");
     }
 
@@ -281,10 +281,10 @@ public class R4InstanceCompilerTests
 
         // The ValueSet should be embedded, not emitted as standalone.
         var standalone = resources.OfType<Hl7.Fhir.Model.ValueSet>().ToList();
-        Assert.AreEqual(1, standalone.Count, "ValueSet should still be emitted as standalone (#example)");
+        Assert.HasCount(1, standalone, "ValueSet should still be emitted as standalone (#example)");
 
         Assert.IsNotNull(questionnaire.Contained, "Questionnaire.contained should not be null");
-        Assert.AreEqual(1, questionnaire.Contained.Count, "Should have exactly one contained resource");
+        Assert.HasCount(1, questionnaire.Contained, "Should have exactly one contained resource");
 
         var contained = questionnaire.Contained[0] as Hl7.Fhir.Model.ValueSet;
         Assert.IsNotNull(contained, "Contained resource should be a ValueSet");
@@ -317,7 +317,7 @@ public class R4InstanceCompilerTests
             "#inline ValueSet must not be emitted standalone");
 
         Assert.IsNotNull(questionnaire.Contained, "Questionnaire.contained should not be null");
-        Assert.AreEqual(1, questionnaire.Contained.Count, "Inline instance should be contained");
+        Assert.HasCount(1, questionnaire.Contained, "Inline instance should be contained");
 
         var contained = questionnaire.Contained[0] as Hl7.Fhir.Model.ValueSet;
         Assert.IsNotNull(contained, "Contained resource should be a ValueSet");
@@ -350,7 +350,7 @@ public class R4InstanceCompilerTests
         var questionnaire = resources.OfType<Questionnaire>().FirstOrDefault();
         Assert.IsNotNull(questionnaire, "Questionnaire should compile");
         Assert.IsNotNull(questionnaire.Contained);
-        Assert.AreEqual(2, questionnaire.Contained.Count, "Should have two contained resources");
+        Assert.HasCount(2, questionnaire.Contained, "Should have two contained resources");
         Assert.IsTrue(questionnaire.Contained.Any(c => c.Id == "VS1"), "VS1 should be contained");
         Assert.IsTrue(questionnaire.Contained.Any(c => c.Id == "VS2"), "VS2 should be contained");
     }
@@ -382,7 +382,7 @@ public class R4InstanceCompilerTests
 
         var q = resources.OfType<Questionnaire>().FirstOrDefault();
         Assert.IsNotNull(q, "Questionnaire not found");
-        Assert.AreEqual(1, q.Item.Count, "Should have one item");
+        Assert.HasCount(1, q.Item, "Should have one item");
         Assert.AreEqual("Date of birth", q.Item[0].Text, "Spaces inside parameter value must be preserved");
     }
 
@@ -409,7 +409,7 @@ public class R4InstanceCompilerTests
 
         var q = resources.OfType<Questionnaire>().FirstOrDefault();
         Assert.IsNotNull(q, "Questionnaire not found");
-        Assert.AreEqual(1, q.Item.Count, "Should have one item");
+        Assert.HasCount(1, q.Item, "Should have one item");
         Assert.AreEqual("(internal use)", q.Item[0].Text, "Escaped paren must be unescaped");
     }
 
@@ -443,11 +443,11 @@ public class R4InstanceCompilerTests
 
         var q = resources.OfType<Questionnaire>().FirstOrDefault();
         Assert.IsNotNull(q, "Questionnaire not found");
-        Assert.AreEqual(1, q.Item.Count, "Should have one item");
+        Assert.HasCount(1, q.Item, "Should have one item");
         var hiddenExt = q.Item[0].Extension.FirstOrDefault(
             e => e.Url == "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden");
         Assert.IsNotNull(hiddenExt, "Hidden extension must be set by non-parameterized ruleset");
-        Assert.AreEqual(true, ((FhirBoolean)hiddenExt.Value).Value, "Hidden extension value must be true");
+        Assert.IsTrue(((FhirBoolean)hiddenExt.Value).Value, "Hidden extension value must be true");
     }
 
     /// <summary>
@@ -476,7 +476,7 @@ public class R4InstanceCompilerTests
 
         var q = resources.OfType<Questionnaire>().FirstOrDefault();
         Assert.IsNotNull(q, "Questionnaire not found");
-        Assert.AreEqual(1, q.Item.Count, "Should have one item");
+        Assert.HasCount(1, q.Item, "Should have one item");
         Assert.IsNull(q.Item[0].Definition, "Empty definition parameter must not produce an empty string on the item");
     }
 }

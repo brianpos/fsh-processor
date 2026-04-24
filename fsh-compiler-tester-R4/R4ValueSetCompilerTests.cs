@@ -33,7 +33,7 @@ public class R4ValueSetCompilerTests
         ");
         var vs = CompilerTestHelper.GetValueSet(resources, "MyValueSet");
         Assert.IsNotNull(vs.Compose);
-        Assert.AreEqual(1, vs.Compose.Include.Count);
+        Assert.HasCount(1, vs.Compose.Include);
         Assert.AreEqual("http://loinc.org", vs.Compose.Include[0].System);
     }
 
@@ -46,7 +46,7 @@ public class R4ValueSetCompilerTests
         ");
         var vs = CompilerTestHelper.GetValueSet(resources, "MyValueSet");
         Assert.IsNotNull(vs.Compose);
-        Assert.AreEqual(1, vs.Compose.Include.Count);
+        Assert.HasCount(1, vs.Compose.Include);
         // Per language-reference include coding syntax, explicit system identifiers are
         // used as provided; URN systems must not be canonical-base rewritten.
         Assert.AreEqual("urn:ietf:bcp:13", vs.Compose.Include[0].System);
@@ -62,8 +62,8 @@ public class R4ValueSetCompilerTests
         ");
         var vs = CompilerTestHelper.GetValueSet(resources, "MyValueSet");
         Assert.IsNotNull(vs.Compose);
-        Assert.AreEqual(1, vs.Compose.Include.Count);
-        Assert.AreEqual(1, vs.Compose.Exclude.Count);
+        Assert.HasCount(1, vs.Compose.Include);
+        Assert.HasCount(1, vs.Compose.Exclude);
         Assert.AreEqual("http://snomed.info/sct", vs.Compose.Exclude[0].System);
     }
 

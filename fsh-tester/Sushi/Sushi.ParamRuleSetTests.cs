@@ -26,11 +26,11 @@ public class ParamRuleSetTests
             * code from {system} {strength}
             * pig from egg
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "MyRuleSet");
         Assert.AreEqual("MyRuleSet", ruleSet.Name);
         Assert.IsTrue(ruleSet.IsParameterized);
-        Assert.AreEqual(2, ruleSet.Parameters.Count);
+        Assert.HasCount(2, ruleSet.Parameters);
         Assert.AreEqual("system", ruleSet.Parameters[0].Value);
         Assert.AreEqual("strength", ruleSet.Parameters[1].Value);
         Assert.IsNotNull(ruleSet.UnparsedContent);
@@ -43,11 +43,11 @@ public class ParamRuleSetTests
             RuleSet: 123 (system, strength)
             * code from {system} {strength}
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "123");
         Assert.AreEqual("123", ruleSet.Name);
         Assert.IsTrue(ruleSet.IsParameterized);
-        Assert.AreEqual(2, ruleSet.Parameters.Count);
+        Assert.HasCount(2, ruleSet.Parameters);
         Assert.AreEqual("system", ruleSet.Parameters[0].Value);
         Assert.AreEqual("strength", ruleSet.Parameters[1].Value);
     }
@@ -60,11 +60,11 @@ public class ParamRuleSetTests
             * code from {system} {strength}
             * pig from egg
         ");
-        Assert.AreEqual(1, SushiTestHelper.GetRuleSets(doc).Count);
+        Assert.HasCount(1, SushiTestHelper.GetRuleSets(doc));
         var ruleSet = SushiTestHelper.GetRuleSet(doc, "MyRuleSet");
         Assert.AreEqual("MyRuleSet", ruleSet.Name);
         Assert.IsTrue(ruleSet.IsParameterized);
-        Assert.AreEqual(2, ruleSet.Parameters.Count);
+        Assert.HasCount(2, ruleSet.Parameters);
         Assert.AreEqual("system", ruleSet.Parameters[0].Value);
         Assert.AreEqual("strength", ruleSet.Parameters[1].Value);
         Assert.IsNotNull(ruleSet.UnparsedContent);
@@ -145,69 +145,69 @@ public class ParamRuleSetTests
 
         // Verify 10 parameterized rulesets
         var ruleSets = SushiTestHelper.GetRuleSets(doc);
-        Assert.AreEqual(10, ruleSets.Count);
+        Assert.HasCount(10, ruleSets);
 
         var first = SushiTestHelper.GetRuleSet(doc, "FirstRuleSet");
         Assert.AreEqual("FirstRuleSet", first.Name);
         Assert.IsTrue(first.IsParameterized);
-        Assert.AreEqual(2, first.Parameters.Count);
+        Assert.HasCount(2, first.Parameters);
         Assert.AreEqual("system", first.Parameters[0].Value);
         Assert.AreEqual("strength", first.Parameters[1].Value);
 
         var second = SushiTestHelper.GetRuleSet(doc, "SecondRuleSet");
         Assert.AreEqual("SecondRuleSet", second.Name);
         Assert.IsTrue(second.IsParameterized);
-        Assert.AreEqual(1, second.Parameters.Count);
+        Assert.HasCount(1, second.Parameters);
         Assert.AreEqual("min", second.Parameters[0].Value);
 
         var third = SushiTestHelper.GetRuleSet(doc, "ThirdRuleSet");
         Assert.AreEqual("ThirdRuleSet", third.Name);
         Assert.IsTrue(third.IsParameterized);
-        Assert.AreEqual(1, third.Parameters.Count);
+        Assert.HasCount(1, third.Parameters);
         Assert.AreEqual("cookie", third.Parameters[0].Value);
 
         var fourth = SushiTestHelper.GetRuleSet(doc, "FourthRuleSet");
         Assert.AreEqual("FourthRuleSet", fourth.Name);
         Assert.IsTrue(fourth.IsParameterized);
-        Assert.AreEqual(1, fourth.Parameters.Count);
+        Assert.HasCount(1, fourth.Parameters);
         Assert.AreEqual("toast", fourth.Parameters[0].Value);
 
         var fifth = SushiTestHelper.GetRuleSet(doc, "FifthRuleSet");
         Assert.AreEqual("FifthRuleSet", fifth.Name);
         Assert.IsTrue(fifth.IsParameterized);
-        Assert.AreEqual(2, fifth.Parameters.Count);
+        Assert.HasCount(2, fifth.Parameters);
         Assert.AreEqual("strength", fifth.Parameters[0].Value);
         Assert.AreEqual("system", fifth.Parameters[1].Value);
 
         var sixth = SushiTestHelper.GetRuleSet(doc, "SixthRuleSet");
         Assert.AreEqual("SixthRuleSet", sixth.Name);
         Assert.IsTrue(sixth.IsParameterized);
-        Assert.AreEqual(1, sixth.Parameters.Count);
+        Assert.HasCount(1, sixth.Parameters);
         Assert.AreEqual("content", sixth.Parameters[0].Value);
 
         var seventh = SushiTestHelper.GetRuleSet(doc, "SeventhRuleSet");
         Assert.AreEqual("SeventhRuleSet", seventh.Name);
         Assert.IsTrue(seventh.IsParameterized);
-        Assert.AreEqual(2, seventh.Parameters.Count);
+        Assert.HasCount(2, seventh.Parameters);
         Assert.AreEqual("even", seventh.Parameters[0].Value);
         Assert.AreEqual("more", seventh.Parameters[1].Value);
 
         var eighth = SushiTestHelper.GetRuleSet(doc, "EighthRuleSet");
         Assert.AreEqual("EighthRuleSet", eighth.Name);
         Assert.IsTrue(eighth.IsParameterized);
-        Assert.AreEqual(1, eighth.Parameters.Count);
+        Assert.HasCount(1, eighth.Parameters);
         Assert.AreEqual("continuation", eighth.Parameters[0].Value);
 
         var ninth = SushiTestHelper.GetRuleSet(doc, "NinthRuleSet");
         Assert.AreEqual("NinthRuleSet", ninth.Name);
         Assert.IsTrue(ninth.IsParameterized);
-        Assert.AreEqual(1, ninth.Parameters.Count);
+        Assert.HasCount(1, ninth.Parameters);
         Assert.AreEqual("tiring", ninth.Parameters[0].Value);
 
         var tenth = SushiTestHelper.GetRuleSet(doc, "TenthRuleSet");
         Assert.AreEqual("TenthRuleSet", tenth.Name);
         Assert.IsTrue(tenth.IsParameterized);
-        Assert.AreEqual(1, tenth.Parameters.Count);
+        Assert.HasCount(1, tenth.Parameters);
         Assert.AreEqual("conclusion", tenth.Parameters[0].Value);
     }
 

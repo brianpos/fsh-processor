@@ -387,7 +387,7 @@ public class SdcIgCompilerTests
             Console.WriteLine("    };");
         }
 
-        Assert.AreEqual(0, mismatches.Count,
+        Assert.IsEmpty(mismatches,
             $"_fileDependencies dictionary is out of date ({mismatches.Count} issue(s)). " +
             "Run this test and copy the printed dictionary from the output. See details above.");
     }
@@ -412,7 +412,7 @@ public class SdcIgCompilerTests
                                 .OrderBy(f => f)
                                 .ToArray();
 
-        Assert.IsTrue(fshFiles.Length > 0, "No FSH files found in SDC directory");
+        Assert.IsNotEmpty(fshFiles, "No FSH files found in SDC directory");
 
         // ── 1. Parse every FSH file ──────────────────────────────────────────────
         foreach (var fshFile in fshFiles)
@@ -581,14 +581,14 @@ public class SdcIgCompilerTests
         }
 
         // ── Assertions ───────────────────────────────────────────────────────────
-        Assert.AreEqual(0, parseErrors.Count,
+        Assert.IsEmpty(parseErrors,
             $"{parseErrors.Count} file(s) failed to parse. See output for details.");
 
         // T1: SDC IG now compiles with zero errors.  Hard assert so regressions are caught.
-        Assert.AreEqual(0, compileErrors.Count,
+        Assert.IsEmpty(compileErrors,
             $"{compileErrors.Count} compile error(s) found. See output for details.");
 
-        Assert.IsTrue(resources.Count > 0, "No FHIR resources were produced from the SDC IG FSH.");
+        Assert.IsNotEmpty(resources, "No FHIR resources were produced from the SDC IG FSH.");
     }
 
     [TestMethod]
@@ -952,10 +952,10 @@ public class SdcIgCompilerTests
         //}
 
         // T1: SDC IG now compiles with zero errors.  Hard assert so regressions are caught.
-        Assert.AreEqual(0, compileErrors.Count,
+        Assert.IsEmpty(compileErrors,
             $"{compileErrors.Count} compile error(s) found. See output for details.");
 
-        Assert.IsTrue(resources.Count > 0, "No FHIR resources were produced from the SDC IG FSH.");
+        Assert.IsNotEmpty(resources, "No FHIR resources were produced from the SDC IG FSH.");
 
 
         // and finally compare with any sushi generated files
@@ -1111,7 +1111,7 @@ public class SdcIgCompilerTests
             foreach (var f in failures) Console.WriteLine($"  {f}");
         }
 
-        Assert.AreEqual(0, failures.Count,
+        Assert.IsEmpty(failures,
             $"{failures.Count} resource(s) failed JSON round-trip validation. See output.");
     }
 
@@ -1175,7 +1175,7 @@ public class SdcIgCompilerTests
         // Try to layer on the R4 core spec ZIP if it is available at runtime.
         // This will be absent in CI environments that don't ship the zip, which is fine –
         // we handle the failure gracefully below.
-        ISyncOrAsyncResourceResolver resolver;
+        IResourceResolver resolver;
         var specZipPath = Path.Combine(AppContext.BaseDirectory, "specification.zip");
 
         if (File.Exists(specZipPath))
@@ -1259,7 +1259,7 @@ public class SdcIgCompilerTests
 
         // Partial results (missing base profiles) are expected when spec.zip is absent;
         // treat those as acceptable.  Hard errors (exceptions) are a test failure.
-        Assert.AreEqual(0, snapshotErrors.Count,
+        Assert.IsEmpty(snapshotErrors,
             $"{snapshotErrors.Count} StructureDefinition(s) threw an exception during snapshot generation. " +
             "See output for details.");
     }
@@ -1365,7 +1365,7 @@ public class SdcIgCompilerTests
             Console.WriteLine($"\nAll {resources.Count} compiled resources have required metadata.");
         }
 
-        Assert.AreEqual(0, metadataFailures.Count,
+        Assert.IsEmpty(metadataFailures,
             $"{metadataFailures.Count} resource(s) missing required metadata. See output for details.");
     }
 
@@ -1408,8 +1408,8 @@ public class SdcIgCompilerTests
             "Should produce at least one ValueSet");
         Assert.IsTrue(byType.TryGetValue("CodeSystem", out var csCount) && csCount > 0,
             "Should produce at least one CodeSystem");
-        Assert.IsTrue(resources.Count > 100,
-            $"Should produce more than 100 resources total; got {resources.Count}");
+        Assert.IsGreaterThan(100,
+resources.Count, $"Should produce more than 100 resources total; got {resources.Count}");
 
         Console.WriteLine($"\nTotal resources: {resources.Count}");
     }
@@ -1629,7 +1629,7 @@ public class SdcIgCompilerTests
         }
 
         // This test never fails – it is informational.
-        Assert.IsTrue(written >= 0);
+        Assert.IsGreaterThanOrEqualTo(0, written);
     }
 
     // ── Test 7: Normalize sushi-generated JSON property order ──────────────────
@@ -1655,7 +1655,7 @@ public class SdcIgCompilerTests
         }
 
         var sushiFiles = Directory.GetFiles(sushiDir, "*.json");
-        Assert.IsTrue(sushiFiles.Length > 0, "No JSON files found in sushi-generated directory");
+        Assert.IsNotEmpty(sushiFiles, "No JSON files found in sushi-generated directory");
 
         var serializerSettings = new FhirJsonSerializationSettings { Pretty = true };
         var parserSettings = new ParserSettings { AcceptUnknownMembers = true, AllowUnrecognizedEnums = true };
@@ -1690,7 +1690,7 @@ public class SdcIgCompilerTests
             foreach (var f in failures) Console.WriteLine($"  {f}");
         }
 
-        Assert.AreEqual(0, failures.Count,
+        Assert.IsEmpty(failures,
             $"{failures.Count} file(s) failed normalization. See output for details.");
     }
 
