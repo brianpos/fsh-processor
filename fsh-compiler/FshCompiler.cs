@@ -864,7 +864,6 @@ public static class FshCompiler
             Title = logical.Title,
             Description = NormalizeLineEndings(logical.Description),
             Status = PublicationStatus.Active,
-            Experimental = false,
             Abstract = false,
             Type = logicalType,
             BaseDefinition = ResolveBaseDefinitionCanonical(
