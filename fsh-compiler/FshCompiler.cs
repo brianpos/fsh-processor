@@ -447,14 +447,16 @@ public static class FshCompiler
 
         AttachOrderingContext(sd, context, opts);
 
-        ApplySdRules(profile.Rules, sd, context, opts);
-
         // Resolve the core base FHIR type SD (not just the immediate parent) for choice-type
         // variant mapping and base-slice detection.  When the parent is itself a profile of a
         // core type, parentBaseSd is a constraint and does not carry the full type list.
+        // Must be resolved BEFORE ApplySdRules because choice-type slice detection now happens
+        // inline in GetOrCreateElement during rule application.
         var coreTypeSd = string.IsNullOrEmpty(sd.Type) ? null
             : FindStructureDefinitionForType(sd.Type, mergedResolver);
-        NormalizeChoiceTypeSlices(sd, parentBaseSd, coreTypeSd, mergedResolver);
+        AttachChoiceSliceContext(sd, parentBaseSd, coreTypeSd, mergedResolver);
+
+        ApplySdRules(profile.Rules, sd, context, opts);
 
         RemoveRedundantCardinalityAgainstBase(sd, context, opts);
         RemoveRedundantTypeConstraints(sd, context, opts);
@@ -590,6 +592,10 @@ public static class FshCompiler
         sd.Differential.Element.Add(new ElementDefinition("Extension") { Path = "Extension", ElementId = "Extension" });
 
         AttachOrderingContext(sd, context, opts);
+        var extResolver = BuildMergedResolver(context, opts.Resolver);
+        AttachChoiceSliceContext(sd, parentBaseSd: null,
+            coreTypeSd: FindStructureDefinitionForType(sd.Type, extResolver),
+            resolver: extResolver);
 
         // Stamp the target FHIR version from the compiler options when supplied (sushi always
         // emits fhirVersion on generated StructureDefinitions).
@@ -892,6 +898,10 @@ public static class FshCompiler
         sd.Differential.Element.Add(rootElement);
 
         AttachOrderingContext(sd, context, opts);
+        var logicalResolver = BuildMergedResolver(context, opts.Resolver);
+        AttachChoiceSliceContext(sd, parentBaseSd: null,
+            coreTypeSd: FindStructureDefinitionForType(sd.Type, logicalResolver),
+            resolver: logicalResolver);
 
         // C-LG1: Emit type-characteristics extension for each Characteristics code.
         if (logical.Characteristics.Count > 0)
@@ -945,6 +955,10 @@ public static class FshCompiler
         sd.Differential.Element.Add(new ElementDefinition(sd.Type) { Path = sd.Type, ElementId = sd.Type });
 
         AttachOrderingContext(sd, context, opts);
+        var resourceResolver = BuildMergedResolver(context, opts.Resolver);
+        AttachChoiceSliceContext(sd, parentBaseSd: null,
+            coreTypeSd: FindStructureDefinitionForType(sd.Type, resourceResolver),
+            resolver: resourceResolver);
 
         ApplySdRules(fshResource.Rules, sd, context, opts);
         RemoveRedundantCardinalityAgainstBase(sd, context, opts);
@@ -1472,6 +1486,16 @@ public static class FshCompiler
                 ed.Fixed = dt;
             else
                 ed.Pattern = dt;
+
+            // When assigning onto a choice-type variant slice whose declared type is a
+            // super-type of the value's type (e.g. Coding on a valueCodeableConcept slice),
+            // wrap the value so the serialized pattern[x] / fixed[x] variant is correct.
+            if (!string.IsNullOrEmpty(ed.SliceName)
+                && ed.Type is { Count: 1 } types
+                && !string.IsNullOrEmpty(types[0].Code))
+            {
+                WrapChoiceSlicePattern(ed, types[0].Code);
+            }
         }
     }
 
@@ -2172,6 +2196,18 @@ public static class FshCompiler
             PreSeedInheritedListFromBase(caretValueRule.CaretPath.TrimStart('^'), ed, sd, context, opts);
             // Each element gets its own soft-index state for element-level compound paths.
             ApplyEdCaretPath(adjustedRule, ed, inspector, aliasResolver, canonicalResolver);
+
+            // When caret rules assign a pattern/fixed value onto a choice-type variant
+            // slice and the value's type is a sub-type of the slice's declared type
+            // (e.g. ^patternCoding on a valueCodeableConcept slice), wrap the value in
+            // the correct container so the serialised pattern[x] / fixed[x] variant
+            // matches the slice's declared type.
+            if (!string.IsNullOrEmpty(ed.SliceName)
+                && ed.Type is { Count: 1 } types
+                && !string.IsNullOrEmpty(types[0].Code))
+            {
+                WrapChoiceSlicePattern(ed, types[0].Code);
+            }
         }
     }
 
@@ -2885,30 +2921,82 @@ public static class FshCompiler
         // by a prior `contains` rule rather than being treated as literal brackets.
         path = NormalizeSliceBrackets(path);
 
-        // Split into segments and process each segment for potential slice notation.
-        // Build:  fhirPath (no slice markers), elementId (with :slice markers), and a
-        // search key so we can find / create the element consistently.
+        // Split into segments and process each segment for potential slice notation
+        // AND inline choice-type variant detection.
+        // For a segment like `valueCodeableConcept` where the current-depth FHIR type
+        // defines `value[x]` with a `CodeableConcept` variant, we rewrite the segment
+        // to the canonical sliced form (`value[x]:valueCodeableConcept`) and remember
+        // to emit the slicing parent (`<parent>.value[x]` with type-discriminated slicing).
         var segments = path.Split('.');
         var fhirPathSegments = new List<string>(segments.Length);
         var elementIdSegments = new List<string>(segments.Length);
         string? trailingSliceName = null;
+        bool hasSliceInPath = false;
 
-        foreach (var seg in segments)
+        var choiceCtx = sd.Annotation<ChoiceSliceContext>();
+        string? currentType = sd.Type;
+        string? terminalVariantName = null;
+        string? terminalVariantType = null;
+        List<(string fullChoicePath, string typeName)>? slicingParentsToEmit = null;
+
+        for (int segIdx = 0; segIdx < segments.Length; segIdx++)
         {
+            var seg = segments[segIdx];
+            bool isTerminal = segIdx == segments.Length - 1;
             var colon = seg.IndexOf(':');
-            if (colon < 0)
-            {
-                fhirPathSegments.Add(seg);
-                elementIdSegments.Add(seg);
-                trailingSliceName = null;
-            }
-            else
+
+            if (colon >= 0)
             {
                 var baseName = seg[..colon];
                 var sliceName = seg[(colon + 1)..];
                 fhirPathSegments.Add(baseName);
                 elementIdSegments.Add($"{baseName}:{sliceName}");
-                trailingSliceName = sliceName;
+                hasSliceInPath = true;
+                trailingSliceName = isTerminal ? sliceName : null;
+
+                // Advance type across this segment using the field (base) name.
+                currentType = AdvanceChoiceType(currentType, baseName, choiceCtx);
+                continue;
+            }
+
+            // Try inline choice-type variant detection: does `seg` match `<base>X`
+            // where the current type defines `<base>[x]` with `X` as one of its types?
+            var variant = DetectChoiceVariant(currentType, seg, choiceCtx);
+            if (variant != null)
+            {
+                var (choiceBase, typeName) = variant.Value;
+                fhirPathSegments.Add(choiceBase);                   // e.g. "value[x]"
+                elementIdSegments.Add($"{choiceBase}:{seg}");       // e.g. "value[x]:valueCodeableConcept"
+                hasSliceInPath = true;
+
+                // Compute this slicing parent's full path (relative to current SD root).
+                var parentOnlyFhirSegments = fhirPathSegments.Take(fhirPathSegments.Count - 1).ToList();
+                var parentPrefix = string.IsNullOrEmpty(type)
+                    ? string.Join('.', parentOnlyFhirSegments)
+                    : parentOnlyFhirSegments.Count == 0 ? type : type + "." + string.Join('.', parentOnlyFhirSegments);
+                var fullChoicePath = string.IsNullOrEmpty(parentPrefix)
+                    ? choiceBase
+                    : parentPrefix + "." + choiceBase;
+
+                (slicingParentsToEmit ??= new()).Add((fullChoicePath, typeName));
+
+                if (isTerminal)
+                {
+                    trailingSliceName = seg;
+                    terminalVariantName = seg;
+                    terminalVariantType = typeName;
+                }
+
+                // Advance type to the variant type (e.g. CodeableConcept) so sub-segments
+                // below a choice-variant slice resolve under the chosen concrete type.
+                currentType = typeName;
+            }
+            else
+            {
+                fhirPathSegments.Add(seg);
+                elementIdSegments.Add(seg);
+                trailingSliceName = null;
+                currentType = AdvanceChoiceType(currentType, seg, choiceCtx);
             }
         }
 
@@ -2919,7 +3007,14 @@ public static class FshCompiler
             ? string.Join('.', elementIdSegments)
             : $"{type}.{string.Join('.', elementIdSegments)}";
 
-        var hasSliceInPath = segments.Any(s => s.Contains(':'));
+        // Emit each required slicing parent element (once per SD compile).  Done before
+        // creating the slice itself so insertion ordering (driven by element rank) works
+        // naturally — the parent (value[x]) has sliceRank 0, slices have sliceRank > 0.
+        if (slicingParentsToEmit != null && choiceCtx != null)
+        {
+            foreach (var (fullChoicePath, variantType) in slicingParentsToEmit)
+                EnsureChoiceSlicingParent(sd, choiceCtx, fullChoicePath);
+        }
 
         if (hasSliceInPath)
         {
@@ -2937,6 +3032,21 @@ public static class FshCompiler
             // retain the slice marker only in their id, never in SliceName.
             if (elementIdSegments[^1].Contains(':'))
                 newEd.SliceName = trailingSliceName;
+
+            // For a terminal choice-type variant slice, stamp the type and cardinality
+            // (named choice-type variants are always 0..1, but skip max when the base
+            // already defines the slice — the cardinality is inherited).
+            if (terminalVariantName != null && terminalVariantType != null && choiceCtx != null)
+            {
+                if (newEd.Type == null || newEd.Type.Count == 0)
+                    newEd.Type = [new ElementDefinition.TypeRefComponent { Code = terminalVariantType }];
+
+                var baseHasSlice = choiceCtx.ParentBaseSd?.Differential?.Element?.Any(e =>
+                    e.Path == fhirPath
+                    && string.Equals(e.SliceName, terminalVariantName, StringComparison.Ordinal)) ?? false;
+                if (newEd.MaxElement == null && !baseHasSlice)
+                    newEd.Max = "1";
+            }
 
             InsertElementInOrder(sd, newEd);
             return newEd;
@@ -3609,250 +3719,266 @@ public static class FshCompiler
         return !hasMeaningfulContent;
     }
 
+    // ─── Inline choice-type slice detection ─────────────────────────────────
 
     /// <summary>
-    /// When FSH rules target named choice-type path variants (e.g. <c>valueCodeableConcept</c>
-    /// instead of <c>value[x]</c>), rewrites those differential elements to the correct FHIR
-    /// type-slice form required by the spec:
-    /// <list type="number">
-    ///   <item>Adds a type-discriminated slicing on the parent <c>[x]</c> element (when the
-    ///         parent profile does not already define it).</item>
-    ///   <item>Converts the named-variant element to a named slice with a type constraint.</item>
-    ///   <item>Rewrites child element paths/ids to use the generic <c>[x]</c> path with a
-    ///         slice-scoped element id.</item>
-    /// </list>
+    /// Per-SD context supporting inline detection of named choice-type path variants
+    /// (e.g. <c>valueCodeableConcept</c> → slice of <c>value[x]</c>) during rule-path
+    /// resolution in <see cref="GetOrCreateElement"/>.  Attached as an SD annotation
+    /// alongside <see cref="DifferentialOrderContext"/>.
     /// </summary>
-    private static void NormalizeChoiceTypeSlices(
-        StructureDefinition sd,
-        StructureDefinition? parentSd,
-        StructureDefinition? coreTypeSd,
-        IResourceResolver? resolver = null)
+    private sealed class ChoiceSliceContext
     {
-        var elements = sd.Differential?.Element;
-        if (elements == null || elements.Count == 0) return;
+        /// <summary>
+        /// Resolver used to look up core-type StructureDefinitions for variant detection
+        /// at arbitrary sub-path depth (e.g. <c>Questionnaire.item.answerOption.valueCoding</c>
+        /// requires the <c>Questionnaire</c> SD to navigate through <c>item</c>/<c>answerOption</c>,
+        /// then the backbone's type SD to resolve <c>value[x]</c>).
+        /// </summary>
+        public IResourceResolver? Resolver { get; init; }
 
-        // Build variant map from the core FHIR type SD (has full type list); the
-        // immediate parentSd may be a constraint and only expose a subset of types.
-        var variantMap = BuildChoiceVariantMap(sd.Type, coreTypeSd, resolver);
-        if (variantMap.Count == 0) return;
+        /// <summary>
+        /// Immediate parent profile's SD (when the SD being compiled derives from another
+        /// profile).  Consulted to avoid re-emitting slicing parents or redundant
+        /// <c>max="1"</c> cardinality the parent already defines.
+        /// </summary>
+        public StructureDefinition? ParentBaseSd { get; init; }
 
-        var typePart = (sd.Type ?? string.Empty) + ".";
+        /// <summary>
+        /// The SD for the SD's root FHIR type (e.g. <c>UsageContext</c>, <c>Questionnaire</c>).
+        /// Used as the starting type for variant-detection lookups at path-segment 0.
+        /// </summary>
+        public StructureDefinition? CoreTypeSd { get; init; }
 
-        // Pre-compute which slices and slicing parents are already defined in the
-        // immediate parent SD's differential, so we don't re-add them in
-        // profile-of-profile scenarios (slicing is inherited, not re-emitted).
-        var baseElements = parentSd?.Differential?.Element;
+        /// <summary>
+        /// Full choice-element paths (e.g. <c>UsageContext.value[x]</c>) whose slicing
+        /// parent has already been emitted during this SD compile — guards against
+        /// duplicate slicing parents when multiple rules target the same variant.
+        /// </summary>
+        public HashSet<string> HandledSlicingParents { get; } = new(StringComparer.Ordinal);
 
-        var slicingParentsHandled = new HashSet<string>(StringComparer.Ordinal);
+        /// <summary>
+        /// Cache keyed by (current-depth FHIR type, path segment).  Value is the
+        /// detected variant (<c>choiceBase</c>, <c>typeName</c>) or <c>null</c> when
+        /// the segment is not a choice-type variant.
+        /// </summary>
+        public Dictionary<(string parentType, string segment), (string ChoiceBase, string TypeName)?> VariantCache { get; }
+            = new();
 
-        for (int i = 0; i < elements.Count; i++)
-        {
-            var el = elements[i];
-            if (string.IsNullOrEmpty(el.Path)) continue;
-            if (!el.Path.StartsWith(typePart, StringComparison.Ordinal)) continue;
-
-            var relPath = el.Path[typePart.Length..];
-            var dotIdx = relPath.IndexOf('.');
-            var firstSeg = dotIdx < 0 ? relPath : relPath[..dotIdx];
-
-            if (!variantMap.TryGetValue(firstSeg, out var choiceInfo)) continue;
-
-            var (choiceBase, typeName) = choiceInfo;
-            // choiceBase = "value[x]", typeName = "CodeableConcept", firstSeg = "valueCodeableConcept"
-
-            var fullChoicePath = typePart + choiceBase;              // "UsageContext.value[x]"
-            var sliceId = fullChoicePath + ":" + firstSeg;           // "UsageContext.value[x]:valueCodeableConcept"
-
-            // Check whether the parent (base) SD already defines slicing on value[x].
-            // When it does, don't add the slicing parent element to our differential —
-            // the slicing is inherited and re-emitting it would be redundant.
-            var baseAlreadyHasSlicing = baseElements != null && baseElements.Any(e =>
-                e.Path == fullChoicePath
-                && string.IsNullOrEmpty(e.SliceName)
-                && e.Slicing != null);
-
-            // Check whether the parent SD already defines the specific slice.
-            // When it does, we should not add cardinality (max:"1") which is inherited.
-            var baseAlreadyHasSlice = baseElements != null && baseElements.Any(e =>
-                e.Path == fullChoicePath
-                && string.Equals(e.SliceName, firstSeg, StringComparison.Ordinal));
-
-            // Ensure the parent value[x] element exists with type-discriminated slicing —
-            // but only when the base doesn't already define it.
-            if (!slicingParentsHandled.Contains(fullChoicePath) && !baseAlreadyHasSlicing)
-            {
-                var parentEl = elements.FirstOrDefault(e =>
-                    e.Path == fullChoicePath && string.IsNullOrEmpty(e.SliceName));
-
-                if (parentEl == null)
-                {
-                    // Insert the parent element before the first choice-typed element.
-                    parentEl = new ElementDefinition { Path = fullChoicePath, ElementId = fullChoicePath };
-                    elements.Insert(i, parentEl);
-                    i++;  // compensate for the inserted element
-                }
-
-                parentEl.Slicing ??= new ElementDefinition.SlicingComponent
-                {
-                    Discriminator =
-                    [
-                        new ElementDefinition.DiscriminatorComponent
-                        {
-                            Type = ElementDefinition.DiscriminatorType.Type,
-                            Path = "$this"
-                        }
-                    ],
-                    Ordered = false,
-                    Rules   = ElementDefinition.SlicingRules.Open
-                };
-            }
-
-            slicingParentsHandled.Add(fullChoicePath);
-
-            var isSliceRoot = dotIdx < 0;     // path == "UsageContext.valueCodeableConcept"
-            var subPath    = dotIdx >= 0 ? relPath[(dotIdx + 1)..] : null;
-
-            if (isSliceRoot)
-            {
-                // Transform: "UsageContext.valueCodeableConcept" → slice on "UsageContext.value[x]"
-                el.Path      = fullChoicePath;
-                el.ElementId = sliceId;
-                el.SliceName = firstSeg;
-
-                // Set type constraint when not already present.
-                if (el.Type == null || el.Type.Count == 0)
-                    el.Type = [new ElementDefinition.TypeRefComponent { Code = typeName }];
-
-                // Named choice-type slices are always 0..1, but only add max when the
-                // parent profile doesn't already define it (avoids redundant cardinality
-                // in profile-of-profile scenarios).
-                if (el.MaxElement == null && !baseAlreadyHasSlice)
-                    el.Max = "1";
-
-                // When the element carries a pattern that is a sub-type of the declared
-                // slice type (e.g. patternCoding on a valueCodeableConcept slice), wrap it
-                // in the correct container type (e.g. patternCodeableConcept { coding: [...] }).
-                WrapChoiceSlicePattern(el, typeName);
-            }
-            else
-            {
-                // Sub-element: "UsageContext.valueCodeableConcept.coding" →
-                //   path = "UsageContext.value[x].coding"
-                //   id   = "UsageContext.value[x]:valueCodeableConcept.coding"
-                el.Path      = fullChoicePath + "." + subPath;
-                el.ElementId = sliceId + "." + subPath;
-                el.SliceName = null;
-            }
-        }
+        /// <summary>
+        /// Cache of type-name → SD lookups to avoid repeated resolver calls during a
+        /// single SD compile.
+        /// </summary>
+        public Dictionary<string, StructureDefinition?> TypeSdCache { get; } = new(StringComparer.Ordinal);
     }
 
     /// <summary>
-    /// When a named choice-type slice element carries a pattern that is a sub-type of the
-    /// slice's declared type (e.g. a <c>Coding</c> pattern on a <c>valueCodeableConcept</c>
-    /// slice whose declared type is <c>CodeableConcept</c>), wraps the pattern in an instance
-    /// of the declared type so that the serialized FHIR JSON matches the expected form.
-    /// For example: <c>patternCoding</c> → <c>patternCodeableConcept { coding: [&lt;pattern&gt;] }</c>.
+    /// Attaches a <see cref="ChoiceSliceContext"/> to <paramref name="sd"/> so that
+    /// <see cref="GetOrCreateElement"/> can inline-detect choice-type path variants.
+    /// Safe to call multiple times; only the first call takes effect.
+    /// </summary>
+    private static void AttachChoiceSliceContext(
+        StructureDefinition sd,
+        StructureDefinition? parentBaseSd,
+        StructureDefinition? coreTypeSd,
+        IResourceResolver? resolver)
+    {
+        if (sd.Annotation<ChoiceSliceContext>() != null) return;
+        sd.AddAnnotation(new ChoiceSliceContext
+        {
+            Resolver = resolver,
+            ParentBaseSd = parentBaseSd,
+            CoreTypeSd = coreTypeSd
+        });
+    }
+
+    /// <summary>
+    /// Looks up a <see cref="StructureDefinition"/> for a bare FHIR type name using the
+    /// ChoiceSliceContext's resolver, caching per SD compile.  Returns <c>null</c> when
+    /// the type cannot be resolved (context-less SDs or unknown types).
+    /// </summary>
+    private static StructureDefinition? ResolveTypeSd(string typeName, ChoiceSliceContext ctx)
+    {
+        if (string.IsNullOrEmpty(typeName)) return null;
+        if (ctx.CoreTypeSd != null
+            && string.Equals(ctx.CoreTypeSd.Type, typeName, StringComparison.Ordinal))
+            return ctx.CoreTypeSd;
+        if (ctx.TypeSdCache.TryGetValue(typeName, out var cached)) return cached;
+        var sd = FindStructureDefinitionForType(typeName, ctx.Resolver);
+        ctx.TypeSdCache[typeName] = sd;
+        return sd;
+    }
+
+    /// <summary>
+    /// Detects whether <paramref name="segment"/> is a named choice-type variant of some
+    /// <c>&lt;base&gt;[x]</c> property on <paramref name="currentType"/>.  Uses a right-to-left
+    /// uppercase split: for each uppercase position <c>i</c> in <paramref name="segment"/>,
+    /// checks whether <c>segment[..i]</c> is the base name of an <c>X[x]</c> element on the
+    /// current type and <c>segment[i..]</c> is one of its declared types.  Returns
+    /// <c>(choiceBase, typeName)</c> on success, otherwise <c>null</c>.
+    /// </summary>
+    private static (string ChoiceBase, string TypeName)? DetectChoiceVariant(
+        string? currentType, string segment, ChoiceSliceContext? ctx)
+    {
+        if (ctx == null || string.IsNullOrEmpty(currentType) || string.IsNullOrEmpty(segment))
+            return null;
+        if (segment.Length < 2) return null;
+
+        var key = (currentType, segment);
+        if (ctx.VariantCache.TryGetValue(key, out var cached)) return cached;
+
+        var typeSd = ResolveTypeSd(currentType, ctx);
+        if (typeSd == null) { ctx.VariantCache[key] = null; return null; }
+
+        var elements = (IEnumerable<ElementDefinition>?)typeSd.Snapshot?.Element
+                    ?? typeSd.Differential?.Element;
+        if (elements == null) { ctx.VariantCache[key] = null; return null; }
+
+        // Scan right-to-left over uppercase letters: each is a candidate split point
+        // between base name and type suffix.
+        for (int i = segment.Length - 1; i > 0; i--)
+        {
+            if (!char.IsUpper(segment[i])) continue;
+            var baseName = segment[..i];
+            var typeSuffix = segment[i..];
+            var candidatePath = currentType + "." + baseName + "[x]";
+
+            ElementDefinition? match = null;
+            foreach (var el in elements)
+            {
+                if (el.Path == candidatePath) { match = el; break; }
+            }
+            if (match?.Type == null) continue;
+
+            foreach (var t in match.Type)
+            {
+                if (!string.IsNullOrEmpty(t.Code)
+                    && string.Equals(t.Code, typeSuffix, StringComparison.Ordinal))
+                {
+                    var result = (baseName + "[x]", typeSuffix);
+                    ctx.VariantCache[key] = result;
+                    return result;
+                }
+            }
+            // An <base>[x] element exists but doesn't declare this type suffix; no need to
+            // scan shorter split points since we have a concrete non-matching answer for
+            // this baseName.  Fall through to try earlier uppercase positions.
+        }
+
+        ctx.VariantCache[key] = null;
+        return null;
+    }
+
+    /// <summary>
+    /// Advances the "current FHIR type" across a non-variant path segment by looking up
+    /// <paramref name="fieldName"/> on <paramref name="currentType"/>'s SD and returning
+    /// the first declared type code.  Returns <c>null</c> when the field or the current
+    /// type cannot be resolved — callers tolerate <c>null</c> by skipping further variant
+    /// detection at deeper segments.
+    /// </summary>
+    private static string? AdvanceChoiceType(string? currentType, string fieldName, ChoiceSliceContext? ctx)
+    {
+        if (ctx == null || string.IsNullOrEmpty(currentType) || string.IsNullOrEmpty(fieldName)) return null;
+        var typeSd = ResolveTypeSd(currentType, ctx);
+        if (typeSd == null) return null;
+        var elements = (IEnumerable<ElementDefinition>?)typeSd.Snapshot?.Element
+                    ?? typeSd.Differential?.Element;
+        if (elements == null) return null;
+        var targetPath = currentType + "." + fieldName;
+        foreach (var el in elements)
+        {
+            if (el.Path == targetPath)
+                return el.Type?.FirstOrDefault()?.Code;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Ensures <paramref name="fullChoicePath"/> has a slicing-parent element in
+    /// <paramref name="sd"/>'s differential (type-discriminated, open, unordered).
+    /// Skips insertion when the parent profile's differential already defines slicing
+    /// on the same path (slicing is inherited).  Idempotent per SD compile via
+    /// <see cref="ChoiceSliceContext.HandledSlicingParents"/>.
+    /// </summary>
+    private static void EnsureChoiceSlicingParent(
+        StructureDefinition sd, ChoiceSliceContext ctx, string fullChoicePath)
+    {
+        if (!ctx.HandledSlicingParents.Add(fullChoicePath)) return;
+
+        var baseAlreadyHasSlicing = ctx.ParentBaseSd?.Differential?.Element?.Any(e =>
+            e.Path == fullChoicePath
+            && string.IsNullOrEmpty(e.SliceName)
+            && e.Slicing != null) ?? false;
+        if (baseAlreadyHasSlicing) return;
+
+        var parentEl = sd.Differential.Element.FirstOrDefault(e =>
+            e.Path == fullChoicePath && string.IsNullOrEmpty(e.SliceName));
+        if (parentEl == null)
+        {
+            parentEl = new ElementDefinition { Path = fullChoicePath, ElementId = fullChoicePath };
+            InsertElementInOrder(sd, parentEl);
+        }
+
+        parentEl.Slicing ??= new ElementDefinition.SlicingComponent
+        {
+            Discriminator =
+            [
+                new ElementDefinition.DiscriminatorComponent
+                {
+                    Type = ElementDefinition.DiscriminatorType.Type,
+                    Path = "$this"
+                }
+            ],
+            Ordered = false,
+            Rules   = ElementDefinition.SlicingRules.Open
+        };
+    }
+
+    /// <summary>
+    /// When a named choice-type slice element carries a pattern/fixed value that is a
+    /// sub-type of the slice's declared type (e.g. a <c>Coding</c> pattern on a
+    /// <c>valueCodeableConcept</c> slice whose declared type is <c>CodeableConcept</c>),
+    /// wraps the value in an instance of the declared type so that the serialized FHIR
+    /// JSON uses the correct <c>pattern[x]</c> / <c>fixed[x]</c> variant.
+    /// Currently handles the common case of <c>Coding</c> → <c>CodeableConcept { coding: [&lt;value&gt;] }</c>.
     /// </summary>
     private static void WrapChoiceSlicePattern(ElementDefinition el, string typeName)
     {
-        var pattern = el.Pattern;
-        WrapChoiceSliceDataType(ref pattern, typeName);
-        el.Pattern = pattern;
-
-        var fixed_ = el.Fixed;
-        WrapChoiceSliceDataType(ref fixed_, typeName);
-        el.Fixed = fixed_;
+        el.Pattern = WrapChoiceValue(el.Pattern, typeName);
+        el.Fixed   = WrapChoiceValue(el.Fixed,   typeName);
     }
 
     /// <summary>
-    /// Rewrites <paramref name="value"/> when it is a sub-type of <paramref name="typeName"/>
-    /// so that the serialised FHIR JSON carries the correct <c>pattern[x]</c> / <c>fixed[x]</c>
-    /// property name.  Currently handles:
-    /// <list type="bullet">
-    ///   <item><description>
-    ///     <c>Coding</c> assigned to a <c>CodeableConcept</c> slice —
-    ///     wraps into <c>patternCodeableConcept { coding: [&lt;value&gt;] }</c>.
-    ///   </description></item>
-    /// </list>
+    /// Helper that rewrites a single <see cref="DataType"/> value to the correct container
+    /// type when assigning a sub-type (e.g. <c>Coding</c>) onto a choice-type slice whose
+    /// declared type is a super-type (e.g. <c>CodeableConcept</c>).  Returns the value
+    /// unchanged when no wrapping is required.
     /// </summary>
-    private static void WrapChoiceSliceDataType(ref DataType? value, string typeName)
+    private static DataType? WrapChoiceValue(DataType? value, string typeName)
     {
-        if (value == null) return;
-
-        var currentTypeName = value.TypeName;
-        if (string.Equals(currentTypeName, typeName, StringComparison.OrdinalIgnoreCase)) return;
+        if (value == null) return null;
+        if (string.Equals(value.TypeName, typeName, StringComparison.OrdinalIgnoreCase)) return value;
 
         // Coding inside CodeableConcept: wrap in a CodeableConcept with .coding = [pattern].
         if (string.Equals(typeName, "CodeableConcept", StringComparison.OrdinalIgnoreCase)
             && value is Hl7.Fhir.Model.Coding coding)
         {
-            value = new Hl7.Fhir.Model.CodeableConcept
+            return new Hl7.Fhir.Model.CodeableConcept
             {
-                Coding = [new Hl7.Fhir.Model.Coding
-                {
-                    System  = coding.System,
-                    Code    = coding.Code,
-                    Display = coding.Display,
-                }]
+                Coding =
+                [
+                    new Hl7.Fhir.Model.Coding
+                    {
+                        System  = coding.System,
+                        Code    = coding.Code,
+                        Display = coding.Display,
+                    }
+                ]
             };
         }
+        return value;
     }
 
-    /// <summary>
-    /// Builds a lookup from named choice-type variant segment names
-    /// (e.g. <c>valueCodeableConcept</c>) to their choice-element base name and FHIR type code
-    /// (e.g. <c>("value[x]", "CodeableConcept")</c>) for the given FHIR type.
-    /// Uses the base <see cref="StructureDefinition"/>'s snapshot (preferred) or differential
-    /// as the source. Falls back to the <paramref name="resolver"/> when <paramref name="baseSd"/>
-    /// is <c>null</c>.
-    /// </summary>
-    private static Dictionary<string, (string ChoiceBase, string TypeName)> BuildChoiceVariantMap(
-        string? fhirType,
-        StructureDefinition? baseSd,
-        IResourceResolver? resolver = null)
-    {
-        var map = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
-        if (string.IsNullOrEmpty(fhirType)) return map;
-
-        var sdToUse = baseSd;
-        if (sdToUse == null && resolver != null)
-            sdToUse = FindStructureDefinitionForType(fhirType, resolver);
-
-        // Prefer snapshot (complete) over differential (partial).
-        var elementSource = sdToUse?.Snapshot?.Element as IEnumerable<ElementDefinition>
-                         ?? sdToUse?.Differential?.Element as IEnumerable<ElementDefinition>;
-
-        if (elementSource == null) return map;
-
-        var prefix = fhirType + ".";
-        foreach (var el in elementSource)
-        {
-            if (string.IsNullOrEmpty(el.Path)) continue;
-            if (!el.Path.EndsWith("[x]", StringComparison.Ordinal)) continue;
-            if (!el.Path.StartsWith(prefix, StringComparison.Ordinal)) continue;
-
-            var relPath = el.Path[prefix.Length..];
-            // Only process immediate children (no dots in relPath).
-            if (relPath.Contains('.')) continue;
-
-            // relPath = "value[x]", baseName = "value"
-            var choiceBase = relPath;
-            var baseName   = relPath[..^3]; // strip "[x]"
-
-            if (el.Type == null) continue;
-            foreach (var typeRef in el.Type)
-            {
-                if (string.IsNullOrEmpty(typeRef.Code)) continue;
-                var typeName = typeRef.Code;
-                // FHIR naming: value + CodeableConcept → "valueCodeableConcept"
-                var capitalizedType = char.ToUpperInvariant(typeName[0]) + typeName[1..];
-                var variantName = baseName + capitalizedType;
-                map.TryAdd(variantName, (choiceBase, typeName));
-            }
-        }
-
-        return map;
-    }
 
     /// <summary>
     /// Removes cardinality values from differential elements when they are identical to the
