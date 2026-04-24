@@ -584,7 +584,7 @@ public static class FshCompiler
             Type = "Extension",
             BaseDefinition = ResolveBaseDefinitionCanonical(
                 context.ResolveAlias(ext.Parent ?? "http://hl7.org/fhir/StructureDefinition/Extension"),
-                "Extension", context),
+                "Extension", context, opts),
             Derivation = StructureDefinition.TypeDerivationRule.Constraint,
             Kind = StructureDefinition.StructureDefinitionKind.ComplexType,
             Differential = new StructureDefinition.DifferentialComponent
@@ -3126,14 +3126,22 @@ public static class FshCompiler
     }
 
     /// <summary>
-    /// Walks the base profile chain to compute the (fieldRank, sliceRank) pair for
-    /// one segment of an element id.  Stops at the closest base whose differential
-    /// defines any direct children of the parent path (after rewriting the root
-    /// prefix to that base's type).  When the child is not base-defined at any
-    /// reachable level, a sticky local rank is allocated (or looked up) via
-    /// <paramref name="orderCtx"/> so that siblings get distinct ranks and their
-    /// descendants sort contiguously.
+    /// Walks the FULL base profile chain (depth-guarded), collecting direct children of
+    /// the parent path at every level, then assigns canonical ranks by merging those
+    /// children base-first (ultimate-ancestor first).  This correctly handles the FHIR
+    /// convention that derived profile differentials are SPARSE — inherited elements
+    /// (e.g. <c>id</c>/<c>meta</c> from <c>Resource</c>, <c>extension</c>/
+    /// <c>modifierExtension</c> from <c>DomainResource</c>) do not re-appear in the
+    /// derived differential, yet must still be ordered canonically before any type-
+    /// specific children.
     /// </summary>
+    /// <remarks>
+    /// A field introduced by a more-ancestral base gets a lower rank than one
+    /// introduced by a more-derived profile, which matches the canonical element
+    /// ordering sushi / FHIR snapshot generation produce.  First-occurrence wins when
+    /// the same field appears at multiple levels (a derived profile re-listing an
+    /// inherited element to add constraints does not change its rank).
+    /// </remarks>
     private static (int fieldRank, int sliceRank) RankInBaseChain(
         string[] segments,
         int segmentIndex,
@@ -3145,112 +3153,127 @@ public static class FshCompiler
         DifferentialOrderContext orderCtx,
         int depth)
     {
-        if (depth > 10 || string.IsNullOrEmpty(baseDefinition))
+        // Collect the chain (immediate base first, ultimate base last).
+        var chain = new List<(string baseRoot, IList<ElementDefinition> diff)>();
+        var curDef = baseDefinition;
+        var curRoot = currentRoot;
+        int walkDepth = depth;
+        while (!string.IsNullOrEmpty(curDef) && walkDepth <= 10)
         {
-            return AllocateLocal(parentIdInSd, childField, childSlice, fieldRank: int.MaxValue,
-                baseHasParent: false, orderCtx);
+            var baseSd = ResolveStructureDefinition(curDef, orderCtx.Context, orderCtx.Options);
+            if (baseSd == null) break;
+
+            var baseRoot = baseSd.Type ?? curRoot;
+            var diff = (IList<ElementDefinition>?)baseSd.Differential?.Element ?? Array.Empty<ElementDefinition>();
+            chain.Add((baseRoot, diff));
+
+            curRoot = baseRoot;
+            curDef = baseSd.BaseDefinition;
+            walkDepth++;
         }
 
-        var baseSd = ResolveStructureDefinition(baseDefinition, orderCtx.Context, orderCtx.Options);
-        if (baseSd == null)
+        if (chain.Count == 0)
         {
-            return AllocateLocal(parentIdInSd, childField, childSlice, fieldRank: int.MaxValue,
-                baseHasParent: false, orderCtx);
+            return AllocateLocal(parentIdInSd, childField, childSlice, orderCtx, fieldRankFromBase: null);
         }
 
-        var baseElements = baseSd.Differential?.Element;
-        if (baseElements == null || baseElements.Count == 0)
-        {
-            // Recurse upward when this link has no differential.
-            return RankInBaseChain(segments, segmentIndex, baseSd.Type ?? currentRoot,
-                baseSd.BaseDefinition, childField, childSlice, parentIdInSd, orderCtx, depth + 1);
-        }
+        // Merge direct-children lists base-first (iterate chain in reverse) so that
+        // fields introduced by more-ancestral bases get smaller ranks — matching
+        // canonical FHIR element order.  First-occurrence wins: a derived profile
+        // re-listing an inherited element does not shift its rank.
+        var fieldRanks = new Dictionary<string, int>(StringComparer.Ordinal);
+        var sliceRanks = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+        int nextFieldRank = 0;
 
-        var baseRoot = baseSd.Type ?? currentRoot;
-
-        // Build rewritten parent id: swap segments[0] (currentRoot) → baseRoot, keep
-        // the interior segments unchanged (they are the same field/slice names across
-        // profiles of the same underlying type).
-        string rewrittenParent;
-        if (segmentIndex == 1)
+        for (int i = chain.Count - 1; i >= 0; i--)
         {
-            rewrittenParent = baseRoot;
-        }
-        else
-        {
-            rewrittenParent = baseRoot + "." + string.Join('.', segments, 1, segmentIndex - 1);
-        }
+            var (baseRoot, diff) = chain[i];
+            string rewrittenParent = segmentIndex == 1
+                ? baseRoot
+                : baseRoot + "." + string.Join('.', segments, 1, segmentIndex - 1);
+            var parentPrefix = rewrittenParent + ".";
 
-        // Collect direct children in differential order, grouping slices by field.
-        var fields = new List<string>();
-        Dictionary<string, List<string>>? slicesPerField = null;
-        var parentPrefix = rewrittenParent + ".";
-        foreach (var el in baseElements)
-        {
-            var eid = el.ElementId ?? el.Path ?? string.Empty;
-            if (!eid.StartsWith(parentPrefix, StringComparison.Ordinal)) continue;
-            var rest = eid[parentPrefix.Length..];
-            if (rest.Length == 0 || rest.Contains('.')) continue; // not a direct child
-
-            var (fn, sn) = ParseIdSegment(rest);
-            if (!fields.Contains(fn, StringComparer.Ordinal)) fields.Add(fn);
-            if (sn != null)
+            foreach (var el in diff)
             {
-                slicesPerField ??= new Dictionary<string, List<string>>(StringComparer.Ordinal);
-                if (!slicesPerField.TryGetValue(fn, out var list))
-                    slicesPerField[fn] = list = new List<string>();
-                if (!list.Contains(sn, StringComparer.Ordinal)) list.Add(sn);
+                var eid = el.ElementId ?? el.Path ?? string.Empty;
+                if (!eid.StartsWith(parentPrefix, StringComparison.Ordinal)) continue;
+                var rest = eid[parentPrefix.Length..];
+                if (rest.Length == 0 || rest.Contains('.')) continue;
+
+                var (fn, sn) = ParseIdSegment(rest);
+                if (!fieldRanks.ContainsKey(fn))
+                    fieldRanks[fn] = nextFieldRank++;
+
+                if (sn != null)
+                {
+                    if (!sliceRanks.TryGetValue(fn, out var sliceMap))
+                        sliceRanks[fn] = sliceMap = new Dictionary<string, int>(StringComparer.Ordinal);
+                    if (!sliceMap.ContainsKey(sn))
+                        sliceMap[sn] = sliceMap.Count;
+                }
             }
         }
 
-        if (fields.Count == 0)
+        // Fallback for recursive FHIR extension references: `Foo.extension[:X]` and
+        // `Foo.modifierExtension[:X]` elements are themselves typed as `Extension`, so
+        // their children follow Extension's own canonical order (id, extension, url,
+        // value[x]) — which is NOT re-stated in any parent profile's differential
+        // because it is implicit in the type.  When our profile-chain walk finds no
+        // children under such a parent, merge Extension's canonical children in.
+        if (fieldRanks.Count == 0 && segmentIndex >= 2)
         {
-            // Parent path has no children at this level; recurse upward.
-            return RankInBaseChain(segments, segmentIndex, baseRoot,
-                baseSd.BaseDefinition, childField, childSlice, parentIdInSd, orderCtx, depth + 1);
+            var lastParentSeg = segments[segmentIndex - 1];
+            var colonIdx = lastParentSeg.IndexOf(':');
+            var lastFieldName = colonIdx < 0 ? lastParentSeg : lastParentSeg[..colonIdx];
+            if (lastFieldName == "extension" || lastFieldName == "modifierExtension")
+            {
+                MergeTypeCanonicalChildren(
+                    "http://hl7.org/fhir/StructureDefinition/Extension",
+                    fieldRanks, sliceRanks, orderCtx);
+            }
         }
 
-        // Authoritative children at this level.
-        var fieldIdx = fields.IndexOf(childField);
-        if (fieldIdx < 0)
+        int? baseFieldRank = fieldRanks.TryGetValue(childField, out var fr) ? fr : null;
+
+        if (childSlice == null)
         {
-            // Locally-introduced field on a base-known parent: sticky local rank.
-            return AllocateLocal(parentIdInSd, childField, childSlice, fieldRank: int.MaxValue,
-                baseHasParent: true, orderCtx);
+            // Bare (un-sliced) element at this path.
+            return baseFieldRank.HasValue
+                ? (baseFieldRank.Value, 0)
+                : AllocateLocal(parentIdInSd, childField, null, orderCtx, fieldRankFromBase: null);
         }
 
-        // Base-defined field.  Slice: 0 for bare, 1+idx for base slice, sticky local
-        // for a slice not defined in the base.
-        if (childSlice == null) return (fieldIdx, 0);
-
-        if (slicesPerField != null
-            && slicesPerField.TryGetValue(childField, out var list2))
+        // Named slice.
+        if (baseFieldRank.HasValue
+            && sliceRanks.TryGetValue(childField, out var m)
+            && m.TryGetValue(childSlice, out var baseSliceIdx))
         {
-            var idx = list2.IndexOf(childSlice);
-            if (idx >= 0) return (fieldIdx, 1 + idx);
+            return (baseFieldRank.Value, 1 + baseSliceIdx);
         }
 
-        return AllocateLocal(parentIdInSd, childField, childSlice, fieldRank: fieldIdx,
-            baseHasParent: true, orderCtx);
+        return AllocateLocal(parentIdInSd, childField, childSlice, orderCtx, fieldRankFromBase: baseFieldRank);
     }
 
     /// <summary>
     /// Allocates (or reuses) a sticky monotonic rank for a locally-introduced field
-    /// or slice.  Using a sticky value — rather than <see cref="int.MaxValue"/> —
-    /// ensures that two local siblings get distinct rank entries so that their
-    /// descendants remain grouped contiguously under their own parent rather than
-    /// collapsing together via tuple-prefix ties.
+    /// or slice that does not appear in any base profile's differential chain.
+    /// Using a sticky value — rather than a naive <see cref="int.MaxValue"/> — ensures
+    /// distinct rank entries for sibling locally-added elements so their descendants
+    /// remain grouped contiguously under their own parent.
     /// </summary>
     private static (int fieldRank, int sliceRank) AllocateLocal(
         string parentIdInSd,
         string childField,
         string? childSlice,
-        int fieldRank,
-        bool baseHasParent,
-        DifferentialOrderContext orderCtx)
+        DifferentialOrderContext orderCtx,
+        int? fieldRankFromBase)
     {
-        // Allocate sticky field rank only when not resolved from base.
-        if (fieldRank == int.MaxValue)
+        int fieldRank;
+        if (fieldRankFromBase.HasValue)
+        {
+            fieldRank = fieldRankFromBase.Value;
+        }
+        else
         {
             var fieldKey = parentIdInSd + "|field|" + childField;
             if (!orderCtx.LocalRanks.TryGetValue(fieldKey, out fieldRank))
@@ -3260,13 +3283,7 @@ public static class FshCompiler
             }
         }
 
-        if (childSlice == null)
-        {
-            // No slice: bare element sorts at sliceRank=0 (before any named slices).
-            // When the field itself is locally-introduced there is nothing to collide
-            // with inside that field, so 0 is safe.
-            return (fieldRank, 0);
-        }
+        if (childSlice == null) return (fieldRank, 0);
 
         var sliceKey = parentIdInSd + "|slice|" + childField + ":" + childSlice;
         if (!orderCtx.LocalRanks.TryGetValue(sliceKey, out var sliceRank))
@@ -3274,10 +3291,62 @@ public static class FshCompiler
             sliceRank = orderCtx.NextLocalRank++;
             orderCtx.LocalRanks[sliceKey] = sliceRank;
         }
-        // Suppress unused-parameter warning: baseHasParent is retained for future use
-        // (distinguishing "entire parent unknown" vs "field unknown under known parent").
-        _ = baseHasParent;
         return (fieldRank, sliceRank);
+    }
+
+    /// <summary>
+    /// Walks a type's base chain (e.g. <c>Extension → Element</c>) and merges the
+    /// direct children of that type's root into <paramref name="fieldRanks"/> and
+    /// <paramref name="sliceRanks"/>, base-first.  Used as a fallback for FHIR
+    /// recursive-type references (<c>.extension</c>, <c>.modifierExtension</c>)
+    /// whose child ordering is governed by the referenced type rather than by a
+    /// path entry in any profile differential.
+    /// </summary>
+    private static void MergeTypeCanonicalChildren(
+        string typeCanonicalUrl,
+        Dictionary<string, int> fieldRanks,
+        Dictionary<string, Dictionary<string, int>> sliceRanks,
+        DifferentialOrderContext orderCtx)
+    {
+        var chain = new List<(string root, IList<ElementDefinition> diff)>();
+        var curDef = typeCanonicalUrl;
+        int d = 0;
+        while (!string.IsNullOrEmpty(curDef) && d <= 10)
+        {
+            var baseSd = ResolveStructureDefinition(curDef, orderCtx.Context, orderCtx.Options);
+            if (baseSd == null) break;
+            var root = baseSd.Type ?? string.Empty;
+            var diff = (IList<ElementDefinition>?)baseSd.Differential?.Element ?? Array.Empty<ElementDefinition>();
+            chain.Add((root, diff));
+            curDef = baseSd.BaseDefinition;
+            d++;
+        }
+
+        int nextRank = fieldRanks.Count;
+        for (int i = chain.Count - 1; i >= 0; i--)
+        {
+            var (root, diff) = chain[i];
+            if (string.IsNullOrEmpty(root)) continue;
+            var prefix = root + ".";
+            foreach (var el in diff)
+            {
+                var eid = el.ElementId ?? el.Path ?? string.Empty;
+                if (!eid.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                var rest = eid[prefix.Length..];
+                if (rest.Length == 0 || rest.Contains('.')) continue;
+
+                var (fn, sn) = ParseIdSegment(rest);
+                if (!fieldRanks.ContainsKey(fn))
+                    fieldRanks[fn] = nextRank++;
+                if (sn != null)
+                {
+                    if (!sliceRanks.TryGetValue(fn, out var m))
+                        sliceRanks[fn] = m = new Dictionary<string, int>(StringComparer.Ordinal);
+                    if (!m.ContainsKey(sn))
+                        m[sn] = m.Count;
+                }
+            }
+        }
     }
 
     /// <summary>
