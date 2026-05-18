@@ -1,0 +1,46 @@
+name: CI Serializer
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test Serializer
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore dependencies
+        run: dotnet restore fsh-tester/Hl7.FhirShorthand.Serialization.Test.csproj
+
+      - name: Build
+        run: dotnet build fsh-tester/Hl7.FhirShorthand.Serialization.Test.csproj --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test fsh-tester/Hl7.FhirShorthand.Serialization.Test.csproj --no-build --configuration Release --logger "trx;LogFileName=serializer-test-results.trx" --results-directory ./TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serializer-test-results
+          path: ./TestResults/*.trx
+
+      - name: Pack
+        run: dotnet pack fsh-processor/Hl7.FhirShorthand.Serialization.csproj --no-build --configuration Release --output ./nupkgs
+
+      - name: Upload NuGet packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: serializer-nupkgs
+          path: ./nupkgs/*.*nupkg
