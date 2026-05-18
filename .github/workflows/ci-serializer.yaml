@@ -1,4 +1,4 @@
-﻿name: CI
+name: CI Serializer
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-and-test:
-    name: Build & Test
+    name: Build & Test Serializer
     runs-on: ubuntu-latest
 
     steps:
@@ -24,17 +24,17 @@ jobs:
           dotnet-version: '10.x'
 
       - name: Restore dependencies
-        run: dotnet restore fsh-processor.slnx
+        run: dotnet restore fsh-tester/Hl7.FhirShorthand.Serialization.Test.csproj
 
       - name: Build
-        run: dotnet build fsh-processor.slnx --no-restore --configuration Release
+        run: dotnet build fsh-tester/Hl7.FhirShorthand.Serialization.Test.csproj --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test fsh-processor.slnx --no-build --configuration Release --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
+        run: dotnet test fsh-tester/Hl7.FhirShorthand.Serialization.Test.csproj --no-build --configuration Release --logger "trx;LogFileName=serializer-test-results.trx" --results-directory ./TestResults
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: serializer-test-results
           path: ./TestResults/*.trx

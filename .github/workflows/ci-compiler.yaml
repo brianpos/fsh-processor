@@ -1,0 +1,49 @@
+name: CI Compiler
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test Compiler
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore dependencies
+        run: |
+          dotnet restore fsh-compiler-tester-R4/Hl7.FhirShorthand.Compiler.Test.R4.csproj
+          dotnet restore fsh-compiler-R4B/Hl7.FhirShorthand.Compiler.R4B.csproj
+          dotnet restore fsh-compiler-R5/Hl7.FhirShorthand.Compiler.R5.csproj
+
+      - name: Build
+        run: dotnet build fsh-compiler-tester-R4/Hl7.FhirShorthand.Compiler.Test.R4.csproj --no-restore --configuration Release
+
+      - name: Build R4B variant
+        run: dotnet build fsh-compiler-R4B/Hl7.FhirShorthand.Compiler.R4B.csproj --no-restore --configuration Release
+
+      - name: Build R5 variant
+        run: dotnet build fsh-compiler-R5/Hl7.FhirShorthand.Compiler.R5.csproj --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test fsh-compiler-tester-R4/Hl7.FhirShorthand.Compiler.Test.R4.csproj --no-build --configuration Release --logger "trx;LogFileName=compiler-test-results.trx" --results-directory ./TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-test-results
+          path: ./TestResults/*.trx
