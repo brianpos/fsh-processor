@@ -38,3 +38,12 @@ jobs:
         with:
           name: serializer-test-results
           path: ./TestResults/*.trx
+
+      - name: Pack
+        run: dotnet pack fsh-processor/Hl7.FhirShorthand.Serialization.csproj --no-build --configuration Release --output ./nupkgs
+
+      - name: Upload NuGet packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: serializer-nupkgs
+          path: ./nupkgs/*.*nupkg

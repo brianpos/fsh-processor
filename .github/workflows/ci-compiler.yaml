@@ -47,3 +47,16 @@ jobs:
         with:
           name: compiler-test-results
           path: ./TestResults/*.trx
+
+      - name: Pack
+        run: |
+          dotnet pack fsh-compiler/Hl7.FhirShorthand.Compiler.csproj --no-build --configuration Release --output ./nupkgs
+          dotnet pack fsh-compiler-R4/Hl7.FhirShorthand.Compiler.R4.csproj --no-build --configuration Release --output ./nupkgs
+          dotnet pack fsh-compiler-R4B/Hl7.FhirShorthand.Compiler.R4B.csproj --no-build --configuration Release --output ./nupkgs
+          dotnet pack fsh-compiler-R5/Hl7.FhirShorthand.Compiler.R5.csproj --no-build --configuration Release --output ./nupkgs
+
+      - name: Upload NuGet packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-nupkgs
+          path: ./nupkgs/*.*nupkg
