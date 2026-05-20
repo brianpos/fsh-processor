@@ -5697,8 +5697,26 @@ public static class FshCompiler
         }
 
         // Apply per-element mapping rules.
-        foreach (var rule in mapping.Rules)
+        ApplyMappingRules(mapping.Rules, identity, sd, context, opts);
+    }
+
+    /// <summary>
+    /// Applies a list of mapping rules (which may include <see cref="MappingInsertRule"/> entries
+    /// that must be expanded) to a <see cref="StructureDefinition"/>.
+    /// </summary>
+    private static void ApplyMappingRules(
+        IEnumerable<MappingRule> rules, string identity, StructureDefinition sd, CompilerContext context, CompilerOptions? opts)
+    {
+        foreach (var rule in rules)
         {
+            if (rule is MappingInsertRule insertRule)
+            {
+                var resolved = RuleSetResolver.Resolve(
+                    insertRule.RuleSetReference, insertRule.IsParameterized, insertRule.Parameters, context);
+                ApplyMappingRules(resolved.OfType<MappingRule>(), identity, sd, context, opts);
+                continue;
+            }
+
             if (rule is not MappingMapRule mapRule) continue;
 
             ElementDefinition targetEd;
